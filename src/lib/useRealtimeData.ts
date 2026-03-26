@@ -8,12 +8,13 @@ export function useRealtimeData() {
   const [matchups, setMatchups] = useState<Matchup[]>([]);
   const [events, setEvents] = useState<EventLog[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [colliderRunning, setColliderRunning] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
 
-    const [matchupsRes, eventsRes, playersRes] = await Promise.all([
+    const [matchupsRes, eventsRes, playersRes, stateRes] = await Promise.all([
       supabase
         .from("matchups")
         .select("*, player_a:players!player_a_id(*), player_b:players!player_b_id(*)")
@@ -24,11 +25,13 @@ export function useRealtimeData() {
         .order("created_at", { ascending: false })
         .limit(50),
       supabase.from("players").select("*"),
+      supabase.from("collider_state").select("*").single(),
     ]);
 
     if (matchupsRes.data) setMatchups(matchupsRes.data);
     if (eventsRes.data) setEvents(eventsRes.data);
     if (playersRes.data) setPlayers(playersRes.data);
+    if (stateRes.data) setColliderRunning(stateRes.data.is_running);
     setLoading(false);
   }, []);
 
@@ -44,7 +47,6 @@ export function useRealtimeData() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "matchups" },
         () => {
-          // Refetch to get joined player data
           fetchData();
         }
       )
@@ -74,12 +76,26 @@ export function useRealtimeData() {
       )
       .subscribe();
 
+    // Subscribe to collider state changes
+    const colliderChannel = supabase
+      .channel("collider-realtime")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "collider_state" },
+        (payload) => {
+          const newState = payload.new as { is_running: boolean };
+          setColliderRunning(newState.is_running);
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(matchupChannel);
       supabase.removeChannel(eventChannel);
       supabase.removeChannel(playerChannel);
+      supabase.removeChannel(colliderChannel);
     };
   }, [fetchData]);
 
-  return { matchups, events, players, loading };
+  return { matchups, events, players, colliderRunning, loading };
 }

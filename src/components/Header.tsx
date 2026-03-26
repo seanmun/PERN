@@ -46,7 +46,7 @@ export default function Header() {
           <h1 className="text-lg font-bold tracking-widest text-foreground leading-tight">
             PERN
           </h1>
-          <span className="text-[9px] text-zinc-600 tracking-wide">
+          <span className="text-[9px] text-zinc-400 tracking-wide">
             Pinehurst Organization for Nuclear Research
           </span>
         </Link>
