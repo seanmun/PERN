@@ -133,16 +133,10 @@ export default function ColliderChamber({ players, colliderRunning, collisionSpe
     } else if (players && players.length > 0) {
       const playerMap = new Map(players.map((p) => [p.id, p]));
       particlesRef.current.forEach((particle) => {
+        if (locallyCollided.current.has(particle.id)) return;
         const dbPlayer = playerMap.get(particle.id);
         if (dbPlayer) {
-          if (dbPlayer.is_active) {
-            // DB says active (e.g. after reset) — clear local override
-            locallyCollided.current.delete(particle.id);
-            particle.active = true;
-          } else if (!locallyCollided.current.has(particle.id)) {
-            // DB says inactive and we didn't detect locally — sync it
-            particle.active = false;
-          }
+          particle.active = dbPlayer.is_active;
         }
       });
     }
@@ -169,6 +163,7 @@ export default function ColliderChamber({ players, colliderRunning, collisionSpe
       setTimeout(() => setStatus("Collider active — monitoring for collisions"), 3600);
     } else if (!colliderRunning && wasRunningRef.current) {
       wasRunningRef.current = false;
+      locallyCollided.current.clear();
       setStatus("Collider idle");
     }
   }, [colliderRunning]);
