@@ -59,14 +59,9 @@ export default function AdminPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    // Verify by making a test call
-    const res = await fetch("/api/admin/settings", {
+    const res = await fetch("/api/admin/verify", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-admin-secret": secret,
-      },
-      body: JSON.stringify({ collision_speed: 5 }),
+      headers: { "x-admin-secret": secret },
     });
 
     if (res.ok) {

@@ -44,36 +44,36 @@ export function useRealtimeData() {
 
     const supabase = createClient();
 
-    // Subscribe to new matchups
+    // Subscribe to all matchup changes (insert + delete)
     const matchupChannel = supabase
       .channel("matchups-realtime")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "matchups" },
+        { event: "*", schema: "public", table: "matchups" },
         () => {
           fetchData();
         }
       )
       .subscribe();
 
-    // Subscribe to new events
+    // Subscribe to all event changes
     const eventChannel = supabase
       .channel("events-realtime")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "event_logs" },
-        (payload) => {
-          setEvents((prev) => [payload.new as EventLog, ...prev]);
+        { event: "*", schema: "public", table: "event_logs" },
+        () => {
+          fetchData();
         }
       )
       .subscribe();
 
-    // Subscribe to player updates (active status changes)
+    // Subscribe to all player changes
     const playerChannel = supabase
       .channel("players-realtime")
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "players" },
+        { event: "*", schema: "public", table: "players" },
         () => {
           fetchData();
         }
