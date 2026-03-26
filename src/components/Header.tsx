@@ -42,10 +42,13 @@ export default function Header() {
   return (
     <header className="w-full border-b border-border">
       <div className="flex items-center justify-between px-4 py-3">
-        <Link href="/">
-          <h1 className="text-lg font-bold tracking-widest text-foreground">
+        <Link href="/" className="flex flex-col">
+          <h1 className="text-lg font-bold tracking-widest text-foreground leading-tight">
             PERN
           </h1>
+          <span className="text-[9px] text-zinc-600 tracking-wide">
+            Pinehurst Organization for Nuclear Research
+          </span>
         </Link>
         {user ? (
           <Link

@@ -267,6 +267,11 @@ export default function ColliderChamber({ players }: ColliderChamberProps) {
 
   return (
     <div className="flex flex-col items-center gap-4">
+      {/* Label */}
+      <p className="text-[10px] font-mono text-zinc-600 tracking-widest uppercase">
+        Small Hadron Collider
+      </p>
+
       {/* Chamber */}
       <div
         className="relative w-[390px] max-w-[95vw] aspect-[3/4] rounded-2xl border border-border overflow-hidden"
