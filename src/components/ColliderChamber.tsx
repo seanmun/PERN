@@ -119,6 +119,7 @@ export default function ColliderChamber({ players, colliderRunning, collisionSpe
   const lastCollisionTime = useRef(0);
   const explosionRef = useRef<Explosion | null>(null);
   const collisionSpeedRef = useRef(collisionSpeed);
+  const locallyCollided = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     collisionSpeedRef.current = collisionSpeed;
@@ -132,6 +133,8 @@ export default function ColliderChamber({ players, colliderRunning, collisionSpe
     } else if (players && players.length > 0) {
       const playerMap = new Map(players.map((p) => [p.id, p]));
       particlesRef.current.forEach((particle) => {
+        // Never re-activate a particle that collided locally
+        if (locallyCollided.current.has(particle.id)) return;
         const dbPlayer = playerMap.get(particle.id);
         if (dbPlayer) {
           particle.active = dbPlayer.is_active;
@@ -173,6 +176,8 @@ export default function ColliderChamber({ players, colliderRunning, collisionSpe
     // Immediately mark inactive locally so they stop rendering
     pA.active = false;
     pB.active = false;
+    locallyCollided.current.add(pA.id);
+    locallyCollided.current.add(pB.id);
 
     // Show explosion
     explosionRef.current = {
