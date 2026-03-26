@@ -118,6 +118,11 @@ export default function ColliderChamber({ players, colliderRunning, collisionSpe
   const collisionLock = useRef(false);
   const lastCollisionTime = useRef(0);
   const explosionRef = useRef<Explosion | null>(null);
+  const collisionSpeedRef = useRef(collisionSpeed);
+
+  useEffect(() => {
+    collisionSpeedRef.current = collisionSpeed;
+  }, [collisionSpeed]);
 
   // Update particles when DB players arrive
   useEffect(() => {
@@ -183,13 +188,17 @@ export default function ColliderChamber({ players, colliderRunning, collisionSpe
 
     // Report to backend
     try {
-      await fetch("/api/collide", {
+      const res = await fetch("/api/collide", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ playerAId: pA.id, playerBId: pB.id }),
       });
-    } catch {
-      // Backend will handle — particles already visually removed
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("Collision API error:", res.status, data);
+      }
+    } catch (err) {
+      console.error("Collision fetch failed:", err);
     }
 
     // Unlock after explosion finishes
@@ -295,7 +304,7 @@ export default function ColliderChamber({ players, colliderRunning, collisionSpe
     });
 
     // Collision detection — check all cross-team pairs
-    const { chance, cooldown } = getCollisionParams(collisionSpeed);
+    const { chance, cooldown } = getCollisionParams(collisionSpeedRef.current);
     const now = Date.now();
     const cooldownMet = now - lastCollisionTime.current > cooldown;
 
