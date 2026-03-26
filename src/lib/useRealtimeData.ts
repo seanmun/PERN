@@ -9,6 +9,7 @@ export function useRealtimeData() {
   const [events, setEvents] = useState<EventLog[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [colliderRunning, setColliderRunning] = useState(false);
+  const [collisionSpeed, setCollisionSpeed] = useState(5);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -31,7 +32,10 @@ export function useRealtimeData() {
     if (matchupsRes.data) setMatchups(matchupsRes.data);
     if (eventsRes.data) setEvents(eventsRes.data);
     if (playersRes.data) setPlayers(playersRes.data);
-    if (stateRes.data) setColliderRunning(stateRes.data.is_running);
+    if (stateRes.data) {
+      setColliderRunning(stateRes.data.is_running);
+      setCollisionSpeed(stateRes.data.collision_speed ?? 5);
+    }
     setLoading(false);
   }, []);
 
@@ -83,8 +87,9 @@ export function useRealtimeData() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "collider_state" },
         (payload) => {
-          const newState = payload.new as { is_running: boolean };
+          const newState = payload.new as { is_running: boolean; collision_speed?: number };
           setColliderRunning(newState.is_running);
+          if (newState.collision_speed != null) setCollisionSpeed(newState.collision_speed);
         }
       )
       .subscribe();
@@ -97,5 +102,5 @@ export function useRealtimeData() {
     };
   }, [fetchData]);
 
-  return { matchups, events, players, colliderRunning, loading };
+  return { matchups, events, players, colliderRunning, collisionSpeed, loading };
 }

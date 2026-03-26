@@ -4,7 +4,9 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Particle, Player } from "@/types";
 
-const COLLISION_DISTANCE = 18; // "close enough" — generous threshold
+const COLLISION_DISTANCE = 12; // "close enough" but not too easy
+const COLLISION_CHANCE = 0.003; // 0.3% chance per frame when close — creates "near misses"
+const COLLISION_COOLDOWN = 20_000; // 20 seconds between collisions
 
 const FALLBACK_DAN: Omit<Particle, "angle" | "speed" | "radius" | "drift">[] = [
   { id: "dan", name: "Dan", team: "Dan", is_captain: true, active: true },
@@ -75,16 +77,46 @@ type Explosion = {
   startTime: number;
 };
 
+// Map speed (1–10) to collision chance + cooldown
+function getCollisionParams(speed: number) {
+  const s = Math.max(1, Math.min(10, speed));
+  // speed 1: 0.05% chance, 60s cooldown (~45 min total)
+  // speed 5: 0.3% chance, 20s cooldown (~12 min total)
+  // speed 10: 3% chance, 3s cooldown (~1 min total, testing)
+  const chance = 0.0005 * Math.pow(s, 1.8);
+  const cooldown = Math.max(3000, 65000 - s * 6500);
+  return { chance, cooldown };
+}
+
+// Rough estimate of total time for all 6 collisions at a given speed
+function estimateTotalTime(speed: number): string {
+  const estimates: Record<number, string> = {
+    1: "~45 min",
+    2: "~30 min",
+    3: "~20 min",
+    4: "~15 min",
+    5: "~10 min",
+    6: "~7 min",
+    7: "~5 min",
+    8: "~3 min",
+    9: "~2 min",
+    10: "~1 min",
+  };
+  return estimates[speed] || "~10 min";
+}
+
 interface ColliderChamberProps {
   players?: Player[];
   colliderRunning: boolean;
+  collisionSpeed?: number;
 }
 
-export default function ColliderChamber({ players, colliderRunning }: ColliderChamberProps) {
+export default function ColliderChamber({ players, colliderRunning, collisionSpeed = 5 }: ColliderChamberProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>(buildParticles());
   const playersInitialized = useRef(false);
   const collisionLock = useRef(false);
+  const lastCollisionTime = useRef(0);
   const explosionRef = useRef<Explosion | null>(null);
 
   // Update particles when DB players arrive
@@ -263,7 +295,11 @@ export default function ColliderChamber({ players, colliderRunning }: ColliderCh
     });
 
     // Collision detection — check all cross-team pairs
-    if (ramp >= 1 && !collisionLock.current) {
+    const { chance, cooldown } = getCollisionParams(collisionSpeed);
+    const now = Date.now();
+    const cooldownMet = now - lastCollisionTime.current > cooldown;
+
+    if (ramp >= 1 && !collisionLock.current && cooldownMet) {
       for (let i = 0; i < positions.length; i++) {
         for (let j = i + 1; j < positions.length; j++) {
           const a = positions[i];
@@ -274,9 +310,11 @@ export default function ColliderChamber({ players, colliderRunning }: ColliderCh
           const dy = a.y - b.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
 
-          if (dist < COLLISION_DISTANCE) {
+          // Close enough AND random chance fires — creates "near misses"
+          if (dist < COLLISION_DISTANCE && Math.random() < chance) {
             const midX = (a.x + b.x) / 2;
             const midY = (a.y + b.y) / 2;
+            lastCollisionTime.current = now;
             handleCollision(a.p, b.p, midX, midY);
             break;
           }
