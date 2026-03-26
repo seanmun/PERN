@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PERN
 
-## Getting Started
+**Pinehurst Experimental Randomizer Network**
 
-First, run the development server:
+A particle collider that generates golf matchups.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## What is this?
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+PERN is a fake-scientific "Small Hadron Collider" built for Pinehurst golf trips. Twelve players — six from Team Dan, six from Team Ian — are represented as glowing particles orbiting inside a dark chamber. When two particles from opposing teams drift close enough together, they collide, explode, and create a matchup.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The collisions are completely random. No one picks the matchups. You start the collider, watch the particles orbit, and wait for fate to decide who plays who.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## How it works
 
-## Learn More
+- 12 particles orbit continuously — Team Dan clockwise (blue), Team Ian counterclockwise (red)
+- Each particle has its own speed, orbital radius, and drift
+- When a blue particle and a red particle get close enough, there's a chance they collide
+- A collision triggers an explosion animation, locks in the matchup, and removes both particles from the chamber
+- Everyone watches the same collider instance in real time across all devices
+- Six collisions = six matchups = full card
 
-To learn more about Next.js, take a look at the following resources:
+## The collider
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The collision frequency is configurable from the admin panel — from ~45 minutes (suspenseful) down to ~1 minute (testing mode). Particles can graze past each other without colliding, creating near-misses that build tension.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Teams
 
-## Deploy on Vercel
+**Team Dan** — Dan (C), Lusty, Marino, Kyle, Musket, Mallon
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Team Ian** — Ian (C), Andy, Carty, Truant, Munley, Fran
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Built with
+
+Next.js, TypeScript, Tailwind CSS, Supabase, Canvas API, Framer Motion
