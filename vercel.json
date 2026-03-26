@@ -1,8 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/collide",
-      "schedule": "0 */4 * * *"
-    }
-  ]
-}
+{}

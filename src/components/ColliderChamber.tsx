@@ -4,6 +4,8 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Particle, Player } from "@/types";
 
+const COLLISION_DISTANCE = 18; // "close enough" — generous threshold
+
 const FALLBACK_DAN: Omit<Particle, "angle" | "speed" | "radius" | "drift">[] = [
   { id: "dan", name: "Dan", team: "Dan", is_captain: true, active: true },
   { id: "lusty", name: "Lusty", team: "Dan", is_captain: false, active: true },
@@ -65,6 +67,14 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
+type Explosion = {
+  x: number;
+  y: number;
+  nameA: string;
+  nameB: string;
+  startTime: number;
+};
+
 interface ColliderChamberProps {
   players?: Player[];
   colliderRunning: boolean;
@@ -74,6 +84,8 @@ export default function ColliderChamber({ players, colliderRunning }: ColliderCh
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>(buildParticles());
   const playersInitialized = useRef(false);
+  const collisionLock = useRef(false);
+  const explosionRef = useRef<Explosion | null>(null);
 
   // Update particles when DB players arrive
   useEffect(() => {
@@ -93,16 +105,17 @@ export default function ColliderChamber({ players, colliderRunning }: ColliderCh
 
   const [status, setStatus] = useState("Collider idle");
   const [starting, setStarting] = useState(false);
+  const [collisionText, setCollisionText] = useState<string | null>(null);
   const animRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
   const wasRunningRef = useRef(false);
 
   const RAMP_DURATION = 3000;
+  const EXPLOSION_DURATION = 1500;
 
   // React to shared collider state changes
   useEffect(() => {
     if (colliderRunning && !wasRunningRef.current) {
-      // Collider just started (either by us or someone else)
       wasRunningRef.current = true;
       startTimeRef.current = Date.now();
       setStatus("Initializing field...");
@@ -114,6 +127,45 @@ export default function ColliderChamber({ players, colliderRunning }: ColliderCh
       setStatus("Collider idle");
     }
   }, [colliderRunning]);
+
+  // Handle collision between two particles
+  const handleCollision = useCallback(async (pA: Particle, pB: Particle, x: number, y: number) => {
+    if (collisionLock.current) return;
+    collisionLock.current = true;
+
+    // Immediately mark inactive locally so they stop rendering
+    pA.active = false;
+    pB.active = false;
+
+    // Show explosion
+    explosionRef.current = {
+      x,
+      y,
+      nameA: pA.name,
+      nameB: pB.name,
+      startTime: Date.now(),
+    };
+
+    setCollisionText(`${pA.name} ↔ ${pB.name}`);
+    setTimeout(() => setCollisionText(null), 3000);
+
+    // Report to backend
+    try {
+      await fetch("/api/collide", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerAId: pA.id, playerBId: pB.id }),
+      });
+    } catch {
+      // Backend will handle — particles already visually removed
+    }
+
+    // Unlock after explosion finishes
+    setTimeout(() => {
+      collisionLock.current = false;
+      explosionRef.current = null;
+    }, EXPLOSION_DURATION);
+  }, []);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -133,6 +185,7 @@ export default function ColliderChamber({ players, colliderRunning }: ColliderCh
     ctx.fillStyle = "rgba(5, 5, 8, 0.85)";
     ctx.fillRect(0, 0, w, h);
 
+    // Draw orbit rings
     for (let i = 0; i < 3; i++) {
       const ringR = baseRadius * (0.3 + i * 0.35);
       ctx.beginPath();
@@ -142,10 +195,14 @@ export default function ColliderChamber({ players, colliderRunning }: ColliderCh
       ctx.stroke();
     }
 
+    // Center dot
     ctx.beginPath();
     ctx.arc(cx, cy, 2, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(99, 102, 241, ${0.15 * ramp})`;
     ctx.fill();
+
+    // Compute particle positions and draw them
+    const positions: { p: Particle; x: number; y: number }[] = [];
 
     particlesRef.current.forEach((p) => {
       if (!p.active) return;
@@ -160,12 +217,15 @@ export default function ColliderChamber({ players, colliderRunning }: ColliderCh
       const x = cx + Math.cos(p.angle) * r;
       const y = cy + Math.sin(p.angle) * r;
 
+      positions.push({ p, x, y });
+
       const depth = (Math.sin(p.angle) + 1) / 2;
       const alpha = (0.3 + depth * 0.7) * ramp;
 
       const isDan = p.team === "Dan";
       const rgb = isDan ? "59, 130, 246" : "239, 68, 68";
 
+      // Outer glow
       const glowSize = 20 * ramp;
       const outerGlow = ctx.createRadialGradient(x, y, 0, x, y, glowSize);
       outerGlow.addColorStop(0, `rgba(${rgb}, ${alpha * 0.3})`);
@@ -175,6 +235,7 @@ export default function ColliderChamber({ players, colliderRunning }: ColliderCh
       ctx.fillStyle = outerGlow;
       ctx.fill();
 
+      // Inner glow
       const innerGlow = ctx.createRadialGradient(x, y, 0, x, y, 6 * ramp);
       innerGlow.addColorStop(0, `rgba(${rgb}, ${alpha * 0.8})`);
       innerGlow.addColorStop(1, "transparent");
@@ -183,6 +244,7 @@ export default function ColliderChamber({ players, colliderRunning }: ColliderCh
       ctx.fillStyle = innerGlow;
       ctx.fill();
 
+      // Core pixel
       ctx.beginPath();
       ctx.arc(x, y, 1, 0, Math.PI * 2);
       ctx.fillStyle = isDan
@@ -190,6 +252,7 @@ export default function ColliderChamber({ players, colliderRunning }: ColliderCh
         : `rgba(252, 165, 165, ${alpha})`;
       ctx.fill();
 
+      // Name label
       if (ramp > 0.5) {
         const labelAlpha = Math.min(1, (ramp - 0.5) * 2) * alpha;
         ctx.font = "9px monospace";
@@ -199,8 +262,81 @@ export default function ColliderChamber({ players, colliderRunning }: ColliderCh
       }
     });
 
+    // Collision detection — check all cross-team pairs
+    if (ramp >= 1 && !collisionLock.current) {
+      for (let i = 0; i < positions.length; i++) {
+        for (let j = i + 1; j < positions.length; j++) {
+          const a = positions[i];
+          const b = positions[j];
+          if (a.p.team === b.p.team) continue; // same team, skip
+
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < COLLISION_DISTANCE) {
+            const midX = (a.x + b.x) / 2;
+            const midY = (a.y + b.y) / 2;
+            handleCollision(a.p, b.p, midX, midY);
+            break;
+          }
+        }
+        if (collisionLock.current) break;
+      }
+    }
+
+    // Draw explosion effect
+    const explosion = explosionRef.current;
+    if (explosion) {
+      const t = (Date.now() - explosion.startTime) / EXPLOSION_DURATION;
+      if (t < 1) {
+        const expandRadius = 60 * t;
+        const fadeAlpha = 1 - t;
+
+        // White flash
+        const flash = ctx.createRadialGradient(
+          explosion.x, explosion.y, 0,
+          explosion.x, explosion.y, expandRadius
+        );
+        flash.addColorStop(0, `rgba(255, 255, 255, ${fadeAlpha * 0.9})`);
+        flash.addColorStop(0.3, `rgba(200, 180, 255, ${fadeAlpha * 0.5})`);
+        flash.addColorStop(1, "transparent");
+        ctx.beginPath();
+        ctx.arc(explosion.x, explosion.y, expandRadius, 0, Math.PI * 2);
+        ctx.fillStyle = flash;
+        ctx.fill();
+
+        // Sparks
+        const sparkCount = 12;
+        for (let s = 0; s < sparkCount; s++) {
+          const sparkAngle = (Math.PI * 2 * s) / sparkCount + t * 2;
+          const sparkDist = expandRadius * (0.5 + Math.random() * 0.5);
+          const sx = explosion.x + Math.cos(sparkAngle) * sparkDist;
+          const sy = explosion.y + Math.sin(sparkAngle) * sparkDist;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 1.5 * fadeAlpha, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 255, 255, ${fadeAlpha * 0.8})`;
+          ctx.fill();
+        }
+
+        // Collision label
+        if (t < 0.7) {
+          ctx.font = "bold 11px monospace";
+          ctx.fillStyle = `rgba(255, 255, 255, ${fadeAlpha})`;
+          ctx.textAlign = "center";
+          ctx.fillText("COLLISION", explosion.x, explosion.y - 30);
+          ctx.font = "9px monospace";
+          ctx.fillText(
+            `${explosion.nameA} ↔ ${explosion.nameB}`,
+            explosion.x,
+            explosion.y - 18
+          );
+        }
+      }
+    }
+
     animRef.current = requestAnimationFrame(draw);
-  }, []);
+  }, [handleCollision]);
 
   useEffect(() => {
     if (!colliderRunning) return;
@@ -290,6 +426,20 @@ export default function ColliderChamber({ players, colliderRunning }: ColliderCh
           className="w-full h-full"
         />
       </div>
+
+      {/* Collision flash text */}
+      <AnimatePresence>
+        {collisionText && (
+          <motion.p
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="text-sm font-mono text-white tracking-wider"
+          >
+            {collisionText}
+          </motion.p>
+        )}
+      </AnimatePresence>
 
       {/* Controls */}
       <AnimatePresence mode="wait">
