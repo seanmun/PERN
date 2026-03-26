@@ -35,8 +35,15 @@ export default function MatchupList({ matchups }: MatchupListProps) {
                     {matchup.player_b?.name}
                   </span>
                 </span>
-                <span className="text-xs text-zinc-600">
-                  #{matchup.matchup_number}
+                <span className="text-xs text-zinc-600 text-right">
+                  <span>#{matchup.matchup_number}</span>
+                  <br />
+                  <span className="text-zinc-700">
+                    {new Date(matchup.created_at).toLocaleTimeString([], {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </span>
                 </span>
               </>
             ) : (

@@ -2,9 +2,9 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { Particle } from "@/types";
+import type { Particle, Player } from "@/types";
 
-const TEAM_DAN: Omit<Particle, "angle" | "speed" | "radius" | "drift">[] = [
+const FALLBACK_DAN: Omit<Particle, "angle" | "speed" | "radius" | "drift">[] = [
   { id: "dan", name: "Dan", team: "Dan", is_captain: true, active: true },
   { id: "lusty", name: "Lusty", team: "Dan", is_captain: false, active: true },
   { id: "marino", name: "Marino", team: "Dan", is_captain: false, active: true },
@@ -13,7 +13,7 @@ const TEAM_DAN: Omit<Particle, "angle" | "speed" | "radius" | "drift">[] = [
   { id: "mallon", name: "Mallon", team: "Dan", is_captain: false, active: true },
 ];
 
-const TEAM_IAN: Omit<Particle, "angle" | "speed" | "radius" | "drift">[] = [
+const FALLBACK_IAN: Omit<Particle, "angle" | "speed" | "radius" | "drift">[] = [
   { id: "ian", name: "Ian", team: "Ian", is_captain: true, active: true },
   { id: "andy", name: "Andy", team: "Ian", is_captain: false, active: true },
   { id: "carty", name: "Carty", team: "Ian", is_captain: false, active: true },
@@ -22,21 +22,37 @@ const TEAM_IAN: Omit<Particle, "angle" | "speed" | "radius" | "drift">[] = [
   { id: "fran", name: "Fran", team: "Ian", is_captain: false, active: true },
 ];
 
-function initParticles(): Particle[] {
+function buildParticles(dbPlayers?: Player[]): Particle[] {
   const all: Particle[] = [];
-  TEAM_DAN.forEach((p, i) => {
+
+  let danList: Omit<Particle, "angle" | "speed" | "radius" | "drift">[];
+  let ianList: Omit<Particle, "angle" | "speed" | "radius" | "drift">[];
+
+  if (dbPlayers && dbPlayers.length > 0) {
+    danList = dbPlayers
+      .filter((p) => p.team === "Dan")
+      .map((p) => ({ id: p.id, name: p.name, team: p.team, is_captain: p.is_captain, active: p.is_active }));
+    ianList = dbPlayers
+      .filter((p) => p.team === "Ian")
+      .map((p) => ({ id: p.id, name: p.name, team: p.team, is_captain: p.is_captain, active: p.is_active }));
+  } else {
+    danList = FALLBACK_DAN;
+    ianList = FALLBACK_IAN;
+  }
+
+  danList.forEach((p, i) => {
     all.push({
       ...p,
-      angle: (Math.PI * 2 * i) / TEAM_DAN.length,
+      angle: (Math.PI * 2 * i) / danList.length,
       speed: 0.003 + Math.random() * 0.002,
       radius: 0.6 + Math.random() * 0.15,
       drift: (Math.random() - 0.5) * 0.001,
     });
   });
-  TEAM_IAN.forEach((p, i) => {
+  ianList.forEach((p, i) => {
     all.push({
       ...p,
-      angle: (Math.PI * 2 * i) / TEAM_IAN.length + Math.PI / 6,
+      angle: (Math.PI * 2 * i) / ianList.length + Math.PI / 6,
       speed: -(0.003 + Math.random() * 0.002),
       radius: 0.55 + Math.random() * 0.15,
       drift: (Math.random() - 0.5) * 0.001,
@@ -50,9 +66,31 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-export default function ColliderChamber() {
+interface ColliderChamberProps {
+  players?: Player[];
+}
+
+export default function ColliderChamber({ players }: ColliderChamberProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const particlesRef = useRef<Particle[]>(initParticles());
+  const particlesRef = useRef<Particle[]>(buildParticles());
+  const playersInitialized = useRef(false);
+
+  // Update particles when DB players arrive
+  useEffect(() => {
+    if (players && players.length > 0 && !playersInitialized.current) {
+      playersInitialized.current = true;
+      particlesRef.current = buildParticles(players);
+    } else if (players && players.length > 0) {
+      // Update active status from DB without resetting positions
+      const playerMap = new Map(players.map((p) => [p.id, p]));
+      particlesRef.current.forEach((particle) => {
+        const dbPlayer = playerMap.get(particle.id);
+        if (dbPlayer) {
+          particle.active = dbPlayer.is_active;
+        }
+      });
+    }
+  }, [players]);
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState("Collider idle");
   const animRef = useRef<number>(0);
