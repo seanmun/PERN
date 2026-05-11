@@ -1,34 +1,35 @@
-# PERN
+# Cup — Pinehurst Trip App
 
-**Pinehurst Experimental Randomizer Network**
+> Working title. Platform name TBD; trip name is **Pinehurst Cup**.
 
-A particle collider that generates golf matchups.
+A private golf trip app — built for the Pinehurst Cup (12 guys, 2 teams, 6 rounds, match play with handicaps), architected to scale to any group that wants the same.
 
-## What is this?
+**Status:** pre-MVP, in active development.
 
-PERN is a fake-scientific "Small Hadron Collider" built for Pinehurst golf trips. Twelve players — six from Team Dan, six from Team Ian — are represented as glowing particles orbiting inside a dark chamber. When two particles from opposing teams drift close enough together, they collide, explode, and create a matchup.
+**Stack:** Next.js (App Router) · TypeScript · Tailwind v4 · Clerk · Neon Postgres · Drizzle ORM · TanStack Query · Framer Motion · Vercel
 
-The collisions are completely random. No one picks the matchups. You start the collider, watch the particles orbit, and wait for fate to decide who plays who.
+## Documentation
 
-## How it works
+- [`CLAUDE.md`](./CLAUDE.md) — orientation for Claude Code (read first if you're an agent)
+- [`docs/product.md`](./docs/product.md) — what we're building, MVP scope, design principles
+- [`docs/architecture.md`](./docs/architecture.md) — stack rationale, role model, multi-tenant approach
+- [`docs/schema.md`](./docs/schema.md) — data model + Drizzle schema
+- [`docs/pinehurst.md`](./docs/pinehurst.md) — the Pinehurst Cup trip specifics (roster, schedule, rules)
+- [`docs/backlog.md`](./docs/backlog.md) — post-MVP features in priority order
 
-- 12 particles orbit continuously — Team Dan clockwise (blue), Team Ian counterclockwise (red)
-- Each particle has its own speed, orbital radius, and drift
-- When a blue particle and a red particle get close enough, there's a chance they collide
-- A collision triggers an explosion animation, locks in the matchup, and removes both particles from the chamber
-- Everyone watches the same collider instance in real time across all devices
-- Six collisions = six matchups = full card
+## Quickstart
 
-## The collider
+```bash
+npm install
+cp .env.example .env.local   # fill in CLERK_*, DATABASE_URL, PLATFORM_ADMIN_EMAILS
+npm run db:push              # apply schema to Neon (Phase 1)
+npm run db:seed              # seed the Pinehurst trip (Phase 1)
+npm run dev
+```
 
-The collision frequency is configurable from the admin panel — from ~45 minutes (suspenseful) down to ~1 minute (testing mode). Particles can graze past each other without colliding, creating near-misses that build tension.
+## Concept
 
-## Teams
+Two-tier model:
 
-**Team Dan** — Dan (C), Lusty, Marino, Kyle, Musket, Mallon
-
-**Team Ian** — Ian (C), Andy, Carty, Truant, Munley, Fran
-
-## Built with
-
-Next.js, TypeScript, Tailwind CSS, Supabase, Canvas API, Framer Motion
+- **Cup** (the platform) — a trip-scoped app for any group. The data model is multi-tenant from day one.
+- **Pinehurst Cup** (the first trip) — hardcoded UI flows, seeded roster, all features focused on shipping this one trip in August. Trip-creation / onboarding UI is post-MVP.
