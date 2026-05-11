@@ -70,8 +70,8 @@ async function seed() {
   const [machIans, dbags] = await db
     .insert(teams)
     .values([
-      { tripId: trip.id, name: 'MachIans', color: '#1d4ed8' },
-      { tripId: trip.id, name: 'Douchebags', color: '#dc2626' },
+      { tripId: trip.id, name: 'MachIans', color: '#14532d' },
+      { tripId: trip.id, name: 'Douchebags', color: '#ca8a04' },
     ])
     .returning();
 
