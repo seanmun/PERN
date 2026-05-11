@@ -5,16 +5,16 @@ export default function Home() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col items-center px-4 py-24 text-center">
       <div className="flex items-center gap-3">
-        <span className="h-px w-8 bg-amber-600/60" />
-        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-amber-500">
+        <span className="h-px w-8 bg-yellow-600/60" />
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
           August 19 – 22, 2026
         </p>
-        <span className="h-px w-8 bg-amber-600/60" />
+        <span className="h-px w-8 bg-yellow-600/60" />
       </div>
 
       <h1 className="mt-6 text-5xl font-bold tracking-tight sm:text-6xl">
         <span className="block text-zinc-400">PINEHURST</span>
-        <span className="block bg-gradient-to-b from-amber-300 via-amber-500 to-amber-700 bg-clip-text text-transparent">
+        <span className="block bg-gradient-to-b from-yellow-300 via-yellow-500 to-yellow-700 bg-clip-text text-transparent">
           CUP
         </span>
       </h1>
@@ -32,7 +32,7 @@ export default function Home() {
           fallback={
             <Link
               href="/sign-in"
-              className="rounded-sm bg-amber-500 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-amber-400"
+              className="rounded-sm bg-yellow-500 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400"
             >
               Sign in
             </Link>
@@ -40,7 +40,7 @@ export default function Home() {
         >
           <Link
             href="/me"
-            className="rounded-sm bg-amber-500 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-amber-400"
+            className="rounded-sm bg-yellow-500 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400"
           >
             Enter
           </Link>

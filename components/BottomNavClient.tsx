@@ -25,7 +25,7 @@ export default function BottomNavClient({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-amber-600/20 bg-black/95 backdrop-blur"
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-yellow-600/20 bg-black/95 backdrop-blur"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="mx-auto flex max-w-3xl items-stretch justify-around">
@@ -38,7 +38,7 @@ export default function BottomNavClient({ isAdmin }: { isAdmin: boolean }) {
               href={href}
               className={`flex flex-1 flex-col items-center gap-1 px-2 py-3 transition-colors ${
                 isActive
-                  ? 'text-amber-400'
+                  ? 'text-yellow-400'
                   : 'text-zinc-500 hover:text-zinc-200'
               }`}
             >

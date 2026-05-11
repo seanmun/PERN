@@ -9,8 +9,8 @@ export default function ComingSoon({
 }) {
   return (
     <div className="mx-auto max-w-md px-4 pt-16 pb-24">
-      <div className="rounded-sm border border-amber-600/20 bg-black/50 p-8 text-center">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-amber-500">
+      <div className="rounded-sm border border-yellow-600/20 bg-black/50 p-8 text-center">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
           Coming soon
         </p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight">{title}</h1>

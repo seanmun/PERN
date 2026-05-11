@@ -48,7 +48,7 @@ export default function RootLayout({
           <header className="border-b border-green-900/40 bg-black/80 backdrop-blur">
             <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
               <Link href="/" className="group flex items-baseline gap-2">
-                <span className="font-mono text-xs font-bold uppercase tracking-[0.35em] text-amber-500 group-hover:text-amber-400">
+                <span className="font-mono text-xs font-bold uppercase tracking-[0.35em] text-yellow-500 group-hover:text-yellow-400">
                   Pinehurst
                 </span>
                 <span className="font-mono text-xs font-bold uppercase tracking-[0.35em] text-zinc-100 group-hover:text-white">
@@ -61,7 +61,7 @@ export default function RootLayout({
                   fallback={
                     <Link
                       href="/sign-in"
-                      className="rounded-sm border border-amber-600/40 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-widest text-amber-400 hover:bg-amber-600/10 hover:text-amber-300"
+                      className="rounded-sm border border-yellow-600/40 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-widest text-yellow-400 hover:bg-yellow-600/10 hover:text-yellow-300"
                     >
                       Sign in
                     </Link>
