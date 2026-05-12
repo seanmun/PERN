@@ -1,19 +1,11 @@
 import { Show } from '@clerk/nextjs';
 import Link from 'next/link';
+import HomeBgVideo from '@/components/HomeBgVideo';
 
 export default function Home() {
   return (
     <div className="relative isolate min-h-[calc(100vh-130px)] overflow-hidden">
-      <video
-        src="/golfball-test.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="auto"
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60"
-        aria-hidden="true"
-      />
+      <HomeBgVideo src="/golfball-test.mp4" loopAt={11} />
 
       <div
         className="pointer-events-none absolute inset-0"
