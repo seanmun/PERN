@@ -144,8 +144,18 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     b.points - a.points || a.teamName.localeCompare(b.teamName)
   );
 
-  const playerTotals = Array.from(playerTotalsMap.values()).sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
+  const playerTotalsList = Array.from(playerTotalsMap.values());
+  const anyPointsScored = playerTotalsList.some((p) => p.points > 0);
+  const hcap = (s: string | null) => (s ? parseFloat(s) : Number.POSITIVE_INFINITY);
+
+  const playerTotals = playerTotalsList.sort((a, b) => {
+    // While there are no points on the board, rank by handicap (low to high)
+    // so the board has meaningful order on day 1. Once scoring starts, points
+    // take over; handicap is the tiebreaker.
+    if (anyPointsScored && b.points !== a.points) return b.points - a.points;
+    const ah = hcap(a.tripHandicap);
+    const bh = hcap(b.tripHandicap);
+    if (ah !== bh) return ah - bh;
     return a.nickname.localeCompare(b.nickname);
   });
 
