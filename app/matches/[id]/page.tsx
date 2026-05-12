@@ -153,13 +153,7 @@ export default async function MatchDetailPage({
           Matchup
         </p>
         {sides.length === 2 ? (
-          <div className="flex items-stretch gap-2">
-            <Side side={sides[0]} />
-            <div className="flex items-center font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
-              vs
-            </div>
-            <Side side={sides[1]} align="right" />
-          </div>
+          <MatchupShowdown left={sides[0]} right={sides[1]} />
         ) : (
           <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 text-sm text-zinc-500">
             Matchup not set yet.
@@ -196,47 +190,88 @@ export default async function MatchDetailPage({
   );
 }
 
-function Side({
-  side,
-  align = 'left',
-}: {
-  side: {
-    team: typeof teams.$inferSelect;
-    members: (typeof tripMembers.$inferSelect)[];
-  };
-  align?: 'left' | 'right';
-}) {
+type MatchSide = {
+  team: typeof teams.$inferSelect;
+  members: (typeof tripMembers.$inferSelect)[];
+};
+
+function MatchupShowdown({ left, right }: { left: MatchSide; right: MatchSide }) {
+  return (
+    <div className="overflow-hidden rounded-sm border border-zinc-800">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-stretch">
+        <ShowdownSide side={left} align="left" />
+        <div className="flex items-center justify-center bg-black px-2">
+          <span
+            className="font-mono text-base font-bold tabular-nums text-yellow-500"
+            style={{ textShadow: '0 0 14px rgba(202,138,4,0.5)' }}
+          >
+            VS
+          </span>
+        </div>
+        <ShowdownSide side={right} align="right" />
+      </div>
+    </div>
+  );
+}
+
+function ShowdownSide({ side, align }: { side: MatchSide; align: 'left' | 'right' }) {
   const color = side.team.color ?? '#71717a';
   return (
     <div
-      className="min-w-0 flex-1 rounded-sm border p-3"
+      className="p-3"
       style={{
-        borderColor: `${color}55`,
-        background: `${color}11`,
-        textAlign: align,
+        background: `linear-gradient(${align === 'left' ? '90deg' : '270deg'}, ${color}33 0%, ${color}0a 100%)`,
       }}
     >
       <p
-        className="font-mono text-[10px] font-semibold uppercase tracking-widest"
+        className="text-center font-mono text-[10px] font-bold uppercase tracking-[0.25em]"
         style={{ color }}
       >
         {side.team.name}
       </p>
-      <div className="mt-2 space-y-1">
+      <div className="mt-3 flex items-start justify-center gap-2">
         {side.members.map((m) => (
-          <div
-            key={m.id}
-            className={`flex items-baseline gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}
-          >
-            <p className="truncate text-base font-semibold">{m.nickname}</p>
-            {m.tripHandicap && (
-              <p className="font-mono text-xs tabular-nums text-zinc-500">
-                {m.tripHandicap}
-              </p>
-            )}
-          </div>
+          <Portrait key={m.id} member={m} color={color} />
         ))}
       </div>
     </div>
   );
 }
+
+function Portrait({
+  member,
+  color,
+}: {
+  member: typeof tripMembers.$inferSelect;
+  color: string;
+}) {
+  return (
+    <div className="flex w-full max-w-[88px] flex-col items-center text-center">
+      {member.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={member.avatarUrl}
+          alt={member.nickname}
+          className="aspect-square w-full rounded-sm object-cover"
+          style={{ boxShadow: `0 0 0 2px ${color}` }}
+        />
+      ) : (
+        <div
+          className="flex aspect-square w-full items-center justify-center rounded-sm bg-zinc-900 font-mono text-xl font-bold text-zinc-500"
+          style={{ boxShadow: `0 0 0 2px ${color}` }}
+        >
+          {member.nickname.slice(0, 1).toUpperCase()}
+        </div>
+      )}
+      <p className="mt-2 max-w-full truncate text-xs font-semibold">
+        {member.nickname}
+      </p>
+      {member.tripHandicap && (
+        <p className="font-mono text-[10px] tabular-nums text-zinc-500">
+          {member.tripHandicap}
+        </p>
+      )}
+    </div>
+  );
+}
+
