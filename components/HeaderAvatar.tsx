@@ -23,7 +23,7 @@ export default async function HeaderAvatar() {
     <Link
       href="/me"
       aria-label="Your account"
-      className="flex h-10 w-10 items-center justify-center rounded-full overflow-hidden ring-2 ring-zinc-700 hover:ring-yellow-500"
+      className="flex h-10 w-10 items-center justify-center rounded-sm overflow-hidden ring-2 ring-zinc-700 hover:ring-yellow-500"
       style={{ borderColor: ringColor }}
     >
       {user.avatarUrl ? (

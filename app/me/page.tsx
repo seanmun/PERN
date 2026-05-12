@@ -76,12 +76,12 @@ export default async function MePage() {
           <img
             src={user.avatarUrl}
             alt={tripMember.nickname}
-            className="mb-4 h-24 w-24 rounded-full object-cover"
+            className="mb-4 h-24 w-24 rounded-sm object-cover"
             style={{ boxShadow: `0 0 0 3px ${teamColor}` }}
           />
         ) : (
           <div
-            className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-zinc-900 font-mono text-2xl font-bold text-zinc-500"
+            className="mb-4 flex h-24 w-24 items-center justify-center rounded-sm bg-zinc-900 font-mono text-2xl font-bold text-zinc-500"
             style={{ boxShadow: `0 0 0 3px ${teamColor}` }}
           >
             {tripMember.nickname.slice(0, 1).toUpperCase()}
