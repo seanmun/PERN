@@ -33,39 +33,6 @@ export default function RootLayout({
         variables: {
           colorPrimary: '#ca8a04',
           colorBackground: '#0a0a0a',
-          colorText: '#ffffff',
-          colorTextSecondary: '#ffffff',
-          colorNeutral: '#ffffff',
-          colorInputBackground: '#18181b',
-          colorInputText: '#ffffff',
-          colorDanger: '#dc2626',
-          colorSuccess: '#16a34a',
-        },
-        elements: {
-          userButtonPopoverCard:
-            'bg-zinc-950 border border-zinc-800 shadow-xl',
-          userButtonPopoverMain: 'bg-zinc-950 text-white',
-          userButtonPopoverActionButton: 'text-white hover:bg-zinc-900',
-          userButtonPopoverActionButton__signOut:
-            'text-white hover:bg-zinc-900',
-          userButtonPopoverActionButtonText: 'text-white',
-          userButtonPopoverActionButtonIcon: 'text-white',
-          userButtonPopoverFooter:
-            'bg-zinc-950 border-t border-zinc-800 text-white',
-          userPreviewMainIdentifier: 'text-white',
-          userPreviewSecondaryIdentifier: 'text-white',
-          card: 'bg-zinc-950 border border-zinc-800 text-white',
-          headerTitle: 'text-white',
-          headerSubtitle: 'text-white',
-          formFieldLabel: 'text-white',
-          formFieldInput:
-            'bg-zinc-900 border border-zinc-800 text-white',
-          formButtonPrimary:
-            'bg-yellow-500 text-black hover:bg-yellow-400',
-          footerActionText: 'text-white',
-          footerActionLink: 'text-yellow-400 hover:text-yellow-300',
-          identityPreviewText: 'text-white',
-          identityPreviewEditButton: 'text-yellow-400',
         },
       }}
     >

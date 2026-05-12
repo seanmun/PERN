@@ -28,7 +28,6 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-/* Subtle film-grain / texture for the "broadcast" vibe — kept tasteful. */
 body::before {
   content: '';
   position: fixed;
@@ -41,4 +40,76 @@ body::before {
 main, header {
   position: relative;
   z-index: 1;
+}
+
+/* =========================================================================
+   Clerk overrides
+   Clerk's <SignIn />, <UserButton />, etc. render with internal CSS that
+   beats our Tailwind utilities. Force readable colors with !important
+   directly against the .cl-* classes Clerk ships in its DOM.
+   ========================================================================= */
+
+/* Every Clerk-rendered text node — white by default. */
+[class^="cl-"], [class*=" cl-"] {
+  color: #ffffff !important;
+}
+
+/* Surfaces (cards, popovers) */
+.cl-card,
+.cl-modalBackdrop > .cl-modalContent,
+.cl-userButtonPopoverCard,
+.cl-userButtonPopoverMain,
+.cl-userButtonPopoverFooter {
+  background-color: #0a0a0a !important;
+  border-color: #27272a !important;
+}
+
+/* Inputs */
+.cl-formFieldInput,
+.cl-input,
+.cl-otpCodeFieldInput {
+  background-color: #18181b !important;
+  border-color: #27272a !important;
+  color: #ffffff !important;
+}
+.cl-formFieldInput::placeholder {
+  color: #71717a !important;
+}
+
+/* Primary button — gold */
+.cl-formButtonPrimary,
+.cl-button[data-variant="solid"][data-color="primary"] {
+  background-color: #ca8a04 !important;
+  color: #000000 !important;
+  border-color: #ca8a04 !important;
+}
+.cl-formButtonPrimary:hover,
+.cl-button[data-variant="solid"][data-color="primary"]:hover {
+  background-color: #eab308 !important;
+  border-color: #eab308 !important;
+}
+
+/* Secondary / ghost buttons inside Clerk widgets */
+.cl-button[data-variant="ghost"],
+.cl-userButtonPopoverActionButton {
+  color: #ffffff !important;
+}
+.cl-userButtonPopoverActionButton:hover {
+  background-color: #18181b !important;
+}
+
+/* Footer "Sign up / Sign in" link */
+.cl-footerActionLink,
+.cl-identityPreviewEditButton {
+  color: #facc15 !important;
+}
+
+/* Dividers */
+.cl-dividerLine {
+  background-color: #27272a !important;
+}
+
+/* Icons */
+.cl-icon, .cl-userButtonPopoverActionButtonIcon {
+  color: #ffffff !important;
 }
