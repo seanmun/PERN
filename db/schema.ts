@@ -81,6 +81,10 @@ export const tripMembers = pgTable('trip_members', {
   isCaptain: boolean('is_captain').default(false).notNull(),
   tripHandicap: numeric('trip_handicap', { precision: 4, scale: 1 }),
   scoutingReport: text('scouting_report'),
+  flightArrivalAt: timestamp('flight_arrival_at', { withTimezone: true }),
+  flightArrivalDetails: text('flight_arrival_details'),
+  flightDepartureAt: timestamp('flight_departure_at', { withTimezone: true }),
+  flightDepartureDetails: text('flight_departure_details'),
 });
 
 export const courses = pgTable('courses', {

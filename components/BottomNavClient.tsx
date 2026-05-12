@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Trophy, User, Settings } from 'lucide-react';
+import { Calendar, Trophy, User } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import MoreMenu from './MoreMenu';
 
 type NavItem = {
   href: string;
@@ -18,9 +19,6 @@ export default function BottomNavClient({ isAdmin }: { isAdmin: boolean }) {
     { href: '/schedule', icon: Calendar, label: 'Schedule' },
     { href: '/scoreboard', icon: Trophy, label: 'Cup' },
     { href: '/me', icon: User, label: 'Me' },
-    ...(isAdmin
-      ? [{ href: '/admin', icon: Settings, label: 'Admin' } as NavItem]
-      : []),
   ];
 
   return (
@@ -49,6 +47,7 @@ export default function BottomNavClient({ isAdmin }: { isAdmin: boolean }) {
             </Link>
           );
         })}
+        <MoreMenu isAdmin={isAdmin} />
       </div>
     </nav>
   );
