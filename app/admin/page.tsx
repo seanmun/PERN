@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { ChevronRight, ImageIcon } from 'lucide-react';
 import { getAuthContext } from '@/lib/auth/current-user';
 import { isPlatformAdmin } from '@/lib/auth/permissions';
 import ComingSoon from '@/components/ComingSoon';
@@ -20,10 +22,46 @@ export default async function AdminPage() {
   }
 
   return (
-    <ComingSoon
-      title="Admin"
-      description="Trip configuration, roster management, score overrides, and the matchup builder."
-      phase="Phase 6"
-    />
+    <div className="mx-auto max-w-2xl px-4 pb-24 pt-6">
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+        Admin
+      </p>
+      <h1 className="mt-1 text-3xl font-bold tracking-tight">Trip controls</h1>
+
+      <div className="mt-8 space-y-3">
+        <AdminLink
+          href="/admin/courses"
+          icon={<ImageIcon size={16} />}
+          label="Courses"
+          hint="Set landscape photos used as match-detail backgrounds."
+        />
+      </div>
+    </div>
+  );
+}
+
+function AdminLink({
+  href,
+  icon,
+  label,
+  hint,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  hint?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 hover:border-yellow-500/40 hover:bg-zinc-900/40"
+    >
+      <span className="text-yellow-500">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold">{label}</p>
+        {hint && <p className="mt-0.5 text-xs text-zinc-500">{hint}</p>}
+      </div>
+      <ChevronRight size={14} className="text-zinc-600" />
+    </Link>
   );
 }

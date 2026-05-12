@@ -27,6 +27,16 @@ export const matchStatusEnum = pgEnum('match_status', [
 
 export const mediaTypeEnum = pgEnum('media_type', ['image', 'video']);
 
+export const tripEventTypeEnum = pgEnum('trip_event_type', [
+  'flight',
+  'shuttle',
+  'meal',
+  'social',
+  'hotel_checkin',
+  'hotel_checkout',
+  'other',
+]);
+
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   clerkId: text('clerk_id').unique(),
@@ -77,6 +87,7 @@ export const courses = pgTable('courses', {
   name: text('name').notNull(),
   location: text('location'),
   totalPar: integer('total_par'),
+  imageUrl: text('image_url'),                         // landscape hero photo for match detail backgrounds
 });
 
 export const courseHoles = pgTable('course_holes', {
@@ -149,6 +160,20 @@ export const media = pgTable('media', {
   mediaType: mediaTypeEnum('media_type').notNull(),
   caption: text('caption'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const tripEvents = pgTable('trip_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tripId: uuid('trip_id').references(() => trips.id, { onDelete: 'cascade' }).notNull(),
+  type: tripEventTypeEnum('type').notNull(),
+  title: text('title').notNull(),
+  description: text('description'),
+  location: text('location'),                          // human-readable name, e.g. "Pinehurst No. 2 Clubhouse"
+  address: text('address'),                            // full street address for map deep-link
+  startTime: timestamp('start_time', { withTimezone: true }).notNull(),
+  endTime: timestamp('end_time', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const messages = pgTable('messages', {

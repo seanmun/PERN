@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { Pencil } from 'lucide-react';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { teams, trips } from '@/db/schema';
@@ -54,12 +56,19 @@ export default async function MePage() {
   return (
     <div className="mx-auto max-w-md px-4 pb-16">
       <div
-        className="-mx-4 px-4 pt-10 pb-8"
+        className="-mx-4 relative px-4 pt-10 pb-8"
         style={{
           background: `linear-gradient(180deg, ${teamColor}22 0%, transparent 100%)`,
           borderBottom: `2px solid ${teamColor}`,
         }}
       >
+        <Link
+          href="/me/edit"
+          aria-label="Edit profile"
+          className="absolute right-4 top-4 rounded-sm border border-zinc-800 bg-black/50 p-2 text-zinc-400 hover:border-yellow-500/50 hover:text-yellow-400"
+        >
+          <Pencil size={14} />
+        </Link>
         <p
           className="font-mono text-xs font-semibold uppercase tracking-[0.3em]"
           style={{ color: teamColor }}

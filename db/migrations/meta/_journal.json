@@ -8,6 +8,27 @@
       "when": 1778472917730,
       "tag": "0000_blushing_franklin_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778544363470,
+      "tag": "0001_tough_captain_britain",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778544395843,
+      "tag": "0002_strange_squadron_sinister",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778545772407,
+      "tag": "0003_pink_sally_floyd",
+      "breakpoints": true
     }
   ]
 }

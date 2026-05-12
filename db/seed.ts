@@ -13,6 +13,7 @@ import {
   holeScores,
   media,
   messages,
+  tripEvents,
 } from './schema';
 
 async function seed() {
@@ -24,6 +25,7 @@ async function seed() {
   await db.delete(matches);
   await db.delete(teeTimes);
   await db.delete(rounds);
+  await db.delete(tripEvents);
   await db.delete(tripMembers);
   await db.delete(teams);
   await db.delete(trips);
@@ -33,17 +35,18 @@ async function seed() {
 
   console.log('🌱 Seeding...');
 
-  const [pineNeedles, tobaccoRoad, pinehurst2, pinehurst1] = await db
+  const [pineNeedles, tobaccoRoad, pinehurst2, pinehurst10, pinehurst4] = await db
     .insert(courses)
     .values([
-      { name: 'Pine Needles', location: 'Southern Pines, NC', totalPar: 72 },
-      { name: 'Tobacco Road', location: 'Sanford, NC', totalPar: 71 },
-      { name: 'Pinehurst No. 2', location: 'Pinehurst, NC', totalPar: 72 },
-      { name: 'Pinehurst No. 1', location: 'Pinehurst, NC', totalPar: 70 },
+      { name: 'Pine Needles',    location: 'Southern Pines, NC', totalPar: 72 },
+      { name: 'Tobacco Road',    location: 'Sanford, NC',         totalPar: 71 },
+      { name: 'Pinehurst No. 2', location: 'Pinehurst, NC',       totalPar: 72 },
+      { name: 'Pinehurst No. 10',location: 'Pinehurst, NC',       totalPar: 72 },
+      { name: 'Pinehurst No. 4', location: 'Pinehurst, NC',       totalPar: 72 },
     ])
     .returning();
 
-  const allCourses = [pineNeedles, tobaccoRoad, pinehurst2, pinehurst1];
+  const allCourses = [pineNeedles, tobaccoRoad, pinehurst2, pinehurst10, pinehurst4];
   for (const course of allCourses) {
     await db.insert(courseHoles).values(
       Array.from({ length: 18 }, (_, i) => ({
@@ -118,9 +121,9 @@ async function seed() {
       { tripId: trip.id, courseId: pineNeedles.id, date: new Date('2026-08-19T00:00:00-04:00'), format: 'match_play_2v2', order: 1, label: 'Wed PM — Pine Needles',                       countsTowardCup: true  },
       { tripId: trip.id, courseId: tobaccoRoad.id, date: new Date('2026-08-20T00:00:00-04:00'), format: 'match_play_2v2', order: 2, label: 'Thu AM — Tobacco Road',                       countsTowardCup: true  },
       { tripId: trip.id, courseId: pinehurst2.id,  date: new Date('2026-08-21T00:00:00-04:00'), format: 'match_play_2v2', order: 3, label: 'Fri AM — Pinehurst No. 2',                    countsTowardCup: true  },
-      { tripId: trip.id, courseId: pinehurst2.id,  date: new Date('2026-08-22T00:00:00-04:00'), format: 'singles',        order: 4, label: 'Sat AM — Singles',                            countsTowardCup: true  },
-      { tripId: trip.id, courseId: pinehurst2.id,  date: new Date('2026-08-22T00:00:00-04:00'), format: 'singles',        order: 5, label: 'Sat PM — Singles (captains pick matchups)',   countsTowardCup: true  },
-      { tripId: trip.id, courseId: pinehurst1.id,  date: new Date('2026-08-22T00:00:00-04:00'), format: 'scramble',       order: 6, label: 'Sat — Fun Scramble (Pinehurst No. 1)',        countsTowardCup: false },
+      { tripId: trip.id, courseId: pinehurst10.id, date: new Date('2026-08-22T00:00:00-04:00'), format: 'singles',        order: 4, label: 'Sat AM — Pinehurst No. 10 (Singles)',         countsTowardCup: true  },
+      { tripId: trip.id, courseId: pinehurst4.id,  date: new Date('2026-08-22T00:00:00-04:00'), format: 'singles',        order: 5, label: 'Sat PM — Pinehurst No. 4 (captains pick)',    countsTowardCup: true  },
+      { tripId: trip.id, courseId: pinehurst4.id,  date: new Date('2026-08-22T00:00:00-04:00'), format: 'scramble',       order: 6, label: 'Sat — Fun Scramble (Pinehurst No. 4)',        countsTowardCup: false },
     ])
     .returning();
 
@@ -230,6 +233,21 @@ async function seed() {
 
   await db.insert(matchParticipants).values(participantRows);
 
+  // Placeholder non-golf events. Admin can edit/add/delete in the UI.
+  const insertedEvents = await db
+    .insert(tripEvents)
+    .values([
+      { tripId: trip.id, type: 'hotel_checkin',  title: 'Hotel check-in',         location: 'Pinehurst Resort',  address: '80 Carolina Vista Dr, Pinehurst, NC 28374', startTime: new Date('2026-08-19T15:00:00-04:00') },
+      { tripId: trip.id, type: 'social',         title: 'Welcome dinner',         location: 'Pinehurst Resort',  address: '80 Carolina Vista Dr, Pinehurst, NC 28374', startTime: new Date('2026-08-19T19:00:00-04:00') },
+      { tripId: trip.id, type: 'meal',           title: 'Lunch — Tobacco Road',   location: 'Tobacco Road Golf Club Clubhouse', address: '442 Tobacco Rd, Sanford, NC 27332', startTime: new Date('2026-08-20T12:30:00-04:00') },
+      { tripId: trip.id, type: 'social',         title: 'Team dinner',            location: 'TBD', address: null,                                                  startTime: new Date('2026-08-20T19:00:00-04:00') },
+      { tripId: trip.id, type: 'meal',           title: 'Lunch — Pinehurst No. 2',location: 'Pinehurst No. 2 Clubhouse', address: '80 Carolina Vista Dr, Pinehurst, NC 28374', startTime: new Date('2026-08-21T12:30:00-04:00') },
+      { tripId: trip.id, type: 'social',         title: 'Team dinner',            location: 'TBD', address: null,                                                  startTime: new Date('2026-08-21T19:00:00-04:00') },
+      { tripId: trip.id, type: 'social',         title: 'Closing ceremony dinner',location: 'Pinehurst Resort',  address: '80 Carolina Vista Dr, Pinehurst, NC 28374', startTime: new Date('2026-08-22T19:00:00-04:00') },
+      { tripId: trip.id, type: 'hotel_checkout', title: 'Hotel check-out',        location: 'Pinehurst Resort',  address: '80 Carolina Vista Dr, Pinehurst, NC 28374', startTime: new Date('2026-08-23T11:00:00-04:00') },
+    ])
+    .returning();
+
   console.log('✅ Seed complete.');
   console.log(`   - 1 trip: ${trip.name} (Aug 19–22, 2026)`);
   console.log(`   - 2 teams: ${machIans.name}, ${dbags.name}`);
@@ -239,6 +257,7 @@ async function seed() {
   console.log(`   - ${insertedTeeTimes.length} tee times`);
   console.log(`   - ${insertedMatches.length} matches (R5 captain-pick + R6 scramble left empty)`);
   console.log(`   - ${participantRows.length} match participants`);
+  console.log(`   - ${insertedEvents.length} non-golf trip events (admin can edit)`);
 }
 
 seed()
