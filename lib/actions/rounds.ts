@@ -89,7 +89,7 @@ export async function createRound(formData: FormData): Promise<void> {
   const label = trim(formData.get('label'));
   const format = readFormat(formData.get('format'));
   const date = parseDate(formData.get('date'));
-  const countsTowardCup = formData.get('countsTowardCup') !== 'off';
+  const countsTowardCup = formData.get('friendly') !== 'on';
 
   const [created] = await db
     .insert(rounds)
@@ -135,7 +135,7 @@ export async function updateRound(formData: FormData): Promise<void> {
       label: trim(formData.get('label')),
       format: readFormat(formData.get('format')),
       date: parseDate(formData.get('date')),
-      countsTowardCup: formData.get('countsTowardCup') !== 'off',
+      countsTowardCup: formData.get('friendly') !== 'on',
     })
     .where(eq(rounds.id, id));
 

@@ -166,15 +166,20 @@ export default async function EditRoundPage({
           </select>
         </Field>
 
-        <label className="flex items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 px-3 py-3">
+        <label className="flex items-start gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 px-3 py-3">
           <input
             type="checkbox"
-            name="countsTowardCup"
-            defaultChecked={round.countsTowardCup}
-            className="h-4 w-4 accent-yellow-500"
+            name="friendly"
+            defaultChecked={!round.countsTowardCup}
+            className="mt-0.5 h-4 w-4 accent-yellow-500"
           />
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-200">
-            Counts toward Cup
+          <span className="min-w-0 flex-1">
+            <span className="block font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-200">
+              Friendly round
+            </span>
+            <span className="block text-[11px] text-zinc-500">
+              Does not count toward the Cup.
+            </span>
           </span>
         </label>
 
