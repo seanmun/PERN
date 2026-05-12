@@ -31,6 +31,12 @@ export default function HomeBgVideo({
     return () => v.removeEventListener('timeupdate', onTimeUpdate);
   }, [loopAt]);
 
+  // CSS mask fades the bottom of the video into the page background so the
+  // iStock watermark (which lives in the bottom strip of the source file)
+  // disappears smoothly. Adjust the percentages if the watermark sits higher.
+  const maskGradient =
+    'linear-gradient(180deg, black 0%, black 72%, transparent 92%)';
+
   return (
     <video
       ref={videoRef}
@@ -41,6 +47,10 @@ export default function HomeBgVideo({
       playsInline
       preload="auto"
       className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60"
+      style={{
+        maskImage: maskGradient,
+        WebkitMaskImage: maskGradient,
+      }}
       aria-hidden="true"
     />
   );
