@@ -12,6 +12,54 @@ import {
   isTripAdminOf,
 } from '@/lib/auth/permissions';
 
+function trim(v: FormDataEntryValue | null): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s.length ? s : null;
+}
+
+function intOrNull(v: FormDataEntryValue | null): number | null {
+  const s = trim(v);
+  if (!s) return null;
+  const n = Number(s);
+  if (Number.isNaN(n)) throw new Error('Invalid number');
+  return Math.round(n);
+}
+
+export async function createCourse(formData: FormData): Promise<void> {
+  const ctx = await getAuthContext();
+  if (!ctx) throw new AuthorizationError('Authentication required');
+
+  const [trip] = await db.select().from(trips).limit(1);
+  if (!trip) throw new Error('No trip configured');
+
+  if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, trip.id)) {
+    throw new AuthorizationError('Trip admin required');
+  }
+
+  const name = String(formData.get('name') ?? '').trim();
+  if (!name) throw new Error('Name is required');
+
+  const [created] = await db
+    .insert(courses)
+    .values({
+      name,
+      location: trim(formData.get('location')),
+      totalPar: intOrNull(formData.get('totalPar')),
+      imageUrl: trim(formData.get('imageUrl')),
+    })
+    .returning();
+
+  revalidatePath('/admin/courses');
+
+  const redirectTo = String(formData.get('redirectTo') ?? '').trim();
+  if (redirectTo) {
+    redirect(redirectTo);
+  } else {
+    redirect(`/admin/courses/${created.id}/edit`);
+  }
+}
+
 export async function updateCourse(formData: FormData): Promise<void> {
   const ctx = await getAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');

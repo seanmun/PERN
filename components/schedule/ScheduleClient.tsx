@@ -132,10 +132,17 @@ export default function ScheduleClient({
       </div>
 
       {canEdit && (
-        <div className="mb-6 flex justify-end">
+        <div className="mb-6 flex justify-end gap-2">
+          <Link
+            href="/admin/rounds/new"
+            className="flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+          >
+            <Plus size={12} strokeWidth={2.5} />
+            New round
+          </Link>
           <Link
             href="/events/new"
-            className="flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+            className="flex items-center gap-1.5 rounded-sm border border-zinc-700 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:bg-zinc-900"
           >
             <Plus size={12} strokeWidth={2.5} />
             New event

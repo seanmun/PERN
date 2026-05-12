@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, ImageIcon, Users } from 'lucide-react';
+import { ChevronRight, ImageIcon, Trophy, Users } from 'lucide-react';
 import { getAuthContext } from '@/lib/auth/current-user';
 import { isPlatformAdmin } from '@/lib/auth/permissions';
 import ComingSoon from '@/components/ComingSoon';
@@ -34,6 +34,12 @@ export default async function AdminPage() {
           icon={<Users size={16} />}
           label="Players"
           hint="Photos, handicaps, teams, captains, scouting reports."
+        />
+        <AdminLink
+          href="/admin/rounds"
+          icon={<Trophy size={16} />}
+          label="Rounds"
+          hint="Golf events — course, date, format, tee times, matchups."
         />
         <AdminLink
           href="/admin/courses"

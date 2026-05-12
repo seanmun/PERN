@@ -39,10 +39,20 @@ export default async function AdminCoursesPage() {
         <ArrowLeft size={12} /> Admin
       </Link>
 
-      <h1 className="mt-6 text-2xl font-bold tracking-tight">Courses</h1>
-      <p className="mt-1 text-xs text-zinc-500">
-        Set the landscape photo that runs behind each match detail page.
-      </p>
+      <div className="mt-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Courses</h1>
+          <p className="mt-1 text-xs text-zinc-500">
+            Set the landscape photo that runs behind each match detail page.
+          </p>
+        </div>
+        <Link
+          href="/admin/courses/new"
+          className="shrink-0 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+        >
+          + New
+        </Link>
+      </div>
 
       <div className="mt-8 space-y-3">
         {list.map((c) => (
