@@ -44,7 +44,7 @@ export default function Home() {
         </p>
 
         <p className="mt-8 max-w-md text-zinc-200 drop-shadow-[0_1px_8px_rgba(0,0,0,0.8)]">
-          Ryder-Cup-style match play. Five rounds, two teams, fifteen points up for grabs.
+          Ryder-Cup-style match play. Five rounds, two teams, twenty-one points up for grabs.
         </p>
 
         <div className="mt-10 flex gap-3">
