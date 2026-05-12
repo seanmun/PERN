@@ -74,7 +74,7 @@ function TeamSide({ team, align }: { team: TeamTotal; align: 'left' | 'right' })
   const color = team.teamColor ?? '#71717a';
   return (
     <div
-      className="rounded-sm border p-5"
+      className="flex flex-col rounded-sm border p-5"
       style={{
         borderColor: `${color}66`,
         background: `linear-gradient(180deg, ${color}22 0%, transparent 100%)`,
@@ -97,6 +97,14 @@ function TeamSide({ team, align }: { team: TeamTotal; align: 'left' | 'right' })
       >
         {formatPoints(team.points)}
       </p>
+      <Link
+        href={`/teams/${team.teamId}`}
+        className={`mt-4 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:text-yellow-400 ${
+          align === 'right' ? 'ml-auto' : ''
+        }`}
+      >
+        View team →
+      </Link>
     </div>
   );
 }
