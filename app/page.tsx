@@ -13,16 +13,16 @@ export default function Home() {
       </div>
 
       <h1 className="mt-6 text-5xl font-bold tracking-tight sm:text-6xl">
-        <span className="block text-zinc-400">PINEHURST</span>
+        <span className="block text-zinc-100">PINEHURST</span>
         <span className="block bg-gradient-to-b from-yellow-300 via-yellow-500 to-yellow-700 bg-clip-text text-transparent">
           CUP
         </span>
       </h1>
-      <p className="mt-1 font-mono text-xs uppercase tracking-[0.4em] text-zinc-600">
+      <p className="mt-1 font-mono text-xs uppercase tracking-[0.4em] text-zinc-400">
         Est. 2026 — XXIst Cup
       </p>
 
-      <p className="mt-8 max-w-md text-zinc-400">
+      <p className="mt-8 max-w-md text-zinc-300">
         Ryder-Cup-style match play. Six rounds, two teams, twenty-one points.
       </p>
 

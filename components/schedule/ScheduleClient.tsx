@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -76,6 +76,9 @@ const EVENT_ICONS: Record<string, LucideIcon> = {
   other: Calendar,
 };
 
+const VIEW_KEY = 'cup_schedule_view';
+const DAY_KEY = 'cup_schedule_day';
+
 export default function ScheduleClient({
   days,
   canEdit = false,
@@ -85,6 +88,26 @@ export default function ScheduleClient({
 }) {
   const [view, setView] = useState<'list' | 'day'>('list');
   const [activeDay, setActiveDay] = useState(days[0]?.date ?? '');
+  const [restored, setRestored] = useState(false);
+
+  // Restore last-used view + day on mount so back-from-detail lands you where you left off.
+  useEffect(() => {
+    const storedView = localStorage.getItem(VIEW_KEY);
+    if (storedView === 'day' || storedView === 'list') setView(storedView);
+    const storedDay = localStorage.getItem(DAY_KEY);
+    if (storedDay && days.some((d) => d.date === storedDay)) {
+      setActiveDay(storedDay);
+    }
+    setRestored(true);
+  }, [days]);
+
+  useEffect(() => {
+    if (restored) localStorage.setItem(VIEW_KEY, view);
+  }, [view, restored]);
+
+  useEffect(() => {
+    if (restored && activeDay) localStorage.setItem(DAY_KEY, activeDay);
+  }, [activeDay, restored]);
 
   if (days.length === 0) {
     return (
