@@ -1,5 +1,7 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { eq } from 'drizzle-orm';
+import { ChevronRight } from 'lucide-react';
 import { db } from '@/db/client';
 import { trips } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
@@ -102,8 +104,9 @@ function TeamSide({ team, align }: { team: TeamTotal; align: 'left' | 'right' })
 function PlayerRow({ player, rank }: { player: PlayerTotal; rank: number }) {
   const color = player.teamColor ?? '#71717a';
   return (
-    <div
-      className="flex items-center gap-3 border-b border-zinc-800 bg-zinc-950/40 px-3 py-2.5 last:border-b-0"
+    <Link
+      href={`/profile/${player.tripMemberId}`}
+      className="flex items-center gap-3 border-b border-zinc-800 bg-zinc-950/40 px-3 py-2.5 last:border-b-0 hover:bg-zinc-900/40"
       style={{ borderLeft: `3px solid ${color}` }}
     >
       <p className="w-6 shrink-0 font-mono text-xs font-semibold tabular-nums text-zinc-500">
@@ -126,7 +129,8 @@ function PlayerRow({ player, rank }: { player: PlayerTotal; rank: number }) {
       <p className="w-12 shrink-0 text-right font-mono text-lg font-bold tabular-nums text-yellow-400">
         {formatPoints(player.points)}
       </p>
-    </div>
+      <ChevronRight size={12} className="shrink-0 text-zinc-700" />
+    </Link>
   );
 }
 
