@@ -1,5 +1,6 @@
 import 'server-only';
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { sql } from 'drizzle-orm';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { users, tripMembers } from '@/db/schema';
@@ -17,11 +18,13 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   const clerkUser = await currentUser();
   if (!clerkUser) return null;
 
-  const email = clerkUser.primaryEmailAddress?.emailAddress
+  const emailRaw = clerkUser.primaryEmailAddress?.emailAddress
     ?? clerkUser.emailAddresses[0]?.emailAddress;
-  if (!email) {
+  if (!emailRaw) {
     throw new Error('Clerk user has no email address');
   }
+  // Emails are matched case-insensitively. Store new rows lowercase.
+  const email = emailRaw.toLowerCase();
 
   let [user] = await db
     .select()
@@ -33,13 +36,13 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     const [existingByEmail] = await db
       .select()
       .from(users)
-      .where(eq(users.email, email))
+      .where(sql`lower(${users.email}) = ${email}`)
       .limit(1);
 
     if (existingByEmail) {
       [user] = await db
         .update(users)
-        .set({ clerkId: clerkUserId, updatedAt: new Date() })
+        .set({ clerkId: clerkUserId, email, updatedAt: new Date() })
         .where(eq(users.id, existingByEmail.id))
         .returning();
     } else {
@@ -58,13 +61,13 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   let [tripMember] = await db
     .select()
     .from(tripMembers)
-    .where(eq(tripMembers.email, email))
+    .where(sql`lower(${tripMembers.email}) = ${email}`)
     .limit(1);
 
   if (tripMember && !tripMember.userId) {
     [tripMember] = await db
       .update(tripMembers)
-      .set({ userId: user.id })
+      .set({ userId: user.id, email })
       .where(eq(tripMembers.id, tripMember.id))
       .returning();
   }
@@ -77,6 +80,6 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   return {
     user,
     tripMember: tripMember ?? null,
-    isPlatformAdmin: adminEmails.includes(email.toLowerCase()),
+    isPlatformAdmin: adminEmails.includes(email),
   };
 }

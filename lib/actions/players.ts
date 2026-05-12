@@ -49,7 +49,7 @@ export async function updatePlayer(formData: FormData): Promise<void> {
   const nickname = String(formData.get('nickname') ?? '').trim();
   if (!nickname) throw new Error('Nickname is required');
 
-  const email = String(formData.get('email') ?? '').trim();
+  const email = String(formData.get('email') ?? '').trim().toLowerCase();
   if (!email) throw new Error('Email is required');
 
   const teamId = trimOrNull(formData.get('teamId'));
