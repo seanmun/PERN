@@ -71,10 +71,10 @@ export default async function MePage() {
           <Pencil size={14} />
         </Link>
 
-        {user.avatarUrl ? (
+        {tripMember.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={user.avatarUrl}
+            src={tripMember.avatarUrl}
             alt={tripMember.nickname}
             className="mb-4 h-24 w-24 rounded-sm object-cover"
             style={{ boxShadow: `0 0 0 3px ${teamColor}` }}

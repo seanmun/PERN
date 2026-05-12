@@ -49,7 +49,6 @@ export async function updateMyProfile(formData: FormData): Promise<void> {
     .update(users)
     .set({
       fullName,
-      avatarUrl,
       ghinNumber,
       updatedAt: new Date(),
     })
@@ -57,7 +56,7 @@ export async function updateMyProfile(formData: FormData): Promise<void> {
 
   await db
     .update(tripMembers)
-    .set({ tripHandicap })
+    .set({ tripHandicap, avatarUrl })
     .where(eq(tripMembers.id, ctx.tripMember.id));
 
   revalidatePath('/me');

@@ -17,19 +17,18 @@ export default async function HeaderAvatar() {
 
   const { user, tripMember } = ctx;
   const initial = (tripMember?.nickname ?? user.email).slice(0, 1).toUpperCase();
-  const ringColor = '#3f3f46';
+  const avatarUrl = tripMember?.avatarUrl ?? null;
 
   return (
     <Link
       href="/me"
       aria-label="Your account"
       className="flex h-10 w-10 items-center justify-center rounded-sm overflow-hidden ring-2 ring-zinc-700 hover:ring-yellow-500"
-      style={{ borderColor: ringColor }}
     >
-      {user.avatarUrl ? (
+      {avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={user.avatarUrl}
+          src={avatarUrl}
           alt=""
           className="h-full w-full object-cover"
         />

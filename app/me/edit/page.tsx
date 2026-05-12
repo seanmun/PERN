@@ -36,7 +36,7 @@ export default async function EditProfilePage() {
           <div className="mt-2">
             <ImagePickerInput
               name="avatarUrl"
-              defaultValue={user.avatarUrl ?? undefined}
+              defaultValue={tripMember.avatarUrl ?? undefined}
               aspect="1/1"
             />
           </div>

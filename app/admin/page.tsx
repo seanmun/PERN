@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, ImageIcon } from 'lucide-react';
+import { ChevronRight, ImageIcon, Users } from 'lucide-react';
 import { getAuthContext } from '@/lib/auth/current-user';
 import { isPlatformAdmin } from '@/lib/auth/permissions';
 import ComingSoon from '@/components/ComingSoon';
@@ -30,10 +30,16 @@ export default async function AdminPage() {
 
       <div className="mt-8 space-y-3">
         <AdminLink
+          href="/admin/players"
+          icon={<Users size={16} />}
+          label="Players"
+          hint="Photos, handicaps, teams, captains, scouting reports."
+        />
+        <AdminLink
           href="/admin/courses"
           icon={<ImageIcon size={16} />}
           label="Courses"
-          hint="Set landscape photos used as match-detail backgrounds."
+          hint="Landscape photos used as match-detail backgrounds."
         />
       </div>
     </div>

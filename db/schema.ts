@@ -76,6 +76,7 @@ export const tripMembers = pgTable('trip_members', {
   email: text('email').notNull(),
   teamId: uuid('team_id').references(() => teams.id),
   nickname: text('nickname').notNull(),
+  avatarUrl: text('avatar_url'),                                 // trip-scoped photo (admin can set before claim)
   role: tripRoleEnum('role').default('player').notNull(),
   isCaptain: boolean('is_captain').default(false).notNull(),
   tripHandicap: numeric('trip_handicap', { precision: 4, scale: 1 }),
