@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import { ClerkProvider, Show, UserButton } from '@clerk/nextjs';
+import { ClerkProvider } from '@clerk/nextjs';
 import Link from 'next/link';
 import BottomNav from '@/components/BottomNav';
+import HeaderAvatar from '@/components/HeaderAvatar';
 import './globals.css';
 
 const geistSans = Geist({
@@ -43,19 +44,7 @@ export default function RootLayout({
                 </span>
               </Link>
               <div className="flex items-center gap-3">
-                <Show
-                  when="signed-in"
-                  fallback={
-                    <Link
-                      href="/sign-in"
-                      className="rounded-sm border border-yellow-600/40 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-widest text-yellow-400 hover:bg-yellow-600/10 hover:text-yellow-300"
-                    >
-                      Sign in
-                    </Link>
-                  }
-                >
-                  <UserButton />
-                </Show>
+                <HeaderAvatar />
               </div>
             </div>
           </header>

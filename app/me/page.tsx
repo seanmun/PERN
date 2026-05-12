@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { teams, trips } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
+import SignOutLink from '@/components/SignOutLink';
 
 export default async function MePage() {
   const ctx = await getAuthContext();
@@ -122,6 +123,10 @@ export default async function MePage() {
       </div>
 
       <p className="mt-10 text-xs text-zinc-600">Signed in as {user.email}</p>
+
+      <div className="mt-4">
+        <SignOutLink />
+      </div>
     </div>
   );
 }
