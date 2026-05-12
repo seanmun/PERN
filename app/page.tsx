@@ -5,6 +5,7 @@ export default function Home() {
   return (
     <div className="relative isolate min-h-[calc(100vh-130px)] overflow-hidden">
       <video
+        src="/golfball-test.mp4"
         autoPlay
         loop
         muted
@@ -12,9 +13,7 @@ export default function Home() {
         preload="auto"
         className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60"
         aria-hidden="true"
-      >
-        <source src="/golfball-test.mp4" type="video/mp4" />
-      </video>
+      />
 
       <div
         className="pointer-events-none absolute inset-0"
