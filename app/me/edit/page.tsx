@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getAuthContext } from '@/lib/auth/current-user';
 import { updateMyProfile } from '@/lib/actions/update-profile';
+import ImagePickerInput from '@/components/ImagePickerInput';
 
 export default async function EditProfilePage() {
   const ctx = await getAuthContext();
@@ -28,6 +29,19 @@ export default async function EditProfilePage() {
       </p>
 
       <form action={updateMyProfile} className="mt-8 space-y-6">
+        <div>
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+            Profile photo
+          </span>
+          <div className="mt-2">
+            <ImagePickerInput
+              name="avatarUrl"
+              defaultValue={user.avatarUrl ?? undefined}
+              aspect="1/1"
+            />
+          </div>
+        </div>
+
         <Field
           label="Full name"
           name="fullName"
@@ -48,13 +62,6 @@ export default async function EditProfilePage() {
           defaultValue={user.ghinNumber ?? ''}
           placeholder="0000000"
           hint="Optional. Used later for handicap verification."
-        />
-        <Field
-          label="Avatar URL"
-          name="avatarUrl"
-          defaultValue={user.avatarUrl ?? ''}
-          placeholder="https://..."
-          hint="Image upload comes later — paste a URL for now."
         />
 
         <div className="flex items-center gap-3 pt-4">

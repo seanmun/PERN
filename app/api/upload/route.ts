@@ -4,9 +4,6 @@ import {
   type HandleUploadBody,
 } from '@vercel/blob/client';
 import { getAuthContext } from '@/lib/auth/current-user';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
-import { db } from '@/db/client';
-import { trips } from '@/db/schema';
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB per file
 
@@ -18,16 +15,10 @@ export async function POST(request: Request): Promise<NextResponse> {
       body,
       request,
       onBeforeGenerateToken: async () => {
-        // Authorize: must be a trip admin or platform admin.
+        // Any signed-in user can upload (avatars, etc.). Write-scope per
+        // resource is enforced when the URL is saved back to the DB.
         const ctx = await getAuthContext();
         if (!ctx) throw new Error('Not authenticated');
-
-        const [trip] = await db.select().from(trips).limit(1);
-        if (!trip) throw new Error('No trip configured');
-
-        const canUpload =
-          isPlatformAdmin(ctx) || isTripAdminOf(ctx, trip.id);
-        if (!canUpload) throw new Error('Not authorized');
 
         return {
           allowedContentTypes: [
