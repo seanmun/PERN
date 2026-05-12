@@ -8,6 +8,7 @@ import {
   numeric,
   pgEnum,
   primaryKey,
+  unique,
 } from 'drizzle-orm/pg-core';
 
 export const tripRoleEnum = pgEnum('trip_role', ['trip_admin', 'player']);
@@ -142,17 +143,21 @@ export const matchParticipants = pgTable(
   (t) => [primaryKey({ columns: [t.matchId, t.tripMemberId] })]
 );
 
-export const holeScores = pgTable('hole_scores', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  matchId: uuid('match_id').references(() => matches.id, { onDelete: 'cascade' }).notNull(),
-  tripMemberId: uuid('trip_member_id').references(() => tripMembers.id).notNull(),
-  holeNumber: integer('hole_number').notNull(),
-  gross: integer('gross'),
-  net: integer('net'),
-  strokesReceived: integer('strokes_received').default(0).notNull(),
-  enteredBy: uuid('entered_by').references(() => users.id),
-  enteredAt: timestamp('entered_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export const holeScores = pgTable(
+  'hole_scores',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    matchId: uuid('match_id').references(() => matches.id, { onDelete: 'cascade' }).notNull(),
+    tripMemberId: uuid('trip_member_id').references(() => tripMembers.id).notNull(),
+    holeNumber: integer('hole_number').notNull(),
+    gross: integer('gross'),
+    net: integer('net'),
+    strokesReceived: integer('strokes_received').default(0).notNull(),
+    enteredBy: uuid('entered_by').references(() => users.id),
+    enteredAt: timestamp('entered_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique('hole_scores_match_player_hole_unique').on(t.matchId, t.tripMemberId, t.holeNumber)]
+);
 
 export const media = pgTable('media', {
   id: uuid('id').primaryKey().defaultRandom(),

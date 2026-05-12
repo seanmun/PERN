@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { eq, asc } from 'drizzle-orm';
-import { ArrowLeft, MapPin, Pencil, Trophy } from 'lucide-react';
+import { ArrowLeft, MapPin, Pencil, PenLine, Trophy } from 'lucide-react';
 import { db } from '@/db/client';
 import {
   matches,
@@ -20,6 +20,8 @@ import {
   mapsUrl,
   roundFormatLabel,
 } from '@/lib/format';
+import { getMatchScoringData } from '@/lib/data/match-scoring';
+import { computeMatch, formatStatus } from '@/lib/scoring/engine';
 
 export default async function MatchDetailPage({
   params,
@@ -76,6 +78,23 @@ export default async function MatchDetailPage({
 
   const canEdit =
     isPlatformAdmin(ctx) || isTripAdminOf(ctx, match.round.tripId);
+
+  // Live status from the scoring engine
+  const scoringData = await getMatchScoringData(id);
+  const liveMatch = scoringData
+    ? computeMatch({
+        players: scoringData.enginePlayers,
+        holes: scoringData.engineHoles,
+        scores: scoringData.engineScores,
+      })
+    : null;
+  const liveStatusText = liveMatch ? formatStatus(liveMatch.status) : null;
+
+  const selfTripMemberId = ctx.tripMember?.id ?? null;
+  const selfIsParticipant = participants.some(
+    (p) => p.member.id === selfTripMemberId
+  );
+  const canEnterScores = canEdit || selfIsParticipant;
 
   const mapQuery = [match.course.name, match.course.location]
     .filter(Boolean)
@@ -165,15 +184,30 @@ export default async function MatchDetailPage({
         <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
           Status
         </p>
-        <p className="mt-1 text-base font-semibold capitalize">
-          {match.match.status.replace('_', ' ')}
-        </p>
-        {match.match.resultText && (
-          <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-yellow-400">
-            {match.match.resultText}
+        {liveMatch && liveMatch.holesPlayed > 0 ? (
+          <>
+            <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-yellow-400">
+              {liveStatusText}
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+              {liveMatch.holesPlayed} of {liveMatch.totalHoles} holes
+            </p>
+          </>
+        ) : (
+          <p className="mt-1 text-base font-semibold capitalize">
+            {match.match.status.replace('_', ' ')}
           </p>
         )}
       </div>
+
+      {canEnterScores && (
+        <Link
+          href={`/matches/${match.match.id}/score`}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-sm bg-yellow-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400"
+        >
+          <PenLine size={14} /> Enter scores
+        </Link>
+      )}
 
       {mapQuery && (
         <a

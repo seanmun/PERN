@@ -1,0 +1,1 @@
+ALTER TABLE "hole_scores" ADD CONSTRAINT "hole_scores_match_player_hole_unique" UNIQUE("match_id","trip_member_id","hole_number");
