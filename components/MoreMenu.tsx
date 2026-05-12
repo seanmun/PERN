@@ -1,36 +1,55 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Settings, Plane, Cog } from 'lucide-react';
+import { Menu, Plane, Cog } from 'lucide-react';
 
 export default function MoreMenu({ isAdmin }: { isAdmin: boolean }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
-  const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => setMounted(true), []);
 
   // Close menu when route changes
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  useEffect(() => setOpen(false), [pathname]);
 
-  // Close on Escape
+  // Close on Escape and click outside
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
+    function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false);
-    };
+    }
+    function onClick(e: MouseEvent | TouchEvent) {
+      const target = e.target as Node;
+      if (
+        !triggerRef.current?.contains(target) &&
+        !popoverRef.current?.contains(target)
+      ) {
+        setOpen(false);
+      }
+    }
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('touchstart', onClick);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('touchstart', onClick);
+    };
   }, [open]);
 
   const activeWhenOnMenuPath =
     pathname.startsWith('/admin') || pathname.startsWith('/flights');
 
   return (
-    <div className="relative flex flex-1 items-stretch" ref={menuRef}>
+    <div className="flex flex-1 items-stretch">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`flex flex-1 flex-col items-center gap-1 px-2 py-3 transition-colors ${
@@ -42,45 +61,39 @@ export default function MoreMenu({ isAdmin }: { isAdmin: boolean }) {
         aria-expanded={open}
         aria-label="More"
       >
-        <Settings size={20} strokeWidth={2} />
+        <Menu size={20} strokeWidth={2} />
         <span className="font-mono text-[10px] font-semibold uppercase tracking-widest">
           More
         </span>
       </button>
 
-      {open && (
-        <>
-          {/* Backdrop to capture outside taps */}
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            aria-label="Close menu"
-            className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm"
-          />
-          {/* Menu popover */}
-          <div
-            role="menu"
-            className="fixed bottom-20 right-2 z-40 w-52 rounded-sm border border-zinc-800 bg-zinc-950 shadow-2xl"
-            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-          >
-            <MenuLink
-              href="/flights"
-              icon={<Plane size={16} />}
-              label="Flights"
-              hint="Travel coordination"
-            />
-            {isAdmin && (
+      {mounted && open
+        ? createPortal(
+            <div
+              ref={popoverRef}
+              role="menu"
+              className="fixed right-2 z-[60] w-52 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 shadow-2xl"
+              style={{ bottom: 'calc(env(safe-area-inset-bottom) + 72px)' }}
+            >
               <MenuLink
-                href="/admin"
-                icon={<Cog size={16} />}
-                label="Admin"
-                hint="Trip controls"
-                divider
+                href="/flights"
+                icon={<Plane size={16} />}
+                label="Flights"
+                hint="Travel coordination"
               />
-            )}
-          </div>
-        </>
-      )}
+              {isAdmin && (
+                <MenuLink
+                  href="/admin"
+                  icon={<Cog size={16} />}
+                  label="Admin"
+                  hint="Trip controls"
+                  divider
+                />
+              )}
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
