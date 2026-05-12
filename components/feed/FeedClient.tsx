@@ -1,0 +1,359 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import {
+  Flame,
+  ImageIcon,
+  MessageSquare,
+  Plus,
+  Trophy,
+  Video,
+  User as UserIcon,
+} from 'lucide-react';
+import FeedComposer, { type ComposerMatchOption } from './FeedComposer';
+import type { FeedItem } from '@/lib/data/feed';
+
+type ClientFeedItem =
+  | (Omit<Extract<FeedItem, { kind: 'score' }>, 'at'> & { at: string })
+  | (Omit<Extract<FeedItem, { kind: 'media' }>, 'at'> & { at: string })
+  | (Omit<Extract<FeedItem, { kind: 'text' }>, 'at'> & { at: string });
+
+export default function FeedClient({
+  items,
+  canPost,
+  matchOptions,
+}: {
+  items: ClientFeedItem[];
+  canPost: boolean;
+  matchOptions: ComposerMatchOption[];
+}) {
+  const router = useRouter();
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'score' | 'media' | 'text'>(
+    'all'
+  );
+
+  // Auto-refresh every 25s for the "live" feel.
+  useEffect(() => {
+    const id = setInterval(() => router.refresh(), 25_000);
+    return () => clearInterval(id);
+  }, [router]);
+
+  const filtered = items.filter((i) =>
+    filter === 'all' ? true : i.kind === filter
+  );
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 pt-6 pb-28">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <Flame size={16} className="text-yellow-500" />
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+              Live feed
+            </p>
+          </div>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight">
+            Trip pulse
+          </h1>
+        </div>
+        {canPost && (
+          <button
+            type="button"
+            onClick={() => setComposerOpen(true)}
+            className="flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+          >
+            <Plus size={12} strokeWidth={2.5} /> Post
+          </button>
+        )}
+      </div>
+
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+        <FilterChip
+          active={filter === 'all'}
+          onClick={() => setFilter('all')}
+          label="All"
+        />
+        <FilterChip
+          active={filter === 'score'}
+          onClick={() => setFilter('score')}
+          label="Scores"
+          icon={<Trophy size={11} />}
+        />
+        <FilterChip
+          active={filter === 'media'}
+          onClick={() => setFilter('media')}
+          label="Photos"
+          icon={<ImageIcon size={11} />}
+        />
+        <FilterChip
+          active={filter === 'text'}
+          onClick={() => setFilter('text')}
+          label="Talk"
+          icon={<MessageSquare size={11} />}
+        />
+      </div>
+
+      <div className="mt-6 space-y-3">
+        {filtered.length === 0 ? (
+          <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-8 text-center">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              Quiet
+            </p>
+            <p className="mt-2 text-sm text-zinc-400">
+              Nothing on the feed yet. Be the first.
+            </p>
+          </div>
+        ) : (
+          filtered.map((item) => <FeedItemCard key={item.id} item={item} />)
+        )}
+      </div>
+
+      <FeedComposer
+        open={composerOpen}
+        onClose={() => setComposerOpen(false)}
+        matchOptions={matchOptions}
+      />
+    </div>
+  );
+}
+
+function FilterChip({
+  active,
+  onClick,
+  label,
+  icon,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`shrink-0 rounded-sm border px-3 py-1.5 ${
+        active
+          ? 'border-yellow-500/60 bg-yellow-500/10'
+          : 'border-zinc-800 bg-black hover:border-zinc-700'
+      }`}
+    >
+      <span
+        className={`flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest ${
+          active ? 'text-yellow-400' : 'text-zinc-400'
+        }`}
+      >
+        {icon}
+        {label}
+      </span>
+    </button>
+  );
+}
+
+function FeedItemCard({ item }: { item: ClientFeedItem }) {
+  switch (item.kind) {
+    case 'score':
+      return <ScoreCard item={item} />;
+    case 'media':
+      return <MediaCard item={item} />;
+    case 'text':
+      return <TextCard item={item} />;
+  }
+}
+
+function ScoreCard({
+  item,
+}: {
+  item: Extract<ClientFeedItem, { kind: 'score' }>;
+}) {
+  const color = item.author.teamColor ?? '#3f3f46';
+  const diff = item.gross - item.par;
+  const labelColor =
+    diff <= -1
+      ? 'text-emerald-400'
+      : diff === 0
+      ? 'text-zinc-200'
+      : diff === 1
+      ? 'text-yellow-400'
+      : 'text-red-400';
+
+  return (
+    <Link
+      href={`/matches/${item.match.matchId}`}
+      className="block rounded-sm border border-zinc-800 bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-900/40"
+      style={{ borderLeft: `3px solid ${color}` }}
+    >
+      <div className="flex items-start gap-3">
+        <Avatar author={item.author} color={color} />
+        <div className="min-w-0 flex-1">
+          <FeedHeader author={item.author} at={item.at} />
+          <p className={`mt-1 font-mono text-sm font-bold uppercase tracking-widest ${labelColor}`}>
+            {item.resultLabel} · {item.gross} on Hole {item.holeNumber}{' '}
+            <span className="text-zinc-600">(par {item.par})</span>
+          </p>
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+            R{item.match.roundOrder} · {item.match.courseName}
+          </p>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function MediaCard({
+  item,
+}: {
+  item: Extract<ClientFeedItem, { kind: 'media' }>;
+}) {
+  const color = item.author.teamColor ?? '#3f3f46';
+  return (
+    <div
+      className="rounded-sm border border-zinc-800 bg-zinc-950/40"
+      style={{ borderLeft: `3px solid ${color}` }}
+    >
+      <div className="p-3 pb-2">
+        <div className="flex items-start gap-3">
+          <Avatar author={item.author} color={color} />
+          <div className="min-w-0 flex-1">
+            <FeedHeader author={item.author} at={item.at} />
+            {item.match && (
+              <p className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-zinc-500">
+                R{item.match.roundOrder} · {item.match.courseName}
+              </p>
+            )}
+          </div>
+          <Video size={14} className="shrink-0 text-zinc-600" />
+        </div>
+      </div>
+
+      <div className="border-y border-zinc-800 bg-black">
+        {item.mediaType === 'video' ? (
+          <video
+            src={item.mediaUrl}
+            controls
+            playsInline
+            className="aspect-[4/5] w-full bg-black object-cover sm:aspect-video"
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.mediaUrl}
+            alt={item.caption ?? ''}
+            className="aspect-[4/5] w-full bg-black object-cover sm:aspect-video"
+          />
+        )}
+      </div>
+
+      {item.caption && (
+        <p className="px-3 py-3 text-sm text-zinc-200">{item.caption}</p>
+      )}
+    </div>
+  );
+}
+
+function TextCard({
+  item,
+}: {
+  item: Extract<ClientFeedItem, { kind: 'text' }>;
+}) {
+  const color = item.author.teamColor ?? '#3f3f46';
+  return (
+    <div
+      className={`rounded-sm border bg-zinc-950/40 p-3 ${
+        item.pinned ? 'border-yellow-500/50' : 'border-zinc-800'
+      }`}
+      style={{ borderLeft: `3px solid ${color}` }}
+    >
+      <div className="flex items-start gap-3">
+        <Avatar author={item.author} color={color} />
+        <div className="min-w-0 flex-1">
+          <FeedHeader author={item.author} at={item.at} />
+          {item.pinned && (
+            <p className="mt-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-yellow-400">
+              Pinned
+            </p>
+          )}
+          <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-100">
+            {item.body}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Avatar({
+  author,
+  color,
+}: {
+  author: ClientFeedItem['author'];
+  color: string;
+}) {
+  return (
+    <div
+      className="h-9 w-9 shrink-0 overflow-hidden rounded-sm bg-zinc-900"
+      style={{ boxShadow: `0 0 0 2px ${color}` }}
+    >
+      {author.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={author.avatarUrl}
+          alt=""
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-zinc-600">
+          <UserIcon size={14} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FeedHeader({
+  author,
+  at,
+}: {
+  author: ClientFeedItem['author'];
+  at: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold">{author.nickname}</p>
+        {author.teamName && (
+          <p
+            className="font-mono text-[9px] font-semibold uppercase tracking-widest"
+            style={{ color: author.teamColor ?? undefined }}
+          >
+            {author.teamName}
+          </p>
+        )}
+      </div>
+      <span className="shrink-0 font-mono text-[9px] uppercase tracking-widest text-zinc-500">
+        {formatRelative(new Date(at))}
+      </span>
+    </div>
+  );
+}
+
+function formatRelative(d: Date): string {
+  const now = Date.now();
+  const diffMs = now - d.getTime();
+  const sec = Math.round(diffMs / 1000);
+  if (sec < 60) return 'just now';
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.round(hr / 24);
+  if (day < 7) return `${day}d ago`;
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'America/New_York',
+  }).format(d);
+}

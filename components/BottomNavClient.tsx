@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Trophy, User } from 'lucide-react';
+import { Calendar, Flame, Trophy, User } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import MoreMenu from './MoreMenu';
 
@@ -18,6 +18,7 @@ export default function BottomNavClient({ isAdmin }: { isAdmin: boolean }) {
   const items: NavItem[] = [
     { href: '/schedule', icon: Calendar, label: 'Schedule' },
     { href: '/scoreboard', icon: Trophy, label: 'Cup' },
+    { href: '/feed', icon: Flame, label: 'Feed' },
     { href: '/me', icon: User, label: 'Me' },
   ];
 

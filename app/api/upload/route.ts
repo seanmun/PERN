@@ -5,7 +5,7 @@ import {
 } from '@vercel/blob/client';
 import { getAuthContext } from '@/lib/auth/current-user';
 
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB per file
+const MAX_BYTES = 100 * 1024 * 1024; // 100 MB per file — enough for short feed videos
 
 export async function POST(request: Request): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;
@@ -27,6 +27,9 @@ export async function POST(request: Request): Promise<NextResponse> {
             'image/webp',
             'image/avif',
             'image/gif',
+            'video/mp4',
+            'video/quicktime',
+            'video/webm',
           ],
           maximumSizeInBytes: MAX_BYTES,
           addRandomSuffix: true,
