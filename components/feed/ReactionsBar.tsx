@@ -41,14 +41,23 @@ export default function ReactionsBar({
             type="button"
             onClick={() => onTap(e)}
             disabled={isPending}
-            className={`flex items-center gap-1 rounded-full border px-2 py-1 text-sm transition-colors ${
+            className={`flex items-center gap-1 rounded-full border px-2 py-1 text-sm transition-all ${
               isActive
                 ? 'border-yellow-500/60 bg-yellow-500/10'
                 : 'border-zinc-800 bg-black hover:border-zinc-700'
             } ${isPending ? 'opacity-60' : ''}`}
             aria-pressed={isActive}
           >
-            <span className="leading-none">{e}</span>
+            <span
+              className="leading-none transition-all"
+              style={
+                isActive
+                  ? undefined
+                  : { filter: 'grayscale(1)', opacity: 0.45 }
+              }
+            >
+              {e}
+            </span>
             {count > 0 && (
               <span className="font-mono text-[10px] tabular-nums text-zinc-400">
                 {count}
