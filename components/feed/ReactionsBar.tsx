@@ -2,7 +2,8 @@
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { toggleReaction, REACTION_EMOJIS } from '@/lib/actions/reactions';
+import { toggleReaction } from '@/lib/actions/reactions';
+import { REACTION_EMOJIS } from '@/lib/feed/constants';
 
 export default function ReactionsBar({
   targetKind,

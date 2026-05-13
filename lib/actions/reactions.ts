@@ -6,11 +6,10 @@ import { db } from '@/db/client';
 import { reactions } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
 import { requireAuth } from '@/lib/auth/permissions';
+import { REACTION_EMOJIS, REACTION_TARGET_KINDS } from '@/lib/feed/constants';
 
-export const REACTION_EMOJIS = ['🔥', '😂', '🏌️', '👏', '💀', '🍺'] as const;
-export type ReactionEmoji = (typeof REACTION_EMOJIS)[number];
 const VALID_EMOJIS = new Set<string>(REACTION_EMOJIS);
-const VALID_KINDS = new Set<string>(['score', 'media', 'text']);
+const VALID_KINDS = new Set<string>(REACTION_TARGET_KINDS);
 
 export async function toggleReaction(formData: FormData): Promise<void> {
   const ctx = await getAuthContext();
