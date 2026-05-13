@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { upload } from '@vercel/blob/client';
 import { Image as ImageIcon, MessageSquare, Send, X } from 'lucide-react';
@@ -33,8 +34,21 @@ export default function FeedComposer({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [mounted, setMounted] = useState(false);
 
-  if (!open) return null;
+  useEffect(() => setMounted(true), []);
+
+  // Lock body scroll while open so the page behind doesn't bounce.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  if (!open || !mounted) return null;
 
   function reset() {
     setBody('');
@@ -108,11 +122,11 @@ export default function FeedComposer({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 sm:items-center">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 sm:items-center">
       <div
         className="flex w-full max-w-md flex-col overflow-hidden rounded-t-lg border border-zinc-800 bg-zinc-950 sm:rounded-lg"
-        style={{ maxHeight: 'calc(100dvh - 16px)' }}
+        style={{ height: 'min(85svh, 720px)' }}
       >
         {/* Sticky header */}
         <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3">
@@ -256,7 +270,8 @@ export default function FeedComposer({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
