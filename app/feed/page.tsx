@@ -24,7 +24,7 @@ export default async function FeedPage() {
     );
   }
 
-  const items = await getFeed(trip.id);
+  const items = await getFeed(trip.id, { currentUserId: ctx.user.id });
 
   // Match options for the composer's match tag dropdown.
   const matchRows = await db

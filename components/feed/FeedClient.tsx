@@ -13,6 +13,7 @@ import {
   User as UserIcon,
 } from 'lucide-react';
 import FeedComposer, { type ComposerMatchOption } from './FeedComposer';
+import ReactionsBar from './ReactionsBar';
 import type { FeedItem } from '@/lib/data/feed';
 
 type ClientFeedItem =
@@ -181,25 +182,37 @@ function ScoreCard({
       : 'text-red-400';
 
   return (
-    <Link
-      href={`/matches/${item.match.matchId}`}
-      className="block rounded-sm border border-zinc-800 bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-900/40"
+    <div
+      className="rounded-sm border border-zinc-800 bg-zinc-950/40"
       style={{ borderLeft: `3px solid ${color}` }}
     >
-      <div className="flex items-start gap-3">
-        <Avatar author={item.author} color={color} />
-        <div className="min-w-0 flex-1">
-          <FeedHeader author={item.author} at={item.at} />
-          <p className={`mt-1 font-mono text-sm font-bold uppercase tracking-widest ${labelColor}`}>
-            {item.resultLabel} · {item.gross} on Hole {item.holeNumber}{' '}
-            <span className="text-zinc-600">(par {item.par})</span>
-          </p>
-          <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-            R{item.match.roundOrder} · {item.match.courseName}
-          </p>
+      <Link
+        href={`/matches/${item.match.matchId}`}
+        className="block p-3 hover:bg-zinc-900/40"
+      >
+        <div className="flex items-start gap-3">
+          <Avatar author={item.author} color={color} />
+          <div className="min-w-0 flex-1">
+            <FeedHeader author={item.author} at={item.at} />
+            <p className={`mt-1 font-mono text-sm font-bold uppercase tracking-widest ${labelColor}`}>
+              {item.resultLabel} · {item.gross} on Hole {item.holeNumber}{' '}
+              <span className="text-zinc-600">(par {item.par})</span>
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+              R{item.match.roundOrder} · {item.match.courseName}
+            </p>
+          </div>
         </div>
+      </Link>
+      <div className="border-t border-zinc-800 px-3 py-2">
+        <ReactionsBar
+          targetKind="score"
+          targetId={item.targetId}
+          counts={item.reactions.counts}
+          myEmojis={item.reactions.myEmojis}
+        />
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -229,20 +242,20 @@ function MediaCard({
         </div>
       </div>
 
-      <div className="border-y border-zinc-800 bg-black">
+      <div className="flex items-center justify-center border-y border-zinc-800 bg-black">
         {item.mediaType === 'video' ? (
           <video
             src={item.mediaUrl}
             controls
             playsInline
-            className="aspect-[4/5] w-full bg-black object-cover sm:aspect-video"
+            className="block max-h-[80vh] w-full bg-black object-contain"
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={item.mediaUrl}
             alt={item.caption ?? ''}
-            className="aspect-[4/5] w-full bg-black object-cover sm:aspect-video"
+            className="block max-h-[80vh] w-full bg-black object-contain"
           />
         )}
       </div>
@@ -250,6 +263,15 @@ function MediaCard({
       {item.caption && (
         <p className="px-3 py-3 text-sm text-zinc-200">{item.caption}</p>
       )}
+
+      <div className="border-t border-zinc-800 px-3 py-2">
+        <ReactionsBar
+          targetKind="media"
+          targetId={item.targetId}
+          counts={item.reactions.counts}
+          myEmojis={item.reactions.myEmojis}
+        />
+      </div>
     </div>
   );
 }
@@ -262,24 +284,34 @@ function TextCard({
   const color = item.author.teamColor ?? '#3f3f46';
   return (
     <div
-      className={`rounded-sm border bg-zinc-950/40 p-3 ${
+      className={`rounded-sm border bg-zinc-950/40 ${
         item.pinned ? 'border-yellow-500/50' : 'border-zinc-800'
       }`}
       style={{ borderLeft: `3px solid ${color}` }}
     >
-      <div className="flex items-start gap-3">
-        <Avatar author={item.author} color={color} />
-        <div className="min-w-0 flex-1">
-          <FeedHeader author={item.author} at={item.at} />
-          {item.pinned && (
-            <p className="mt-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-yellow-400">
-              Pinned
+      <div className="p-3">
+        <div className="flex items-start gap-3">
+          <Avatar author={item.author} color={color} />
+          <div className="min-w-0 flex-1">
+            <FeedHeader author={item.author} at={item.at} />
+            {item.pinned && (
+              <p className="mt-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-yellow-400">
+                Pinned
+              </p>
+            )}
+            <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-100">
+              {item.body}
             </p>
-          )}
-          <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-100">
-            {item.body}
-          </p>
+          </div>
         </div>
+      </div>
+      <div className="border-t border-zinc-800 px-3 py-2">
+        <ReactionsBar
+          targetKind="text"
+          targetId={item.targetId}
+          counts={item.reactions.counts}
+          myEmojis={item.reactions.myEmojis}
+        />
       </div>
     </div>
   );

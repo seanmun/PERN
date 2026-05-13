@@ -1,4 +1,4 @@
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   trips,
@@ -13,6 +13,7 @@ import {
   media,
   messages,
   users,
+  reactions,
 } from '@/db/schema';
 
 export type FeedAuthor = {
@@ -30,36 +31,42 @@ export type FeedMatchSummary = {
   courseName: string;
 };
 
+export type FeedReactions = {
+  counts: Record<string, number>;
+  myEmojis: string[];
+};
+
+type FeedItemBase = {
+  id: string;
+  targetId: string;
+  at: Date;
+  reactions: FeedReactions;
+};
+
 export type FeedItem =
-  | {
+  | (FeedItemBase & {
       kind: 'score';
-      id: string;
-      at: Date;
       author: FeedAuthor;
       match: FeedMatchSummary;
       holeNumber: number;
       par: number;
       gross: number;
       resultLabel: string;
-    }
-  | {
+    })
+  | (FeedItemBase & {
       kind: 'media';
-      id: string;
-      at: Date;
       author: FeedAuthor;
       mediaUrl: string;
       mediaType: 'image' | 'video';
       caption: string | null;
       match: FeedMatchSummary | null;
-    }
-  | {
+    })
+  | (FeedItemBase & {
       kind: 'text';
-      id: string;
-      at: Date;
       author: FeedAuthor;
       body: string;
       pinned: boolean;
-    };
+    });
 
 const SCORE_LABELS: Record<number, string> = {
   [-4]: 'Condor',
@@ -82,9 +89,10 @@ function scoreLabel(gross: number, par: number): string {
 
 export async function getFeed(
   tripId: string,
-  opts?: { matchId?: string; limit?: number }
+  opts?: { matchId?: string; limit?: number; currentUserId?: string }
 ): Promise<FeedItem[]> {
   const limit = opts?.limit ?? 100;
+  const currentUserId = opts?.currentUserId;
 
   // Build team map for author tags
   const teamRows = await db.select().from(teams).where(eq(teams.tripId, tripId));
@@ -168,6 +176,7 @@ export async function getFeed(
     .map((r) => ({
       kind: 'score' as const,
       id: `score:${r.score.id}`,
+      targetId: r.score.id,
       at: r.score.enteredAt,
       author: authorFromMember(r.score.tripMemberId),
       match: {
@@ -179,6 +188,7 @@ export async function getFeed(
       par: r.hole.par,
       gross: r.score.gross!,
       resultLabel: scoreLabel(r.score.gross!, r.hole.par),
+      reactions: { counts: {}, myEmojis: [] },
     }));
 
   // MEDIA POSTS
@@ -218,6 +228,7 @@ export async function getFeed(
   const mediaItems: FeedItem[] = mediaRows.map((r) => ({
     kind: 'media' as const,
     id: `media:${r.media.id}`,
+    targetId: r.media.id,
     at: r.media.createdAt,
     author: authorFromUserId(r.uploader.id, r.uploader.email),
     mediaUrl: r.media.url,
@@ -226,6 +237,7 @@ export async function getFeed(
     match: r.media.matchId
       ? mediaMatchInfo.get(r.media.matchId) ?? null
       : null,
+    reactions: { counts: {}, myEmojis: [] },
   }));
 
   // TEXT POSTS
@@ -240,14 +252,43 @@ export async function getFeed(
   const textItems: FeedItem[] = textRows.map((r) => ({
     kind: 'text' as const,
     id: `text:${r.msg.id}`,
+    targetId: r.msg.id,
     at: r.msg.createdAt,
     author: authorFromUserId(r.author.id, r.author.email),
     body: r.msg.body,
     pinned: r.msg.pinnedByCaptain,
+    reactions: { counts: {}, myEmojis: [] },
   }));
 
   const all = [...scoreItems, ...mediaItems, ...textItems];
   all.sort((a, b) => b.at.getTime() - a.at.getTime());
+  const top = all.slice(0, limit);
 
-  return all.slice(0, limit);
+  // Batch-fetch reactions for the displayed items.
+  const targetIds = top.map((i) => i.targetId);
+  if (targetIds.length > 0) {
+    const reactionRows = await db
+      .select()
+      .from(reactions)
+      .where(inArray(reactions.targetId, targetIds));
+
+    const byTarget = new Map<string, { counts: Record<string, number>; myEmojis: string[] }>();
+    for (const r of reactionRows) {
+      const key = `${r.targetKind}:${r.targetId}`;
+      const entry = byTarget.get(key) ?? { counts: {}, myEmojis: [] };
+      entry.counts[r.emoji] = (entry.counts[r.emoji] ?? 0) + 1;
+      if (currentUserId && r.userId === currentUserId) {
+        entry.myEmojis.push(r.emoji);
+      }
+      byTarget.set(key, entry);
+    }
+
+    for (const item of top) {
+      const key = `${item.kind}:${item.targetId}`;
+      const entry = byTarget.get(key);
+      if (entry) item.reactions = entry;
+    }
+  }
+
+  return top;
 }

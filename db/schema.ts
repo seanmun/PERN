@@ -38,6 +38,12 @@ export const tripEventTypeEnum = pgEnum('trip_event_type', [
   'other',
 ]);
 
+export const reactionTargetKindEnum = pgEnum('reaction_target_kind', [
+  'score',
+  'media',
+  'text',
+]);
+
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   clerkId: text('clerk_id').unique(),
@@ -185,6 +191,26 @@ export const tripEvents = pgTable('trip_events', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const reactions = pgTable(
+  'reactions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+    targetKind: reactionTargetKindEnum('target_kind').notNull(),
+    targetId: uuid('target_id').notNull(),
+    emoji: text('emoji').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    unique('reactions_user_target_emoji_unique').on(
+      t.userId,
+      t.targetKind,
+      t.targetId,
+      t.emoji
+    ),
+  ]
+);
 
 export const messages = pgTable('messages', {
   id: uuid('id').primaryKey().defaultRandom(),
