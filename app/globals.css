@@ -42,3 +42,9 @@ main, header {
   z-index: 1;
 }
 
+/* Hide the bottom nav (and any other footer affordances) while a modal
+ * is open so it can't occlude the modal's own submit/close controls. */
+body.modal-open [data-bottom-nav] {
+  display: none;
+}
+

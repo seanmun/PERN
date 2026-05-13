@@ -38,13 +38,16 @@ export default function FeedComposer({
 
   useEffect(() => setMounted(true), []);
 
-  // Lock body scroll while open so the page behind doesn't bounce.
+  // Lock body scroll and hide the bottom nav while open so neither bounces
+  // nor occludes the submit footer.
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('modal-open');
     return () => {
       document.body.style.overflow = prev;
+      document.body.classList.remove('modal-open');
     };
   }, [open]);
 
