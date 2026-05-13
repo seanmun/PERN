@@ -87,8 +87,11 @@ export async function getScheduleByDay(tripId: string): Promise<ScheduleDay[]> {
     .where(eq(rounds.tripId, tripId))
     .orderBy(asc(rounds.order));
 
-  const roundsById = new Map(roundsList.map((r) => [r.round.id, r]));
-  const roundIds = roundsList.map((r) => r.round.id);
+  // Hidden rounds (test rounds) never appear on the schedule
+  const visibleRounds = roundsList.filter((r) => !r.round.isHidden);
+
+  const roundsById = new Map(visibleRounds.map((r) => [r.round.id, r]));
+  const roundIds = visibleRounds.map((r) => r.round.id);
 
   const teeTimesList = roundIds.length
     ? await db

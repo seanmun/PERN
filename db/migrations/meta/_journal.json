@@ -57,6 +57,13 @@
       "when": 1778633475244,
       "tag": "0007_milky_iron_man",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1778634400998,
+      "tag": "0008_hesitant_mole_man",
+      "breakpoints": true
     }
   ]
 }

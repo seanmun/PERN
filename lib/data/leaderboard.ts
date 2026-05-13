@@ -57,7 +57,10 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     .innerJoin(rounds, eq(matches.roundId, rounds.id))
     .where(eq(rounds.tripId, tripId));
 
-  const cupMatches = matchRows.filter((r) => r.round.countsTowardCup);
+  // Hidden rounds (e.g. test rounds) never contribute to the scoreboard
+  const cupMatches = matchRows.filter(
+    (r) => r.round.countsTowardCup && !r.round.isHidden
+  );
   const completedCup = cupMatches.filter((r) => r.match.status === 'completed');
 
   const completedMatchIds = completedCup.map((r) => r.match.id);

@@ -120,6 +120,7 @@ export const rounds = pgTable('rounds', {
   order: integer('order').notNull(),
   label: text('label'),
   countsTowardCup: boolean('counts_toward_cup').default(true).notNull(),
+  isHidden: boolean('is_hidden').default(false).notNull(),    // hidden from public views; used for test rounds
 });
 
 export const teeTimes = pgTable('tee_times', {

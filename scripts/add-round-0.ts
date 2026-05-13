@@ -76,6 +76,7 @@ async function main() {
       order: 0,
       label: 'Round 0 — Test',
       countsTowardCup: false,
+      isHidden: true,
     })
     .returning();
 

@@ -143,10 +143,10 @@ export async function getFeed(
     };
   }
 
-  // SCORE EVENTS
+  // SCORE EVENTS — hidden rounds (test rounds) excluded from the feed
   const scoreWhere = opts?.matchId
-    ? and(eq(rounds.tripId, tripId), eq(holeScores.matchId, opts.matchId))
-    : eq(rounds.tripId, tripId);
+    ? and(eq(rounds.tripId, tripId), eq(holeScores.matchId, opts.matchId), eq(rounds.isHidden, false))
+    : and(eq(rounds.tripId, tripId), eq(rounds.isHidden, false));
 
   const scoreRows = await db
     .select({
