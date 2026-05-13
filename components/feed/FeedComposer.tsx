@@ -110,8 +110,12 @@ export default function FeedComposer({
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 sm:items-center">
-      <div className="w-full max-w-md overflow-hidden rounded-t-lg border border-zinc-800 bg-zinc-950 sm:rounded-lg">
-        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+      <div
+        className="flex w-full max-w-md flex-col overflow-hidden rounded-t-lg border border-zinc-800 bg-zinc-950 sm:rounded-lg"
+        style={{ maxHeight: 'calc(100dvh - 16px)' }}
+      >
+        {/* Sticky header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3">
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-yellow-500">
             New post
           </p>
@@ -125,7 +129,8 @@ export default function FeedComposer({
           </button>
         </div>
 
-        <div className="flex border-b border-zinc-800">
+        {/* Sticky tabs */}
+        <div className="flex shrink-0 border-b border-zinc-800">
           <button
             type="button"
             onClick={() => setMode('media')}
@@ -150,7 +155,8 @@ export default function FeedComposer({
           </button>
         </div>
 
-        <div className="space-y-4 p-4">
+        {/* Scrollable body */}
+        <div className="flex-1 space-y-4 overflow-y-auto p-4">
           {mode === 'media' ? (
             <>
               {mediaUrl ? (
@@ -232,7 +238,13 @@ export default function FeedComposer({
           {error && (
             <p className="font-mono text-[11px] text-red-400">{error}</p>
           )}
+        </div>
 
+        {/* Sticky footer with submit */}
+        <div
+          className="shrink-0 border-t border-zinc-800 bg-zinc-950 p-4"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
+        >
           <button
             type="button"
             onClick={submit}
