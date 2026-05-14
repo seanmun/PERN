@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import FeedComposer, { type ComposerMatchOption } from './FeedComposer';
 import ReactionsBar from './ReactionsBar';
+import UnflagMediaButton from './UnflagMediaButton';
 import type { FeedItem } from '@/lib/data/feed';
 
 type ClientFeedItem =
@@ -25,10 +26,12 @@ export default function FeedClient({
   items,
   canPost,
   matchOptions,
+  isAdmin = false,
 }: {
   items: ClientFeedItem[];
   canPost: boolean;
   matchOptions: ComposerMatchOption[];
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
   const [composerOpen, setComposerOpen] = useState(false);
@@ -108,7 +111,9 @@ export default function FeedClient({
             </p>
           </div>
         ) : (
-          filtered.map((item) => <FeedItemCard key={item.id} item={item} />)
+          filtered.map((item) => (
+            <FeedItemCard key={item.id} item={item} isAdmin={isAdmin} />
+          ))
         )}
       </div>
 
@@ -154,12 +159,18 @@ function FilterChip({
   );
 }
 
-function FeedItemCard({ item }: { item: ClientFeedItem }) {
+function FeedItemCard({
+  item,
+  isAdmin,
+}: {
+  item: ClientFeedItem;
+  isAdmin: boolean;
+}) {
   switch (item.kind) {
     case 'score':
       return <ScoreCard item={item} />;
     case 'media':
-      return <MediaCard item={item} />;
+      return <MediaCard item={item} isAdmin={isAdmin} />;
     case 'text':
       return <TextCard item={item} />;
   }
@@ -218,10 +229,14 @@ function ScoreCard({
 
 function MediaCard({
   item,
+  isAdmin,
 }: {
   item: Extract<ClientFeedItem, { kind: 'media' }>;
+  isAdmin: boolean;
 }) {
   const color = item.author.teamColor ?? '#3f3f46';
+  const isFlagged = item.moderationStatus === 'flagged';
+
   return (
     <div
       className="rounded-sm border border-zinc-800 bg-zinc-950/40"
@@ -243,7 +258,9 @@ function MediaCard({
       </div>
 
       <div className="flex items-center justify-center border-y border-zinc-800 bg-black">
-        {item.mediaType === 'video' ? (
+        {isFlagged ? (
+          <FlaggedMediaCard reason={item.moderationReason} nickname={item.author.nickname} />
+        ) : item.mediaType === 'video' ? (
           <video
             src={item.mediaUrl}
             controls
@@ -260,17 +277,45 @@ function MediaCard({
         )}
       </div>
 
-      {item.caption && (
+      {item.caption && !isFlagged && (
         <p className="px-3 py-3 text-sm text-zinc-200">{item.caption}</p>
       )}
 
-      <div className="border-t border-zinc-800 px-3 py-2">
+      <div className="flex items-center justify-between gap-2 border-t border-zinc-800 px-3 py-2">
         <ReactionsBar
           targetKind="media"
           targetId={item.targetId}
           counts={item.reactions.counts}
           myEmojis={item.reactions.myEmojis}
         />
+        {isFlagged && isAdmin && <UnflagMediaButton mediaId={item.targetId} />}
+      </div>
+    </div>
+  );
+}
+
+function FlaggedMediaCard({
+  reason,
+  nickname,
+}: {
+  reason: string | null;
+  nickname: string;
+}) {
+  return (
+    <div className="relative w-full bg-black">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/SICKOS.webp"
+        alt="Flagged content"
+        className="block max-h-[80vh] w-full object-contain"
+      />
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/80 to-transparent p-4">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-red-400">
+          Flagged · {reason ?? 'content moderation'}
+        </p>
+        <p className="mt-1 text-sm font-semibold text-zinc-100">
+          {nickname}, what were you thinking?
+        </p>
       </div>
     </div>
   );

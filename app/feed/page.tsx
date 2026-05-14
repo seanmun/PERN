@@ -3,6 +3,7 @@ import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { trips, matches, rounds, courses } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
+import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { getFeed } from '@/lib/data/feed';
 import FeedClient from '@/components/feed/FeedClient';
 
@@ -43,11 +44,15 @@ export default async function FeedPage() {
   // Serialize Date → string for the client component.
   const clientItems = items.map((i) => ({ ...i, at: i.at.toISOString() }));
 
+  const isAdmin =
+    isPlatformAdmin(ctx) || isTripAdminOf(ctx, trip.id);
+
   return (
     <FeedClient
       items={clientItems}
       canPost={true}
       matchOptions={matchOptions}
+      isAdmin={isAdmin}
     />
   );
 }

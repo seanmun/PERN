@@ -64,6 +64,13 @@
       "when": 1778634400998,
       "tag": "0008_hesitant_mole_man",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1778730947666,
+      "tag": "0009_open_turbo",
+      "breakpoints": true
     }
   ]
 }

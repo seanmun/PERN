@@ -60,6 +60,8 @@ export type FeedItem =
       mediaType: 'image' | 'video';
       caption: string | null;
       match: FeedMatchSummary | null;
+      moderationStatus: 'approved' | 'flagged';
+      moderationReason: string | null;
     })
   | (FeedItemBase & {
       kind: 'text';
@@ -237,6 +239,8 @@ export async function getFeed(
     match: r.media.matchId
       ? mediaMatchInfo.get(r.media.matchId) ?? null
       : null,
+    moderationStatus: r.media.moderationStatus,
+    moderationReason: r.media.moderationReason,
     reactions: { counts: {}, myEmojis: [] },
   }));
 

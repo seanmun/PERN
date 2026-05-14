@@ -28,6 +28,11 @@ export const matchStatusEnum = pgEnum('match_status', [
 
 export const mediaTypeEnum = pgEnum('media_type', ['image', 'video']);
 
+export const moderationStatusEnum = pgEnum('moderation_status', [
+  'approved',
+  'flagged',
+]);
+
 export const tripEventTypeEnum = pgEnum('trip_event_type', [
   'flight',
   'shuttle',
@@ -176,6 +181,9 @@ export const media = pgTable('media', {
   url: text('url').notNull(),
   mediaType: mediaTypeEnum('media_type').notNull(),
   caption: text('caption'),
+  moderationStatus: moderationStatusEnum('moderation_status').default('approved').notNull(),
+  moderationReason: text('moderation_reason'),
+  moderationCheckedAt: timestamp('moderation_checked_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

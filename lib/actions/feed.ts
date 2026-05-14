@@ -6,6 +6,7 @@ import { db } from '@/db/client';
 import { trips, media, messages, matches } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
 import { AuthorizationError, requireAuth } from '@/lib/auth/permissions';
+import { moderateImage } from '@/lib/moderation/sightengine';
 
 function trim(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;
@@ -49,6 +50,18 @@ export async function createMediaPost(formData: FormData): Promise<void> {
   const tripId = await getTripId();
   await validateMatchInTrip(matchId, tripId);
 
+  // Moderation — image only for now. Videos pass through (would need frame
+  // sampling for proper video moderation; deferred to later).
+  let moderationStatus: 'approved' | 'flagged' = 'approved';
+  let moderationReason: string | null = null;
+  if (mediaType === 'image') {
+    const result = await moderateImage(url);
+    if (result.flagged) {
+      moderationStatus = 'flagged';
+      moderationReason = result.reason;
+    }
+  }
+
   await db.insert(media).values({
     tripId,
     matchId: matchId,
@@ -56,10 +69,31 @@ export async function createMediaPost(formData: FormData): Promise<void> {
     url,
     mediaType,
     caption,
+    moderationStatus,
+    moderationReason,
+    moderationCheckedAt: new Date(),
   });
 
   revalidatePath('/feed');
   if (matchId) revalidatePath(`/matches/${matchId}`);
+}
+
+export async function unflagMediaPost(formData: FormData): Promise<void> {
+  const ctx = await getAuthContext();
+  requireAuth(ctx);
+  if (!ctx.isPlatformAdmin && ctx.tripMember?.role !== 'trip_admin') {
+    throw new AuthorizationError('Trip admin required');
+  }
+
+  const id = String(formData.get('id') ?? '').trim();
+  if (!id) throw new Error('id required');
+
+  await db
+    .update(media)
+    .set({ moderationStatus: 'approved', moderationReason: null })
+    .where(eq(media.id, id));
+
+  revalidatePath('/feed');
 }
 
 export async function createTextPost(formData: FormData): Promise<void> {
