@@ -122,6 +122,9 @@ export async function deleteFeedItem(formData: FormData): Promise<void> {
   const id = trim(formData.get('id'));
   if (!kind || !id) throw new Error('kind and id required');
 
+  const isAdmin =
+    ctx.isPlatformAdmin || ctx.tripMember?.role === 'trip_admin';
+
   if (kind === 'media') {
     const [row] = await db
       .select()
@@ -129,8 +132,9 @@ export async function deleteFeedItem(formData: FormData): Promise<void> {
       .where(eq(media.id, id))
       .limit(1);
     if (!row) return;
-    if (row.uploadedBy !== ctx.user.id && !ctx.isPlatformAdmin) {
-      throw new AuthorizationError('Only the uploader or platform admin can delete');
+    const isOwner = row.uploadedBy === ctx.user.id;
+    if (!isOwner && !isAdmin) {
+      throw new AuthorizationError('Only the uploader or an admin can delete');
     }
     await db.delete(media).where(eq(media.id, id));
   } else if (kind === 'text') {
@@ -140,8 +144,9 @@ export async function deleteFeedItem(formData: FormData): Promise<void> {
       .where(eq(messages.id, id))
       .limit(1);
     if (!row) return;
-    if (row.authorId !== ctx.user.id && !ctx.isPlatformAdmin) {
-      throw new AuthorizationError('Only the author or platform admin can delete');
+    const isOwner = row.authorId === ctx.user.id;
+    if (!isOwner && !isAdmin) {
+      throw new AuthorizationError('Only the author or an admin can delete');
     }
     await db.delete(messages).where(eq(messages.id, id));
   } else {

@@ -15,6 +15,7 @@ import {
 import FeedComposer, { type ComposerMatchOption } from './FeedComposer';
 import ReactionsBar from './ReactionsBar';
 import UnflagMediaButton from './UnflagMediaButton';
+import DeleteFeedItemButton from './DeleteFeedItemButton';
 import type { FeedItem } from '@/lib/data/feed';
 
 type ClientFeedItem =
@@ -172,7 +173,7 @@ function FeedItemCard({
     case 'media':
       return <MediaCard item={item} isAdmin={isAdmin} />;
     case 'text':
-      return <TextCard item={item} />;
+      return <TextCard item={item} isAdmin={isAdmin} />;
   }
 }
 
@@ -288,7 +289,12 @@ function MediaCard({
           counts={item.reactions.counts}
           myEmojis={item.reactions.myEmojis}
         />
-        {isFlagged && isAdmin && <UnflagMediaButton mediaId={item.targetId} />}
+        <div className="flex shrink-0 items-center gap-1">
+          {isFlagged && isAdmin && <UnflagMediaButton mediaId={item.targetId} />}
+          {(item.isMine || isAdmin) && (
+            <DeleteFeedItemButton kind="media" id={item.targetId} />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -323,10 +329,13 @@ function FlaggedMediaCard({
 
 function TextCard({
   item,
+  isAdmin,
 }: {
   item: Extract<ClientFeedItem, { kind: 'text' }>;
+  isAdmin: boolean;
 }) {
   const color = item.author.teamColor ?? '#3f3f46';
+  const canDelete = item.isMine || isAdmin;
   return (
     <div
       className={`rounded-sm border bg-zinc-950/40 ${
@@ -350,13 +359,18 @@ function TextCard({
           </div>
         </div>
       </div>
-      <div className="border-t border-zinc-800 px-3 py-2">
+      <div className="flex items-center justify-between gap-2 border-t border-zinc-800 px-3 py-2">
         <ReactionsBar
           targetKind="text"
           targetId={item.targetId}
           counts={item.reactions.counts}
           myEmojis={item.reactions.myEmojis}
         />
+        {canDelete && (
+          <div className="shrink-0">
+            <DeleteFeedItemButton kind="text" id={item.targetId} />
+          </div>
+        )}
       </div>
     </div>
   );

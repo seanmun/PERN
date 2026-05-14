@@ -62,12 +62,14 @@ export type FeedItem =
       match: FeedMatchSummary | null;
       moderationStatus: 'approved' | 'flagged';
       moderationReason: string | null;
+      isMine: boolean;
     })
   | (FeedItemBase & {
       kind: 'text';
       author: FeedAuthor;
       body: string;
       pinned: boolean;
+      isMine: boolean;
     });
 
 const SCORE_LABELS: Record<number, string> = {
@@ -241,6 +243,7 @@ export async function getFeed(
       : null,
     moderationStatus: r.media.moderationStatus,
     moderationReason: r.media.moderationReason,
+    isMine: currentUserId != null && r.uploader.id === currentUserId,
     reactions: { counts: {}, myEmojis: [] },
   }));
 
@@ -261,6 +264,7 @@ export async function getFeed(
     author: authorFromUserId(r.author.id, r.author.email),
     body: r.msg.body,
     pinned: r.msg.pinnedByCaptain,
+    isMine: currentUserId != null && r.author.id === currentUserId,
     reactions: { counts: {}, myEmojis: [] },
   }));
 
