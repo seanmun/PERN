@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { upload } from '@vercel/blob/client';
 import { ImageUp, X } from 'lucide-react';
+import { compressImage } from '@/lib/upload/compress';
 
 export default function ImagePickerInput({
   name,
@@ -24,7 +25,8 @@ export default function ImagePickerInput({
     setError(null);
     setUploading(true);
     try {
-      const blob = await upload(file.name, file, {
+      const toUpload = await compressImage(file);
+      const blob = await upload(toUpload.name, toUpload, {
         access: 'public',
         handleUploadUrl: '/api/upload',
       });

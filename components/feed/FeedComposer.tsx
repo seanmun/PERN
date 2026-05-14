@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { upload } from '@vercel/blob/client';
 import { Image as ImageIcon, MessageSquare, Send, X } from 'lucide-react';
 import { createMediaPost, createTextPost } from '@/lib/actions/feed';
+import { compressImage } from '@/lib/upload/compress';
 
 export type ComposerMatchOption = {
   id: string;
@@ -68,7 +69,10 @@ export default function FeedComposer({
     setError(null);
     setUploading(true);
     try {
-      const blob = await upload(file.name, file, {
+      const toUpload = file.type.startsWith('image/')
+        ? await compressImage(file)
+        : file;
+      const blob = await upload(toUpload.name, toUpload, {
         access: 'public',
         handleUploadUrl: '/api/upload',
       });
