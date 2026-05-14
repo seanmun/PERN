@@ -150,16 +150,31 @@ To keep the deploy on its feet while we cut over, phase it:
 - **Permission edge cases:** Sean (platform_admin) needs to be able to drop into any trip from `/trips`, even ones he's not a member of. Already supported by the cascade — just exercise it.
 - **Server actions** like `createMediaPost`, `updatePlayer`, etc. that currently call `getTripId()` need an explicit `tripId` arg, ideally derived from the URL or from the resource being mutated.
 
-## Open decisions for you
+## Decisions (locked 2026-05-14)
 
-1. **URL strategy** — confirm path-based + default-trip cookie (option A + D)?
-2. **Subdomain ever?** Some platforms eventually want it. Worth speccing now or punt?
-3. **Trip creation gate** — anyone signed in, or invite-only at first? (Affects platform-admin-only flag on `/trips/new`.)
-4. **Template trips** — should "Pinehurst Cup format" be a one-click starter, or do creators build from scratch?
-5. **Invite codes** — should trip admin be able to generate an invite link/code that pre-seeds a `tripMember` slot on visit, or is "I'll add your email to the roster" enough?
-6. **Default trip on sign-in** — if a user is in 3 trips, do we always show the picker, or remember their last-used and auto-route?
-7. **Marketing site** — what does `/` look like for signed-out, unknown visitors? Pinehurst-Cup-themed today; in multi-tenant world it becomes a generic landing page.
-8. **Cup branding** — do we rename the app? It's currently "Cup" / "Pinehurst Cup". For multi-tenant, the platform needs a name distinct from any one trip.
+1. **URL strategy:** ✅ **Path-based** (`/trips/[slug]/...`) with a per-user **default-trip cookie** so `/` auto-routes after sign-in. No subdomains for now.
+2. **Trip creation gate:** ✅ **Any signed-in user can create a trip.** `/trips/new` is open to all authenticated users.
+3. **Template trips:** ❌ **No starter template.** Every creator builds courses/rounds/players from scratch. We can add a "Use Pinehurst format" toggle later if there's demand.
+4. **Invite system:** ✅ **Shareable invite links/codes.** Trip admin generates a URL like `cup.app/join/xyz123` that pre-seeds a `tripMember` slot when visited. Manual email-typing stays as a fallback.
+
+### Still open (lower-stakes, deferred)
+
+- **Default trip on sign-in when user has multiple** — remember last-used vs. always show picker. Punt to Phase 5.
+- **Marketing/landing page at `/`** for signed-out visitors. Punt to Phase 4.
+- **Platform rename** — "Cup" is currently the app and the trip class. For multi-tenant we should distinguish: the platform is X, individual trips are Cups. Punt to Phase 4.
+
+## What the invite-link flow looks like (Decision 4 expanded)
+
+Since invites are shareable links, a couple of pieces get added:
+
+- New table `trip_invites`: `id`, `tripId`, `code` (short random), `createdBy`, `usesAllowed` (nullable; null = unlimited), `usesCount`, `expiresAt` (nullable), `createdAt`.
+- Trip-admin UI under `/trips/[slug]/admin/invites` to generate, list, expire, and revoke codes.
+- Public route `/join/[code]`:
+  - **Signed out:** shows trip name + creator + a "Sign in to join" CTA.
+  - **Signed in:** creates (or claims) a `tripMember` row for the current user on the invite's trip, sets that trip as their `default_trip_id`, redirects into the trip.
+- Invite codes are case-insensitive and rate-limited to deter brute force.
+
+This adds **one new table** to the otherwise schema-stable plan. Caught early before code; cheap to slot in.
 
 ## Out of scope (for v1 multi-tenant)
 
