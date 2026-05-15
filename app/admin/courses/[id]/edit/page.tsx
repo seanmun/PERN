@@ -1,13 +1,14 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { eq } from 'drizzle-orm';
-import { ArrowLeft } from 'lucide-react';
+import { asc, eq } from 'drizzle-orm';
+import { ArrowLeft, Sparkles } from 'lucide-react';
 import { db } from '@/db/client';
-import { courses, trips } from '@/db/schema';
+import { courses, courseHoles, trips } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { updateCourse } from '@/lib/actions/courses';
 import ImagePickerInput from '@/components/ImagePickerInput';
+import ExtractScorecardButton from '@/components/admin/ExtractScorecardButton';
 
 export default async function EditCoursePage({
   params,
@@ -31,6 +32,12 @@ export default async function EditCoursePage({
     .limit(1);
 
   if (!course) notFound();
+
+  const holes = await db
+    .select()
+    .from(courseHoles)
+    .where(eq(courseHoles.courseId, course.id))
+    .orderBy(asc(courseHoles.holeNumber));
 
   return (
     <div className="mx-auto max-w-md px-4 pb-24 pt-6">
@@ -91,18 +98,12 @@ export default async function EditCoursePage({
         </div>
 
         <div>
-          <div className="flex items-baseline justify-between">
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
-              Scorecard image
-            </span>
-            {course.scorecardExtractedAt && (
-              <span className="font-mono text-[10px] uppercase tracking-widest text-emerald-400">
-                Extracted
-              </span>
-            )}
-          </div>
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+            Scorecard image
+          </span>
           <p className="mt-1 mb-3 text-[11px] text-zinc-500">
-            Upload a new scorecard photo and AI will re-read the 18 holes on save.
+            Upload a photo of the back-of-card or scorecard PDF. Save first,
+            then run AI extraction below to populate the 18 holes.
           </p>
           <ImagePickerInput
             name="scorecardImageUrl"
@@ -126,6 +127,65 @@ export default async function EditCoursePage({
           </Link>
         </div>
       </form>
+
+      {/* Holes section — outside the main form so the extraction button
+          posts its own server action without triggering Save Course. */}
+      <section className="mt-12">
+        <div className="flex items-baseline justify-between">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
+            Holes ({holes.length}/18)
+          </p>
+          {course.scorecardExtractedAt && (
+            <span className="font-mono text-[10px] uppercase tracking-widest text-emerald-400">
+              <Sparkles className="inline" size={10} /> Extracted
+            </span>
+          )}
+        </div>
+
+        {course.scorecardImageUrl ? (
+          <div className="mt-3 space-y-3">
+            <ExtractScorecardButton
+              courseId={course.id}
+              alreadyExtracted={!!course.scorecardExtractedAt}
+            />
+            <p className="text-[11px] text-zinc-500">
+              Takes 15–45 seconds. The model reads par, yardage, and stroke
+              index for all 18 holes and writes them below. You can edit any
+              cell afterwards.
+            </p>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-zinc-500">
+            Upload a scorecard image above first, then come back to extract.
+          </p>
+        )}
+
+        {holes.length > 0 && (
+          <div className="mt-6 overflow-hidden rounded-sm border border-zinc-800">
+            <div className="grid grid-cols-[32px_1fr_1fr_1fr] gap-2 border-b border-zinc-800 bg-zinc-950 px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              <span>#</span>
+              <span className="text-right">Par</span>
+              <span className="text-right">Yards</span>
+              <span className="text-right">SI</span>
+            </div>
+            {holes.map((h) => (
+              <div
+                key={h.id}
+                className="grid grid-cols-[32px_1fr_1fr_1fr] gap-2 border-b border-zinc-900 px-3 py-1.5 font-mono text-xs tabular-nums last:border-b-0"
+              >
+                <span className="text-yellow-400">{h.holeNumber}</span>
+                <span className="text-right text-zinc-200">{h.par}</span>
+                <span className="text-right text-zinc-500">
+                  {h.yardage ?? '—'}
+                </span>
+                <span className="text-right text-zinc-500">
+                  {h.handicapIndex}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
