@@ -103,18 +103,25 @@ export const courses = pgTable('courses', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   location: text('location'),
+  address: text('address'),                            // street address for map deep-link
   totalPar: integer('total_par'),
   imageUrl: text('image_url'),                         // landscape hero photo for match detail backgrounds
+  scorecardImageUrl: text('scorecard_image_url'),      // uploaded scorecard image
+  scorecardExtractedAt: timestamp('scorecard_extracted_at', { withTimezone: true }),
 });
 
-export const courseHoles = pgTable('course_holes', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  courseId: uuid('course_id').references(() => courses.id, { onDelete: 'cascade' }).notNull(),
-  holeNumber: integer('hole_number').notNull(),
-  par: integer('par').notNull(),
-  yardage: integer('yardage'),
-  handicapIndex: integer('handicap_index').notNull(),
-});
+export const courseHoles = pgTable(
+  'course_holes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    courseId: uuid('course_id').references(() => courses.id, { onDelete: 'cascade' }).notNull(),
+    holeNumber: integer('hole_number').notNull(),
+    par: integer('par').notNull(),
+    yardage: integer('yardage'),
+    handicapIndex: integer('handicap_index').notNull(),
+  },
+  (t) => [unique('course_holes_course_hole_unique').on(t.courseId, t.holeNumber)]
+);
 
 export const rounds = pgTable('rounds', {
   id: uuid('id').primaryKey().defaultRandom(),

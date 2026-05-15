@@ -1,0 +1,1 @@
+ALTER TABLE "course_holes" ADD CONSTRAINT "course_holes_course_hole_unique" UNIQUE("course_id","hole_number");

@@ -71,6 +71,20 @@
       "when": 1778730947666,
       "tag": "0009_open_turbo",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1778881260697,
+      "tag": "0010_brown_odin",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1778881343592,
+      "tag": "0011_past_may_parker",
+      "breakpoints": true
     }
   ]
 }

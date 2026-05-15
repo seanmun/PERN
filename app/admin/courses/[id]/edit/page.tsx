@@ -67,6 +67,19 @@ export default async function EditCoursePage({
           />
         </Field>
 
+        <Field
+          label="Address"
+          hint="Street address. Used for the &ldquo;Open in Maps&rdquo; deep link on match detail."
+        >
+          <input
+            type="text"
+            name="address"
+            defaultValue={course.address ?? ''}
+            placeholder="80 Carolina Vista Dr, Pinehurst, NC 28374"
+            className={inputCls}
+          />
+        </Field>
+
         <div>
           <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
             Landscape image
@@ -75,6 +88,27 @@ export default async function EditCoursePage({
             Used as the background on match detail pages. Upload a file, or paste a URL.
           </p>
           <ImagePickerInput name="imageUrl" defaultValue={course.imageUrl ?? undefined} />
+        </div>
+
+        <div>
+          <div className="flex items-baseline justify-between">
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+              Scorecard image
+            </span>
+            {course.scorecardExtractedAt && (
+              <span className="font-mono text-[10px] uppercase tracking-widest text-emerald-400">
+                Extracted
+              </span>
+            )}
+          </div>
+          <p className="mt-1 mb-3 text-[11px] text-zinc-500">
+            Upload a new scorecard photo and AI will re-read the 18 holes on save.
+          </p>
+          <ImagePickerInput
+            name="scorecardImageUrl"
+            defaultValue={course.scorecardImageUrl ?? undefined}
+            aspect="4/3"
+          />
         </div>
 
         <div className="flex items-center gap-3 pt-2">

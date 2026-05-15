@@ -63,6 +63,18 @@ export default async function NewCoursePage({
           />
         </Field>
 
+        <Field
+          label="Address"
+          hint="Street address. Used for the &ldquo;Open in Maps&rdquo; deep link on match detail."
+        >
+          <input
+            type="text"
+            name="address"
+            placeholder="80 Carolina Vista Dr, Pinehurst, NC 28374"
+            className={inputCls}
+          />
+        </Field>
+
         <Field label="Total par">
           <input
             type="number"
@@ -82,6 +94,18 @@ export default async function NewCoursePage({
             Optional — used as the match-detail background.
           </p>
           <ImagePickerInput name="imageUrl" />
+        </div>
+
+        <div>
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+            Scorecard image
+          </span>
+          <p className="mt-1 mb-3 text-[11px] text-zinc-500">
+            Upload a clear photo of the back-of-card or official scorecard PDF page.
+            When you save, AI will read the 18 holes (par, yardage, stroke index) and
+            populate the hole table automatically. You can edit any value afterwards.
+          </p>
+          <ImagePickerInput name="scorecardImageUrl" aspect="4/3" />
         </div>
 
         <div className="flex items-center gap-3 pt-2">
@@ -110,10 +134,12 @@ function Field({
   label,
   children,
   required,
+  hint,
 }: {
   label: string;
   children: React.ReactNode;
   required?: boolean;
+  hint?: string;
 }) {
   return (
     <label className="block">
@@ -122,6 +148,7 @@ function Field({
         {required && <span className="ml-1 text-yellow-500">*</span>}
       </span>
       {children}
+      {hint && <p className="mt-1.5 text-[11px] text-zinc-500">{hint}</p>}
     </label>
   );
 }
