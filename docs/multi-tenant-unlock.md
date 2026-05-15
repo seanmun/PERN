@@ -154,14 +154,43 @@ To keep the deploy on its feet while we cut over, phase it:
 
 1. **URL strategy:** ✅ **Path-based** (`/trips/[slug]/...`) with a per-user **default-trip cookie** so `/` auto-routes after sign-in. No subdomains for now.
 2. **Trip creation gate:** ✅ **Any signed-in user can create a trip.** `/trips/new` is open to all authenticated users.
-3. **Template trips:** ❌ **No starter template.** Every creator builds courses/rounds/players from scratch. We can add a "Use Pinehurst format" toggle later if there's demand.
-4. **Invite system:** ✅ **Shareable invite links/codes.** Trip admin generates a URL like `cup.app/join/xyz123` that pre-seeds a `tripMember` slot when visited. Manual email-typing stays as a fallback.
+3. **Templates:** ⏸️ **Deferred.** Curated trip templates (Bandon, Pinehurst, etc.) were briefly considered but parked — every creator builds from scratch in v1. Revisit once basic multi-tenant ships.
+4. **Course creation during trip setup:** ✅ Inside trip setup, the admin can either **pick from the existing course catalog** or **"+ Add new course"**. The new-course form takes **Name, Address, and a scorecard image upload**. The course row is added to the platform-wide catalog so future trips can reference it.
+5. **Invite system:** ✅ **Shareable invite links/codes.** Trip admin generates a URL like `cup.app/join/xyz123` that pre-seeds a `tripMember` slot when visited. Manual email-typing stays as a fallback.
+
+### Course-creation flow (Decision 4 expanded)
+
+Small schema additions on the existing `courses` table (which is already platform-wide — no `trip_id`):
+
+```
+courses.address                text (nullable)  -- street address for map deep-link
+courses.scorecard_image_url    text (nullable)  -- the uploaded scorecard photo
+courses.scorecard_extracted_at timestamptz      -- when the AI extraction was run
+```
+
+**Scorecard → hole data via AI vision (✅ decided):** when the admin uploads a scorecard image, we send it to **Claude (vision)** with a structured-extraction prompt and write the result straight into `course_holes` for that course.
+
+Sketch:
+
+1. Admin uploads scorecard JPEG/PDF page through the course form.
+2. Server action calls Anthropic's API with `claude-opus-4-7` (or a smaller vision-capable model) and a prompt like:
+   > _"This is a golf scorecard. For each of the 18 holes, return JSON of the form `{ holeNumber, par, yardage, handicapIndex }`. Use the white/middle tees for yardage when multiple are shown. handicapIndex is the stroke-index column (1=hardest, 18=easiest). Return only the JSON array, nothing else."_
+3. Parse the response, validate (18 rows, par 3–6, SI a permutation of 1–18). If validation fails, surface the raw output to the admin for manual fix instead of writing garbage.
+4. `INSERT … ON CONFLICT (course_id, hole_number) DO UPDATE` into `course_holes` so re-running the extraction overwrites cleanly.
+5. Stamp `scorecard_extracted_at`. Admin can edit any cell afterwards via the existing hole editor.
+
+The scorecard image stays on the course row regardless of extraction success — useful for sanity-checking the data later.
+
+**This feature can ship independently of multi-tenant unlock.** It's a strict improvement to the existing `/admin/courses/[id]/edit` flow. No routing changes required.
+
+This composes with the multi-tenant plan: course catalog stays shared across the platform, and any trip's admin can contribute by adding new courses.
 
 ### Still open (lower-stakes, deferred)
 
 - **Default trip on sign-in when user has multiple** — remember last-used vs. always show picker. Punt to Phase 5.
 - **Marketing/landing page at `/`** for signed-out visitors. Punt to Phase 4.
 - **Platform rename** — "Cup" is currently the app and the trip class. For multi-tenant we should distinguish: the platform is X, individual trips are Cups. Punt to Phase 4.
+- **Scorecard → hole data via vision model** — auto-extract par/yardage/SI from the uploaded scorecard. Separate decision; the scorecard image gets stored either way.
 
 ## What the invite-link flow looks like (Decision 4 expanded)
 
