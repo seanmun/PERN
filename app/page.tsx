@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { getAuthContext } from '@/lib/auth/current-user';
 import HomeBgVideo from '@/components/HomeBgVideo';
+import Footer from '@/components/marketing/Footer';
 import Reveal from '@/components/marketing/Reveal';
 
 const GOLD = '#eab308';
@@ -248,7 +249,7 @@ export default async function Home() {
       {/* ───────── Hero ───────── */}
       <section
         aria-label="BuddyCup"
-        className="relative isolate overflow-hidden"
+        className="relative isolate overflow-hidden md:max-h-[760px]"
       >
         <HomeBgVideo src="/golfball-test.mp4" loopAt={11} />
 
@@ -472,7 +473,7 @@ export default async function Home() {
       >
         <div className="mx-auto max-w-2xl px-4 text-center">
           <Reveal>
-            <SectionKicker>Ready to run yours?</SectionKicker>
+            <SectionKicker center>Ready to run yours?</SectionKicker>
             <h2
               id="closing-cta"
               className="mt-4 text-balance text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl"
@@ -493,6 +494,8 @@ export default async function Home() {
           </Reveal>
         </div>
       </section>
+
+      <Footer />
     </div>
   );
 }
@@ -501,9 +504,15 @@ export default async function Home() {
 /* Subcomponents (server, presentational)                            */
 /* ──────────────────────────────────────────────────────────────── */
 
-function SectionKicker({ children }: { children: React.ReactNode }) {
+function SectionKicker({
+  children,
+  center,
+}: {
+  children: React.ReactNode;
+  center?: boolean;
+}) {
   return (
-    <div className="flex items-center gap-3">
+    <div className={`flex items-center gap-3 ${center ? 'justify-center' : ''}`}>
       <span className="h-px w-8 bg-yellow-600/60" aria-hidden="true" />
       <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
         {children}
@@ -715,7 +724,7 @@ function ScoreboardMock() {
           Cup standings
         </p>
       </div>
-      <p className="mt-2 text-sm font-semibold text-zinc-200">Pinehurst Cup 2026</p>
+      <p className="mt-2 text-sm font-semibold text-zinc-200">Round 3 · Live</p>
 
       <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
         <TeamBox name="Hacks" pts="8½" color={GREEN} align="right" />
