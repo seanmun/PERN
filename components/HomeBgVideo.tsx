@@ -46,7 +46,7 @@ export default function HomeBgVideo({
       muted
       playsInline
       preload="auto"
-      className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60"
+      className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25"
       style={{
         maskImage: maskGradient,
         WebkitMaskImage: maskGradient,
