@@ -7,6 +7,7 @@ import { db } from '@/db/client';
 import { users, tripMembers } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
 import { AuthorizationError, canEditTripMember, requireAuth } from '@/lib/auth/permissions';
+import { getTripSlugById } from '@/lib/auth/trip-context';
 
 // Trip is in EDT (-04:00) in August. Wall-time string → UTC.
 const TRIP_TZ_OFFSET = '-04:00';
@@ -82,6 +83,7 @@ export async function updateMyProfile(formData: FormData): Promise<void> {
     })
     .where(eq(tripMembers.id, ctx.tripMember.id));
 
-  revalidatePath('/me');
-  redirect('/me');
+  const tripSlug = await getTripSlugById(ctx.tripMember.tripId);
+  revalidatePath(`/trips/${tripSlug}/me`);
+  redirect(`/trips/${tripSlug}/me`);
 }

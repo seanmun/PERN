@@ -62,7 +62,7 @@ async function seed() {
   const [trip] = await db
     .insert(trips)
     .values({
-      slug: 'pinehurst-cup-2026',
+      slug: 'pcup26',
       name: 'Pinehurst Cup 2026',
       startDate: new Date('2026-08-19T00:00:00-04:00'),
       endDate: new Date('2026-08-22T23:59:59-04:00'),

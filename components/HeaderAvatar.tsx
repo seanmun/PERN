@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getAuthContext } from '@/lib/auth/current-user';
+import HeaderAvatarLink from './HeaderAvatarLink';
 
 export default async function HeaderAvatar() {
   const ctx = await getAuthContext();
@@ -19,24 +20,5 @@ export default async function HeaderAvatar() {
   const initial = (tripMember?.nickname ?? user.email).slice(0, 1).toUpperCase();
   const avatarUrl = tripMember?.avatarUrl ?? null;
 
-  return (
-    <Link
-      href="/me"
-      aria-label="Your account"
-      className="flex h-10 w-10 items-center justify-center rounded-sm overflow-hidden ring-2 ring-zinc-700 hover:ring-yellow-500"
-    >
-      {avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={avatarUrl}
-          alt=""
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center bg-zinc-800 font-mono text-sm font-bold text-zinc-300">
-          {initial}
-        </div>
-      )}
-    </Link>
-  );
+  return <HeaderAvatarLink initial={initial} avatarUrl={avatarUrl} />;
 }

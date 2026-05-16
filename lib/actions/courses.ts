@@ -11,6 +11,7 @@ import {
   isPlatformAdmin,
   isTripAdminOf,
 } from '@/lib/auth/permissions';
+import { getTripSlugById } from '@/lib/auth/trip-context';
 import { extractScorecardFromUrl } from '@/lib/scorecard/extract';
 
 function trim(v: FormDataEntryValue | null): string | null {
@@ -27,7 +28,7 @@ function intOrNull(v: FormDataEntryValue | null): number | null {
   return Math.round(n);
 }
 
-async function ensureCourseAdmin(): Promise<void> {
+async function ensureCourseAdmin(): Promise<string> {
   const ctx = await getAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
@@ -37,6 +38,7 @@ async function ensureCourseAdmin(): Promise<void> {
   if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, trip.id)) {
     throw new AuthorizationError('Trip admin required');
   }
+  return trip.id;
 }
 
 /**
@@ -84,7 +86,7 @@ async function extractAndPopulateScorecard(
 }
 
 export async function createCourse(formData: FormData): Promise<void> {
-  await ensureCourseAdmin();
+  const tripId = await ensureCourseAdmin();
 
   const name = String(formData.get('name') ?? '').trim();
   if (!name) throw new Error('Name is required');
@@ -103,18 +105,19 @@ export async function createCourse(formData: FormData): Promise<void> {
     })
     .returning();
 
-  revalidatePath('/admin/courses');
+  const tripSlug = await getTripSlugById(tripId);
+  revalidatePath(`/trips/${tripSlug}/admin/courses`);
 
   const redirectTo = String(formData.get('redirectTo') ?? '').trim();
   if (redirectTo) {
     redirect(redirectTo);
   } else {
-    redirect(`/admin/courses/${created.id}/edit`);
+    redirect(`/trips/${tripSlug}/admin/courses/${created.id}/edit`);
   }
 }
 
 export async function updateCourse(formData: FormData): Promise<void> {
-  await ensureCourseAdmin();
+  const tripId = await ensureCourseAdmin();
 
   const id = String(formData.get('id') ?? '').trim();
   if (!id) throw new Error('id required');
@@ -147,10 +150,11 @@ export async function updateCourse(formData: FormData): Promise<void> {
     })
     .where(eq(courses.id, id));
 
-  revalidatePath('/schedule');
-  revalidatePath('/admin/courses');
-  revalidatePath(`/admin/courses/${id}/edit`);
-  redirect(`/admin/courses/${id}/edit`);
+  const tripSlug = await getTripSlugById(tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/admin/courses`);
+  revalidatePath(`/trips/${tripSlug}/admin/courses/${id}/edit`);
+  redirect(`/trips/${tripSlug}/admin/courses/${id}/edit`);
 }
 
 /**
@@ -158,7 +162,7 @@ export async function updateCourse(formData: FormData): Promise<void> {
  * scorecard photo or wants to retry after a failed first pass.
  */
 export async function reextractScorecard(formData: FormData): Promise<void> {
-  await ensureCourseAdmin();
+  const tripId = await ensureCourseAdmin();
 
   const courseId = String(formData.get('id') ?? '').trim();
   if (!courseId) throw new Error('id required');
@@ -174,6 +178,7 @@ export async function reextractScorecard(formData: FormData): Promise<void> {
 
   await extractAndPopulateScorecard(courseId, course.scorecardImageUrl);
 
-  revalidatePath('/admin/courses');
-  revalidatePath(`/admin/courses/${courseId}/edit`);
+  const tripSlug = await getTripSlugById(tripId);
+  revalidatePath(`/trips/${tripSlug}/admin/courses`);
+  revalidatePath(`/trips/${tripSlug}/admin/courses/${courseId}/edit`);
 }

@@ -18,6 +18,7 @@ import {
   isPlatformAdmin,
   isTripAdminOf,
 } from '@/lib/auth/permissions';
+import { getTripSlugById } from '@/lib/auth/trip-context';
 import type { AuthContext } from '@/lib/auth/current-user';
 
 function requireMatchAdmin(ctx: AuthContext, tripId: string): void {
@@ -70,9 +71,10 @@ export async function updateMatchParticipants(formData: FormData): Promise<void>
     await db.insert(matchParticipants).values(rows);
   }
 
-  revalidatePath('/schedule');
-  revalidatePath(`/matches/${matchId}`);
-  redirect(`/matches/${matchId}`);
+  const tripSlug = await getTripSlugById(match.round.tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/matches/${matchId}`);
+  redirect(`/trips/${tripSlug}/matches/${matchId}`);
 }
 
 export async function createMatch(formData: FormData): Promise<void> {
@@ -124,8 +126,9 @@ export async function createMatch(formData: FormData): Promise<void> {
     await db.insert(matchParticipants).values(rows);
   }
 
-  revalidatePath('/schedule');
-  redirect(`/matches/${match.id}`);
+  const tripSlug = await getTripSlugById(teeTime.round.tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  redirect(`/trips/${tripSlug}/matches/${match.id}`);
 }
 
 export async function deleteMatch(formData: FormData): Promise<void> {
@@ -147,6 +150,7 @@ export async function deleteMatch(formData: FormData): Promise<void> {
 
   await db.delete(matches).where(eq(matches.id, matchId));
 
-  revalidatePath('/schedule');
-  redirect('/schedule');
+  const tripSlug = await getTripSlugById(match.round.tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  redirect(`/trips/${tripSlug}/schedule`);
 }

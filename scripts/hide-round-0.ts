@@ -6,7 +6,7 @@ async function main() {
   const [trip] = await db
     .select()
     .from(trips)
-    .where(eq(trips.slug, 'pinehurst-cup-2026'))
+    .where(eq(trips.slug, 'pcup26'))
     .limit(1);
   if (!trip) throw new Error('Trip not found');
 

@@ -3,10 +3,49 @@
 import { revalidatePath } from 'next/cache';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { reactions } from '@/db/schema';
+import {
+  reactions,
+  media,
+  messages,
+  holeScores,
+  matches,
+  rounds,
+} from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
 import { requireAuth } from '@/lib/auth/permissions';
+import { getTripSlugById } from '@/lib/auth/trip-context';
 import { REACTION_EMOJIS, REACTION_TARGET_KINDS } from '@/lib/feed/constants';
+
+async function resolveTripIdForTarget(
+  targetKind: 'score' | 'media' | 'text',
+  targetId: string
+): Promise<string | null> {
+  if (targetKind === 'media') {
+    const [row] = await db
+      .select({ tripId: media.tripId })
+      .from(media)
+      .where(eq(media.id, targetId))
+      .limit(1);
+    return row?.tripId ?? null;
+  }
+  if (targetKind === 'text') {
+    const [row] = await db
+      .select({ tripId: messages.tripId })
+      .from(messages)
+      .where(eq(messages.id, targetId))
+      .limit(1);
+    return row?.tripId ?? null;
+  }
+  // score → hole_score → match → round → trip
+  const [row] = await db
+    .select({ tripId: rounds.tripId })
+    .from(holeScores)
+    .innerJoin(matches, eq(holeScores.matchId, matches.id))
+    .innerJoin(rounds, eq(matches.roundId, rounds.id))
+    .where(eq(holeScores.id, targetId))
+    .limit(1);
+  return row?.tripId ?? null;
+}
 
 const VALID_EMOJIS = new Set<string>(REACTION_EMOJIS);
 const VALID_KINDS = new Set<string>(REACTION_TARGET_KINDS);
@@ -49,5 +88,9 @@ export async function toggleReaction(formData: FormData): Promise<void> {
     });
   }
 
-  revalidatePath('/feed');
+  const tripId = await resolveTripIdForTarget(targetKind, targetId);
+  if (tripId) {
+    const tripSlug = await getTripSlugById(tripId);
+    revalidatePath(`/trips/${tripSlug}/feed`);
+  }
 }

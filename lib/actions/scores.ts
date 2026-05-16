@@ -16,6 +16,7 @@ import {
   canEnterScoreFor,
   requireAuth,
 } from '@/lib/auth/permissions';
+import { getTripSlugById } from '@/lib/auth/trip-context';
 
 function parseGross(v: FormDataEntryValue | null): number | null {
   if (v == null) return null;
@@ -105,6 +106,7 @@ export async function upsertHoleScore(formData: FormData): Promise<void> {
       });
   }
 
-  revalidatePath(`/matches/${matchId}`);
-  revalidatePath(`/matches/${matchId}/score`);
+  const tripSlug = await getTripSlugById(target.round.tripId);
+  revalidatePath(`/trips/${tripSlug}/matches/${matchId}`);
+  revalidatePath(`/trips/${tripSlug}/matches/${matchId}/score`);
 }

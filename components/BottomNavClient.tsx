@@ -12,14 +12,29 @@ type NavItem = {
   label: string;
 };
 
+// While only one trip exists, this is the canonical fallback for nav rendered
+// outside a /trips/[slug]/* route (root, sign-in, etc.). Replace with a
+// user-default-trip lookup once the trip picker ships.
+const DEFAULT_TRIP_SLUG = 'pcup26';
+
+function getTripSlugFromPath(pathname: string): string {
+  if (pathname.startsWith('/trips/')) {
+    const slug = pathname.split('/')[2];
+    if (slug) return slug;
+  }
+  return DEFAULT_TRIP_SLUG;
+}
+
 export default function BottomNavClient({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
+  const slug = getTripSlugFromPath(pathname);
+  const tripBase = `/trips/${slug}`;
 
   const items: NavItem[] = [
-    { href: '/schedule', icon: Calendar, label: 'Schedule' },
-    { href: '/scoreboard', icon: Trophy, label: 'Cup' },
-    { href: '/feed', icon: Flame, label: 'Feed' },
-    { href: '/me', icon: User, label: 'Me' },
+    { href: `${tripBase}/schedule`, icon: Calendar, label: 'Schedule' },
+    { href: `${tripBase}/scoreboard`, icon: Trophy, label: 'Cup' },
+    { href: `${tripBase}/feed`, icon: Flame, label: 'Feed' },
+    { href: `${tripBase}/me`, icon: User, label: 'Me' },
   ];
 
   return (

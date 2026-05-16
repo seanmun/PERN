@@ -1,0 +1,343 @@
+import { notFound, redirect } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowLeft, Pencil, Plus, Trophy } from 'lucide-react';
+import { asc, eq, inArray } from 'drizzle-orm';
+import { db } from '@/db/client';
+import {
+  rounds,
+  courses,
+  teeTimes,
+  matches,
+  matchParticipants,
+  tripMembers,
+  teams,
+} from '@/db/schema';
+import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
+import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { updateRound } from '@/lib/actions/rounds';
+import {
+  formatTripTime,
+  formatTripDayLong,
+  roundFormatLabel,
+} from '@/lib/format';
+import DeleteRoundButton from '@/components/admin/DeleteRoundButton';
+import DeleteTeeTimeButton from '@/components/admin/DeleteTeeTimeButton';
+
+export default async function EditRoundPage({
+  params,
+}: {
+  params: Promise<{ slug: string; id: string }>;
+}) {
+  const { slug, id } = await params;
+  const trip = await getTripBySlug(slug);
+  if (!trip) notFound();
+
+  const ctx = await getTripAuthContext(trip.id);
+  if (!ctx) redirect('/sign-in');
+
+  const [round] = await db
+    .select()
+    .from(rounds)
+    .where(eq(rounds.id, id))
+    .limit(1);
+  if (!round) notFound();
+
+  if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, round.tripId)) {
+    redirect(`/trips/${slug}/schedule`);
+  }
+
+  const allCourses = await db
+    .select()
+    .from(courses)
+    .orderBy(asc(courses.name));
+
+  const teeTimesList = await db
+    .select()
+    .from(teeTimes)
+    .where(eq(teeTimes.roundId, round.id))
+    .orderBy(asc(teeTimes.groupNumber));
+
+  const teeTimeIds = teeTimesList.map((tt) => tt.id);
+
+  const roundMatches = teeTimeIds.length
+    ? await db
+        .select()
+        .from(matches)
+        .where(inArray(matches.teeTimeId, teeTimeIds))
+    : [];
+
+  const matchIds = roundMatches.map((m) => m.id);
+  const participantsRows = matchIds.length
+    ? await db
+        .select({
+          participant: matchParticipants,
+          member: tripMembers,
+          team: teams,
+        })
+        .from(matchParticipants)
+        .innerJoin(
+          tripMembers,
+          eq(matchParticipants.tripMemberId, tripMembers.id)
+        )
+        .innerJoin(teams, eq(matchParticipants.teamId, teams.id))
+        .where(inArray(matchParticipants.matchId, matchIds))
+    : [];
+
+  const participantsByMatch = new Map<string, typeof participantsRows>();
+  for (const p of participantsRows) {
+    const list = participantsByMatch.get(p.participant.matchId) ?? [];
+    list.push(p);
+    participantsByMatch.set(p.participant.matchId, list);
+  }
+
+  const dateInputValue = round.date
+    ? new Intl.DateTimeFormat('en-CA', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'America/New_York',
+      }).format(round.date)
+    : '';
+
+  return (
+    <div className="mx-auto max-w-md px-4 pb-24 pt-6">
+      <Link
+        href={`/trips/${slug}/schedule`}
+        className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500 hover:text-yellow-400"
+      >
+        <ArrowLeft size={12} /> Schedule
+      </Link>
+
+      <h1 className="mt-6 text-2xl font-bold tracking-tight">
+        Round {round.order}
+      </h1>
+      <p className="mt-1 text-xs text-zinc-500">
+        {round.label ?? roundFormatLabel(round.format)}
+      </p>
+
+      {/* Round basics */}
+      <form action={updateRound} className="mt-8 space-y-5">
+        <input type="hidden" name="id" value={round.id} />
+
+        <Field label="Label">
+          <input
+            type="text"
+            name="label"
+            defaultValue={round.label ?? ''}
+            placeholder="Wed PM — Pine Needles"
+            className={inputCls}
+          />
+        </Field>
+
+        <Field label="Date">
+          <input
+            type="date"
+            name="date"
+            defaultValue={dateInputValue}
+            className={inputCls}
+          />
+        </Field>
+
+        <Field label="Course" required>
+          <select
+            name="courseId"
+            required
+            defaultValue={round.courseId}
+            className={inputCls}
+          >
+            {allCourses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+                {c.location ? ` · ${c.location}` : ''}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Format" required>
+          <select
+            name="format"
+            required
+            defaultValue={round.format}
+            className={inputCls}
+          >
+            <option value="match_play_2v2">2v2 — Match play</option>
+            <option value="singles">Singles — 1v1 match play</option>
+            <option value="scramble">Scramble</option>
+            <option value="stroke">Stroke play</option>
+          </select>
+        </Field>
+
+        <label className="flex items-start gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 px-3 py-3">
+          <input
+            type="checkbox"
+            name="friendly"
+            defaultChecked={!round.countsTowardCup}
+            className="mt-0.5 h-4 w-4 accent-yellow-500"
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-200">
+              Friendly round
+            </span>
+            <span className="block text-[11px] text-zinc-500">
+              Does not count toward the Cup.
+            </span>
+          </span>
+        </label>
+
+        <button
+          type="submit"
+          className="w-full rounded-sm bg-yellow-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black hover:bg-yellow-400"
+        >
+          Save round
+        </button>
+      </form>
+
+      {/* Tee times */}
+      <section className="mt-10">
+        <div className="flex items-baseline justify-between">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
+            Tee times ({teeTimesList.length})
+          </p>
+          <Link
+            href={`/trips/${slug}/admin/tee-times/new?roundId=${round.id}`}
+            className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-400 hover:text-yellow-300"
+          >
+            <Plus size={11} /> Add tee time
+          </Link>
+        </div>
+
+        <div className="mt-3 space-y-3">
+          {teeTimesList.length === 0 ? (
+            <p className="text-sm text-zinc-500">
+              No tee times yet. Add one to start scheduling matchups.
+            </p>
+          ) : (
+            teeTimesList.map((tt) => {
+              const tteMatches = roundMatches.filter(
+                (m) => m.teeTimeId === tt.id
+              );
+              return (
+                <div
+                  key={tt.id}
+                  className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-mono text-sm font-bold tabular-nums text-yellow-400">
+                        {tt.time ? formatTripTime(tt.time) : '—:—'}
+                        <span className="ml-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                          Group {tt.groupNumber}
+                        </span>
+                      </p>
+                      {tt.time && (
+                        <p className="font-mono text-[10px] text-zinc-600">
+                          {formatTripDayLong(tt.time)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Link
+                        href={`/trips/${slug}/admin/tee-times/${tt.id}/edit`}
+                        aria-label="Edit tee time"
+                        className="rounded-sm border border-zinc-800 p-1.5 text-zinc-400 hover:border-yellow-500/50 hover:text-yellow-400"
+                      >
+                        <Pencil size={12} />
+                      </Link>
+                      <DeleteTeeTimeButton teeTimeId={tt.id} />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-1.5">
+                    {tteMatches.length === 0 ? (
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-600">
+                        No matchups
+                      </p>
+                    ) : (
+                      tteMatches.map((m) => {
+                        const parts = participantsByMatch.get(m.id) ?? [];
+                        const byTeam = new Map<
+                          string,
+                          { color: string | null; nicknames: string[] }
+                        >();
+                        for (const p of parts) {
+                          const entry =
+                            byTeam.get(p.team.id) ??
+                            { color: p.team.color, nicknames: [] };
+                          entry.nicknames.push(p.member.nickname);
+                          byTeam.set(p.team.id, entry);
+                        }
+                        const sides = Array.from(byTeam.values());
+                        return (
+                          <Link
+                            key={m.id}
+                            href={`/trips/${slug}/matches/${m.id}/edit`}
+                            className="flex items-center justify-between gap-2 rounded-sm border border-zinc-800 bg-black/40 px-2 py-1.5 hover:border-yellow-500/40"
+                          >
+                            <Trophy
+                              size={11}
+                              className="shrink-0 text-yellow-500"
+                            />
+                            <p className="min-w-0 flex-1 truncate text-xs">
+                              {sides.length === 2 ? (
+                                <>
+                                  <span style={{ color: sides[0].color ?? undefined }}>
+                                    {sides[0].nicknames.join(' & ')}
+                                  </span>
+                                  <span className="mx-1.5 text-zinc-600">vs</span>
+                                  <span style={{ color: sides[1].color ?? undefined }}>
+                                    {sides[1].nicknames.join(' & ')}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-zinc-500">No participants</span>
+                              )}
+                            </p>
+                            <Pencil size={10} className="shrink-0 text-zinc-600" />
+                          </Link>
+                        );
+                      })
+                    )}
+                    <Link
+                      href={`/trips/${slug}/matches/new?teeTimeId=${tt.id}`}
+                      className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-400 hover:text-yellow-300"
+                    >
+                      <Plus size={10} /> Add matchup
+                    </Link>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </section>
+
+      <div className="mt-12 border-t border-zinc-800 pt-6">
+        <DeleteRoundButton roundId={round.id} />
+      </div>
+    </div>
+  );
+}
+
+const inputCls =
+  'mt-2 block w-full rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
+
+function Field({
+  label,
+  children,
+  required,
+}: {
+  label: string;
+  children: React.ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+        {label}
+        {required && <span className="ml-1 text-yellow-500">*</span>}
+      </span>
+      {children}
+    </label>
+  );
+}

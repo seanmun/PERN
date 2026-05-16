@@ -11,6 +11,7 @@ import {
   isPlatformAdmin,
   isTripAdminOf,
 } from '@/lib/auth/permissions';
+import { getTripSlugById } from '@/lib/auth/trip-context';
 import type { AuthContext } from '@/lib/auth/current-user';
 
 type RoundFormat = 'match_play_2v2' | 'singles' | 'scramble' | 'stroke';
@@ -104,9 +105,10 @@ export async function createRound(formData: FormData): Promise<void> {
     })
     .returning();
 
-  revalidatePath('/schedule');
-  revalidatePath('/admin/rounds');
-  redirect(`/admin/rounds/${created.id}/edit`);
+  const tripSlug = await getTripSlugById(trip.id);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/admin/rounds`);
+  redirect(`/trips/${tripSlug}/admin/rounds/${created.id}/edit`);
 }
 
 export async function updateRound(formData: FormData): Promise<void> {
@@ -139,10 +141,11 @@ export async function updateRound(formData: FormData): Promise<void> {
     })
     .where(eq(rounds.id, id));
 
-  revalidatePath('/schedule');
-  revalidatePath('/admin/rounds');
-  revalidatePath(`/admin/rounds/${id}/edit`);
-  redirect(`/admin/rounds/${id}/edit`);
+  const tripSlug = await getTripSlugById(existing.tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/admin/rounds`);
+  revalidatePath(`/trips/${tripSlug}/admin/rounds/${id}/edit`);
+  redirect(`/trips/${tripSlug}/admin/rounds/${id}/edit`);
 }
 
 export async function deleteRound(formData: FormData): Promise<void> {
@@ -163,7 +166,8 @@ export async function deleteRound(formData: FormData): Promise<void> {
 
   await db.delete(rounds).where(eq(rounds.id, id));
 
-  revalidatePath('/schedule');
-  revalidatePath('/admin/rounds');
-  redirect('/admin/rounds');
+  const tripSlug = await getTripSlugById(existing.tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/admin/rounds`);
+  redirect(`/trips/${tripSlug}/admin/rounds`);
 }

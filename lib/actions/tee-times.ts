@@ -11,6 +11,7 @@ import {
   isPlatformAdmin,
   isTripAdminOf,
 } from '@/lib/auth/permissions';
+import { getTripSlugById } from '@/lib/auth/trip-context';
 import type { AuthContext } from '@/lib/auth/current-user';
 
 const TRIP_TZ_OFFSET = '-04:00';
@@ -60,9 +61,10 @@ export async function createTeeTime(formData: FormData): Promise<void> {
     groupNumber: parseGroup(formData.get('groupNumber')),
   });
 
-  revalidatePath('/schedule');
-  revalidatePath(`/admin/rounds/${roundId}/edit`);
-  redirect(`/admin/rounds/${roundId}/edit`);
+  const tripSlug = await getTripSlugById(round.tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/admin/rounds/${roundId}/edit`);
+  redirect(`/trips/${tripSlug}/admin/rounds/${roundId}/edit`);
 }
 
 export async function updateTeeTime(formData: FormData): Promise<void> {
@@ -90,9 +92,10 @@ export async function updateTeeTime(formData: FormData): Promise<void> {
     })
     .where(eq(teeTimes.id, id));
 
-  revalidatePath('/schedule');
-  revalidatePath(`/admin/rounds/${existing.teeTime.roundId}/edit`);
-  redirect(`/admin/rounds/${existing.teeTime.roundId}/edit`);
+  const tripSlug = await getTripSlugById(existing.round.tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/admin/rounds/${existing.teeTime.roundId}/edit`);
+  redirect(`/trips/${tripSlug}/admin/rounds/${existing.teeTime.roundId}/edit`);
 }
 
 export async function deleteTeeTime(formData: FormData): Promise<void> {
@@ -114,7 +117,8 @@ export async function deleteTeeTime(formData: FormData): Promise<void> {
 
   await db.delete(teeTimes).where(eq(teeTimes.id, id));
 
-  revalidatePath('/schedule');
-  revalidatePath(`/admin/rounds/${existing.teeTime.roundId}/edit`);
-  redirect(`/admin/rounds/${existing.teeTime.roundId}/edit`);
+  const tripSlug = await getTripSlugById(existing.round.tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/admin/rounds/${existing.teeTime.roundId}/edit`);
+  redirect(`/trips/${tripSlug}/admin/rounds/${existing.teeTime.roundId}/edit`);
 }

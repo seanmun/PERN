@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Pinehurst Cup',
-  description: 'Ryder-Cup-style match-play tracker for the Pinehurst Cup trip.',
+  title: 'BuddyCup',
+  description: 'The cupboard. Ryder-Cup-style match-play tracking for your trips.',
 };
 
 export default function RootLayout({
@@ -37,7 +37,7 @@ export default function RootLayout({
             <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
               <Link href="/" className="group flex items-baseline gap-2">
                 <span className="font-mono text-xs font-bold uppercase tracking-[0.35em] text-yellow-500 group-hover:text-yellow-400">
-                  Pinehurst
+                  Buddy
                 </span>
                 <span className="font-mono text-xs font-bold uppercase tracking-[0.35em] text-zinc-100 group-hover:text-white">
                   Cup

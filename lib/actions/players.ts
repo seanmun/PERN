@@ -11,6 +11,7 @@ import {
   isPlatformAdmin,
   isTripAdminOf,
 } from '@/lib/auth/permissions';
+import { getTripSlugById } from '@/lib/auth/trip-context';
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;
@@ -85,8 +86,9 @@ export async function updatePlayer(formData: FormData): Promise<void> {
     })
     .where(eq(tripMembers.id, id));
 
-  revalidatePath('/admin/players');
-  revalidatePath('/schedule');
-  revalidatePath('/scoreboard');
-  redirect('/admin/players');
+  const tripSlug = await getTripSlugById(existing.tripId);
+  revalidatePath(`/trips/${tripSlug}/admin/players`);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/scoreboard`);
+  redirect(`/trips/${tripSlug}/admin/players`);
 }

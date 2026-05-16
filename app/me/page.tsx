@@ -1,265 +1,181 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Pencil, PlaneLanding, PlaneTakeoff } from 'lucide-react';
-import { eq } from 'drizzle-orm';
+import { asc, eq, isNotNull } from 'drizzle-orm';
+import { ChevronRight, User as UserIcon } from 'lucide-react';
 import { db } from '@/db/client';
-import { teams, trips } from '@/db/schema';
+import { trips, tripMembers } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
-import { formatTripDayLong, formatTripTime } from '@/lib/format';
 import SignOutLink from '@/components/SignOutLink';
 
-export default async function MePage() {
+export default async function GlobalMePage() {
   const ctx = await getAuthContext();
-  if (!ctx) {
-    redirect('/sign-in');
-  }
+  if (!ctx) redirect('/sign-in');
 
-  const { user, tripMember, isPlatformAdmin } = ctx;
+  const { user, isPlatformAdmin } = ctx;
 
-  let team: typeof teams.$inferSelect | null = null;
-  let trip: typeof trips.$inferSelect | null = null;
-  if (tripMember?.teamId) {
-    [team] = await db
-      .select()
-      .from(teams)
-      .where(eq(teams.id, tripMember.teamId))
-      .limit(1);
-  }
-  if (tripMember?.tripId) {
-    [trip] = await db
-      .select()
+  // Trips the user is a member of (lazy-claim matches by userId once the
+  // tripMember row has been stitched, which getAuthContext does on first load).
+  const memberships = await db
+    .select({
+      tripId: tripMembers.tripId,
+      role: tripMembers.role,
+      isCaptain: tripMembers.isCaptain,
+      nickname: tripMembers.nickname,
+      tripName: trips.name,
+      tripSlug: trips.slug,
+      startDate: trips.startDate,
+      endDate: trips.endDate,
+    })
+    .from(tripMembers)
+    .innerJoin(trips, eq(tripMembers.tripId, trips.id))
+    .where(eq(tripMembers.userId, user.id))
+    .orderBy(asc(trips.startDate));
+
+  // Platform admins also see trips they're NOT on (godmode).
+  let otherTrips: Array<{ id: string; name: string; slug: string }> = [];
+  if (isPlatformAdmin) {
+    const memberTripIds = new Set(memberships.map((m) => m.tripId));
+    const all = await db
+      .select({ id: trips.id, name: trips.name, slug: trips.slug })
       .from(trips)
-      .where(eq(trips.id, tripMember.tripId))
-      .limit(1);
+      .where(isNotNull(trips.id))
+      .orderBy(asc(trips.startDate));
+    otherTrips = all.filter((t) => !memberTripIds.has(t.id));
   }
 
-  if (!tripMember) {
-    return (
-      <div className="mx-auto max-w-md px-4 py-16">
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-6">
-          <p className="font-mono text-xs uppercase tracking-widest text-yellow-400">
-            Not on the roster
-          </p>
-          <p className="mt-3 text-zinc-300">
-            You&apos;re signed in, but <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-sm">{user.email}</code>{' '}
-            isn&apos;t on the Pinehurst Cup roster.
-          </p>
-          <p className="mt-3 text-sm text-zinc-500">
-            Ask the trip admin to add you, or sign in with the email already on your slot.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const teamColor = team?.color ?? '#3f3f46';
-  const role = tripMember.role === 'trip_admin' ? 'Trip Admin' : 'Player';
+  const displayName = user.displayName ?? user.fullName ?? user.email;
+  const initial = (user.displayName ?? user.fullName ?? user.email)
+    .slice(0, 1)
+    .toUpperCase();
 
   return (
-    <div className="mx-auto max-w-md px-4 pb-16">
-      <div
-        className="-mx-4 relative px-4 pt-10 pb-8"
-        style={{
-          background: `linear-gradient(180deg, ${teamColor}22 0%, transparent 100%)`,
-          borderBottom: `2px solid ${teamColor}`,
-        }}
-      >
-        <Link
-          href="/me/edit"
-          aria-label="Edit profile"
-          className="absolute right-4 top-4 rounded-sm border border-zinc-800 bg-black/50 p-2 text-zinc-400 hover:border-yellow-500/50 hover:text-yellow-400"
-        >
-          <Pencil size={14} />
-        </Link>
+    <div className="mx-auto max-w-2xl px-4 pb-24 pt-6">
+      <header className="flex items-center gap-4">
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-sm bg-zinc-900 ring-2 ring-zinc-700">
+          {user.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={user.avatarUrl}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center font-mono text-2xl font-bold text-zinc-400">
+              {initial}
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+            Signed in
+          </p>
+          <h1 className="mt-1 truncate text-xl font-bold">{displayName}</h1>
+          <p className="truncate text-xs text-zinc-500">{user.email}</p>
+        </div>
+      </header>
 
-        {tripMember.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={tripMember.avatarUrl}
-            alt={tripMember.nickname}
-            className="mb-4 h-24 w-24 rounded-sm object-cover"
-            style={{ boxShadow: `0 0 0 3px ${teamColor}` }}
-          />
+      <section className="mt-10">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
+          Your trips
+        </p>
+
+        {memberships.length === 0 ? (
+          <div className="mt-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-6 text-center">
+            <p className="text-sm text-zinc-400">You&apos;re not on any trips yet.</p>
+            <p className="mt-1 text-xs text-zinc-600">
+              A trip admin needs to add you, or you need an invite link.
+            </p>
+          </div>
         ) : (
-          <div
-            className="mb-4 flex h-24 w-24 items-center justify-center rounded-sm bg-zinc-900 font-mono text-2xl font-bold text-zinc-500"
-            style={{ boxShadow: `0 0 0 3px ${teamColor}` }}
-          >
-            {tripMember.nickname.slice(0, 1).toUpperCase()}
+          <div className="mt-3 space-y-2">
+            {memberships.map((m) => (
+              <TripCard
+                key={m.tripId}
+                href={`/trips/${m.tripSlug}/schedule`}
+                name={m.tripName}
+                dates={formatDates(m.startDate, m.endDate)}
+                nickname={m.nickname}
+                role={
+                  m.role === 'trip_admin'
+                    ? 'Admin'
+                    : m.isCaptain
+                      ? 'Captain'
+                      : 'Player'
+                }
+              />
+            ))}
           </div>
         )}
 
-        <p
-          className="font-mono text-xs font-semibold uppercase tracking-[0.3em]"
-          style={{ color: teamColor }}
-        >
-          {team?.name}
-        </p>
-        <h1 className="mt-2 text-5xl font-bold tracking-tight">
-          {tripMember.nickname}
-        </h1>
-      </div>
-
-      <div className="mt-8 grid grid-cols-2 gap-3">
-        <Stat label="Trip handicap" value={tripMember.tripHandicap ?? '—'} accent={teamColor} />
-        <Stat label="Status" value={tripMember.isCaptain ? 'Captain' : role} />
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Pill label={role.toUpperCase()} />
-        {tripMember.isCaptain && <Pill label="CAPTAIN" accent={teamColor} />}
-        {isPlatformAdmin && <Pill label="PLATFORM ADMIN" accent="#f59e0b" />}
-      </div>
-
-      <section className="mt-8">
-        <div className="flex items-baseline justify-between">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
-            Flights
-          </p>
-          <Link
-            href="/flights"
-            className="font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500 hover:text-yellow-400"
-          >
-            See everyone
-          </Link>
-        </div>
-
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <MyFlightLeg
-            icon={<PlaneLanding size={14} className="text-emerald-400" />}
-            label="Arrive"
-            at={tripMember.flightArrivalAt}
-            details={tripMember.flightArrivalDetails}
-          />
-          <MyFlightLeg
-            icon={<PlaneTakeoff size={14} className="text-zinc-400" />}
-            label="Depart"
-            at={tripMember.flightDepartureAt}
-            details={tripMember.flightDepartureDetails}
-          />
-        </div>
-
-        {!tripMember.flightArrivalAt &&
-          !tripMember.flightDepartureAt &&
-          !tripMember.flightArrivalDetails &&
-          !tripMember.flightDepartureDetails && (
-            <Link
-              href="/me/edit"
-              className="mt-3 flex items-center justify-between rounded-sm border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 hover:bg-yellow-500/10"
-            >
-              <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-yellow-300">
-                Add your flight details
-              </span>
-              <ChevronRight size={14} className="text-yellow-400" />
-            </Link>
-          )}
+        {isPlatformAdmin && otherTrips.length > 0 && (
+          <>
+            <p className="mt-8 font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
+              Platform admin · other trips
+            </p>
+            <div className="mt-3 space-y-2">
+              {otherTrips.map((t) => (
+                <TripCard
+                  key={t.id}
+                  href={`/trips/${t.slug}/schedule`}
+                  name={t.name}
+                  dates={null}
+                  nickname={null}
+                  role="Platform"
+                />
+              ))}
+            </div>
+          </>
+        )}
       </section>
 
-      <div className="mt-10 border-t border-zinc-800 pt-6 text-sm text-zinc-500">
-        <p className="font-mono text-xs uppercase tracking-widest text-zinc-600">
-          Trip
-        </p>
-        <p className="mt-1 text-zinc-300">{trip?.name}</p>
-        {trip?.startDate && trip?.endDate && (
-          <p className="text-xs text-zinc-500">
-            {formatTripDates(trip.startDate, trip.endDate)}
-          </p>
-        )}
-      </div>
-
-      <p className="mt-10 text-xs text-zinc-600">Signed in as {user.email}</p>
-
-      <div className="mt-4">
+      <div className="mt-12 flex items-center justify-between border-t border-zinc-800 pt-6">
         <SignOutLink />
       </div>
     </div>
   );
 }
 
-function MyFlightLeg({
-  icon,
-  label,
-  at,
-  details,
+function TripCard({
+  href,
+  name,
+  dates,
+  nickname,
+  role,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  at: Date | null;
-  details: string | null;
+  href: string;
+  name: string;
+  dates: string | null;
+  nickname: string | null;
+  role: string;
 }) {
   return (
-    <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-3">
-      <div className="flex items-center gap-1.5">
-        {icon}
-        <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
-          {label}
+    <Link
+      href={href}
+      className="flex items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 hover:border-yellow-500/40 hover:bg-zinc-900/40"
+    >
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-zinc-900 text-yellow-500">
+        <UserIcon size={18} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-semibold">{name}</p>
+        <p className="truncate font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+          {[dates, nickname, role].filter(Boolean).join(' · ')}
         </p>
       </div>
-      {at ? (
-        <>
-          <p className="mt-1 text-sm text-zinc-200">{formatTripDayLong(at)}</p>
-          <p className="font-mono text-xs tabular-nums text-yellow-400">
-            {formatTripTime(at)}
-          </p>
-        </>
-      ) : (
-        <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-zinc-600">
-          Not set yet
-        </p>
-      )}
-      {details && <p className="mt-1 text-xs text-zinc-400">{details}</p>}
-    </div>
+      <ChevronRight size={14} className="shrink-0 text-zinc-600" />
+    </Link>
   );
 }
 
-function Stat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string | number;
-  accent?: string;
-}) {
-  return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
-      <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-        {label}
-      </p>
-      <p
-        className="mt-1 text-3xl font-semibold tabular-nums"
-        style={accent ? { color: accent } : undefined}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function Pill({ label, accent }: { label: string; accent?: string }) {
-  if (accent) {
-    return (
-      <span
-        className="rounded-sm px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-widest"
-        style={{ backgroundColor: `${accent}33`, color: accent, border: `1px solid ${accent}66` }}
-      >
-        {label}
-      </span>
-    );
-  }
-  return (
-    <span className="rounded-sm border border-zinc-700 bg-zinc-900 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300">
-      {label}
-    </span>
-  );
-}
-
-function formatTripDates(start: Date, end: Date): string {
-  const fmt = new Intl.DateTimeFormat('en-US', {
+function formatDates(start: Date | null, end: Date | null): string | null {
+  if (!start) return null;
+  const opts: Intl.DateTimeFormatOptions = {
     month: 'short',
     day: 'numeric',
-    timeZone: 'America/New_York',
-  });
-  const yearFmt = new Intl.DateTimeFormat('en-US', { year: 'numeric', timeZone: 'America/New_York' });
-  return `${fmt.format(start)} – ${fmt.format(end)}, ${yearFmt.format(end)}`;
+    year: 'numeric',
+  };
+  const s = new Intl.DateTimeFormat('en-US', opts).format(start);
+  if (!end) return s;
+  const e = new Intl.DateTimeFormat('en-US', opts).format(end);
+  return `${s} – ${e}`;
 }

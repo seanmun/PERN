@@ -9,6 +9,7 @@ import {
   pgEnum,
   primaryKey,
   unique,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
 export const tripRoleEnum = pgEnum('trip_role', ['trip_admin', 'player']);
@@ -58,6 +59,7 @@ export const users = pgTable('users', {
   avatarUrl: text('avatar_url'),
   ghinNumber: text('ghin_number'),
   handicap: numeric('handicap', { precision: 4, scale: 1 }),
+  defaultTripId: uuid('default_trip_id').references((): AnyPgColumn => trips.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
@@ -206,6 +208,18 @@ export const tripEvents = pgTable('trip_events', {
   endTime: timestamp('end_time', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const tripInvites = pgTable('trip_invites', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tripId: uuid('trip_id').references(() => trips.id, { onDelete: 'cascade' }).notNull(),
+  code: text('code').notNull().unique(),                           // short, lower-case URL-safe (e.g. "xyz123")
+  createdBy: uuid('created_by').references(() => users.id).notNull(),
+  note: text('note'),                                              // admin-facing label ("for Dave", etc.)
+  usesAllowed: integer('uses_allowed'),                            // null = unlimited
+  usesCount: integer('uses_count').default(0).notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),      // null = never
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const reactions = pgTable(

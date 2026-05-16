@@ -6,10 +6,23 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, Plane, Cog } from 'lucide-react';
 
+// Mirror of BottomNavClient. Once trip-picker ships, derive from user default.
+const DEFAULT_TRIP_SLUG = 'pcup26';
+
+function getTripSlugFromPath(pathname: string): string {
+  if (pathname.startsWith('/trips/')) {
+    const slug = pathname.split('/')[2];
+    if (slug) return slug;
+  }
+  return DEFAULT_TRIP_SLUG;
+}
+
 export default function MoreMenu({ isAdmin }: { isAdmin: boolean }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  const slug = getTripSlugFromPath(pathname);
+  const tripBase = `/trips/${slug}`;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +57,7 @@ export default function MoreMenu({ isAdmin }: { isAdmin: boolean }) {
   }, [open]);
 
   const activeWhenOnMenuPath =
-    pathname.startsWith('/admin') || pathname.startsWith('/flights');
+    pathname.includes('/admin') || pathname.includes('/flights');
 
   return (
     <div className="flex flex-1 items-stretch">
@@ -76,14 +89,14 @@ export default function MoreMenu({ isAdmin }: { isAdmin: boolean }) {
               style={{ bottom: 'calc(env(safe-area-inset-bottom) + 72px)' }}
             >
               <MenuLink
-                href="/flights"
+                href={`${tripBase}/flights`}
                 icon={<Plane size={16} />}
                 label="Flights"
                 hint="Travel coordination"
               />
               {isAdmin && (
                 <MenuLink
-                  href="/admin"
+                  href={`${tripBase}/admin`}
                   icon={<Cog size={16} />}
                   label="Admin"
                   hint="Trip controls"

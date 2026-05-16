@@ -11,6 +11,7 @@ import {
   isPlatformAdmin,
   isTripAdminOf,
 } from '@/lib/auth/permissions';
+import { getTripSlugById } from '@/lib/auth/trip-context';
 import type { AuthContext } from '@/lib/auth/current-user';
 
 type EventType =
@@ -92,8 +93,9 @@ export async function createEvent(formData: FormData): Promise<void> {
     endTime: parseWallTime(formData.get('endTime')),
   });
 
-  revalidatePath('/schedule');
-  redirect('/schedule');
+  const tripSlug = await getTripSlugById(tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  redirect(`/trips/${tripSlug}/schedule`);
 }
 
 export async function updateEvent(formData: FormData): Promise<void> {
@@ -132,9 +134,10 @@ export async function updateEvent(formData: FormData): Promise<void> {
     })
     .where(eq(tripEvents.id, id));
 
-  revalidatePath('/schedule');
-  revalidatePath(`/events/${id}`);
-  redirect(`/events/${id}`);
+  const tripSlug = await getTripSlugById(existing.tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/events/${id}`);
+  redirect(`/trips/${tripSlug}/events/${id}`);
 }
 
 export async function deleteEvent(formData: FormData): Promise<void> {
@@ -155,6 +158,7 @@ export async function deleteEvent(formData: FormData): Promise<void> {
 
   await db.delete(tripEvents).where(eq(tripEvents.id, id));
 
-  revalidatePath('/schedule');
-  redirect('/schedule');
+  const tripSlug = await getTripSlugById(existing.tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  redirect(`/trips/${tripSlug}/schedule`);
 }
