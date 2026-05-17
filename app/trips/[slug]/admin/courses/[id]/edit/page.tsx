@@ -53,6 +53,7 @@ export default async function EditCoursePage({
 
       <form action={updateCourse} className="mt-6 space-y-5">
         <input type="hidden" name="id" value={course.id} />
+        <input type="hidden" name="tripId" value={trip.id} />
 
         <Field label="Name" required>
           <input

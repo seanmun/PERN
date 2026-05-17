@@ -41,6 +41,7 @@ export default async function NewCoursePage({
       </p>
 
       <form action={createCourse} className="mt-8 space-y-5">
+        <input type="hidden" name="tripId" value={trip.id} />
         {redirectTo && (
           <input type="hidden" name="redirectTo" value={redirectTo} />
         )}
