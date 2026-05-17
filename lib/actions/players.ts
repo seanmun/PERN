@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { tripMembers, teams } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
@@ -27,6 +27,69 @@ function parseHandicap(v: FormDataEntryValue | null): string | null {
   if (Number.isNaN(n)) throw new Error('Handicap must be a number');
   if (n < -10 || n > 54) throw new Error('Handicap must be between -10 and 54');
   return n.toFixed(1);
+}
+
+export async function createPlayer(formData: FormData): Promise<void> {
+  const ctx = await getAuthContext();
+  if (!ctx) throw new AuthorizationError('Authentication required');
+
+  const tripId = String(formData.get('tripId') ?? '').trim();
+  if (!tripId) throw new Error('tripId is required');
+
+  if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, tripId)) {
+    throw new AuthorizationError('Trip admin required');
+  }
+
+  const nickname = String(formData.get('nickname') ?? '').trim();
+  if (!nickname) throw new Error('Nickname is required');
+
+  const email = String(formData.get('email') ?? '').trim().toLowerCase();
+  if (!email) throw new Error('Email is required');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error('Email looks invalid');
+  }
+
+  const [duplicate] = await db
+    .select({ id: tripMembers.id })
+    .from(tripMembers)
+    .where(
+      and(
+        eq(tripMembers.tripId, tripId),
+        sql`lower(${tripMembers.email}) = ${email}`,
+      ),
+    )
+    .limit(1);
+  if (duplicate) {
+    throw new Error(`${email} is already on this trip.`);
+  }
+
+  const teamId = trimOrNull(formData.get('teamId'));
+  if (teamId) {
+    const [team] = await db
+      .select()
+      .from(teams)
+      .where(eq(teams.id, teamId))
+      .limit(1);
+    if (!team || team.tripId !== tripId) {
+      throw new Error('Invalid team');
+    }
+  }
+
+  await db.insert(tripMembers).values({
+    tripId,
+    email,
+    nickname,
+    teamId: teamId ?? null,
+    role: 'player',
+    isCaptain: false,
+    tripHandicap: parseHandicap(formData.get('tripHandicap')),
+  });
+
+  const tripSlug = await getTripSlugById(tripId);
+  revalidatePath(`/trips/${tripSlug}/admin/players`);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/scoreboard`);
+  redirect(`/trips/${tripSlug}/admin/players`);
 }
 
 export async function updatePlayer(formData: FormData): Promise<void> {

@@ -147,6 +147,7 @@ export default async function EditCoursePage({
             <ExtractScorecardButton
               courseId={course.id}
               alreadyExtracted={!!course.scorecardExtractedAt}
+              tripId={trip.id}
             />
             <p className="text-[11px] text-zinc-500">
               Takes 15–45 seconds. The model reads par, yardage, and stroke

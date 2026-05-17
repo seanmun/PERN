@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { courses, courseHoles, trips, rounds } from '@/db/schema';
+import { courses, courseHoles, rounds } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
@@ -28,17 +28,17 @@ function intOrNull(v: FormDataEntryValue | null): number | null {
   return Math.round(n);
 }
 
-async function ensureCourseAdmin(): Promise<string> {
+async function ensureCourseAdmin(formData: FormData): Promise<string> {
   const ctx = await getAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
-  const [trip] = await db.select().from(trips).limit(1);
-  if (!trip) throw new Error('No trip configured');
+  const tripId = String(formData.get('tripId') ?? '').trim();
+  if (!tripId) throw new Error('tripId is required');
 
-  if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, trip.id)) {
+  if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, tripId)) {
     throw new AuthorizationError('Trip admin required');
   }
-  return trip.id;
+  return tripId;
 }
 
 /**
@@ -86,7 +86,7 @@ async function extractAndPopulateScorecard(
 }
 
 export async function createCourse(formData: FormData): Promise<void> {
-  const tripId = await ensureCourseAdmin();
+  const tripId = await ensureCourseAdmin(formData);
 
   const name = String(formData.get('name') ?? '').trim();
   if (!name) throw new Error('Name is required');
@@ -117,7 +117,7 @@ export async function createCourse(formData: FormData): Promise<void> {
 }
 
 export async function updateCourse(formData: FormData): Promise<void> {
-  const tripId = await ensureCourseAdmin();
+  const tripId = await ensureCourseAdmin(formData);
 
   const id = String(formData.get('id') ?? '').trim();
   if (!id) throw new Error('id required');
@@ -162,7 +162,7 @@ export async function updateCourse(formData: FormData): Promise<void> {
  * scorecard photo or wants to retry after a failed first pass.
  */
 export async function reextractScorecard(formData: FormData): Promise<void> {
-  const tripId = await ensureCourseAdmin();
+  const tripId = await ensureCourseAdmin(formData);
 
   const courseId = String(formData.get('id') ?? '').trim();
   if (!courseId) throw new Error('id required');

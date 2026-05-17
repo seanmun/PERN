@@ -47,6 +47,7 @@ export default async function FeedPage({
       canPost={true}
       matchOptions={matchOptions}
       isAdmin={isAdmin}
+      tripId={trip.id}
     />
   );
 }

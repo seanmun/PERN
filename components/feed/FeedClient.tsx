@@ -28,11 +28,13 @@ export default function FeedClient({
   canPost,
   matchOptions,
   isAdmin = false,
+  tripId,
 }: {
   items: ClientFeedItem[];
   canPost: boolean;
   matchOptions: ComposerMatchOption[];
   isAdmin?: boolean;
+  tripId: string;
 }) {
   const router = useRouter();
   const [composerOpen, setComposerOpen] = useState(false);
@@ -122,6 +124,7 @@ export default function FeedClient({
         open={composerOpen}
         onClose={() => setComposerOpen(false)}
         matchOptions={matchOptions}
+        tripId={tripId}
       />
     </div>
   );

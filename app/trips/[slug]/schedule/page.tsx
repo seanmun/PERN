@@ -65,5 +65,5 @@ export default async function TripSchedulePage({
 
   const canEdit = isPlatformAdmin(ctx) || isTripAdminOf(ctx, trip.id);
 
-  return <ScheduleClient days={clientDays} canEdit={canEdit} />;
+  return <ScheduleClient days={clientDays} canEdit={canEdit} tripSlug={slug} />;
 }

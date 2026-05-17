@@ -18,11 +18,13 @@ export default function FeedComposer({
   onClose,
   defaultMatchId,
   matchOptions,
+  tripId,
 }: {
   open: boolean;
   onClose: () => void;
   defaultMatchId?: string;
   matchOptions: ComposerMatchOption[];
+  tripId: string;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<'media' | 'text'>('media');
@@ -94,6 +96,7 @@ export default function FeedComposer({
         return;
       }
       const fd = new FormData();
+      fd.set('tripId', tripId);
       fd.set('url', mediaUrl);
       fd.set('mediaType', mediaType ?? 'image');
       if (caption.trim()) fd.set('caption', caption.trim());
@@ -115,6 +118,7 @@ export default function FeedComposer({
         return;
       }
       const fd = new FormData();
+      fd.set('tripId', tripId);
       fd.set('body', text);
       startTransition(async () => {
         try {

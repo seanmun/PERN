@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { asc, eq, isNotNull } from 'drizzle-orm';
-import { ChevronRight, User as UserIcon } from 'lucide-react';
+import { ChevronRight, Plus, User as UserIcon } from 'lucide-react';
 import { db } from '@/db/client';
 import { trips, tripMembers } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
@@ -79,16 +79,32 @@ export default async function GlobalMePage() {
           Your trips
         </p>
 
-        {memberships.length === 0 ? (
-          <div className="mt-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-6 text-center">
-            <p className="text-sm text-zinc-400">You&apos;re not on any trips yet.</p>
-            <p className="mt-1 text-xs text-zinc-600">
-              A trip admin needs to add you, or you need an invite link.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-3 space-y-2">
-            {memberships.map((m) => (
+        <div className="mt-3 space-y-2">
+          <Link
+            href="/trips/new"
+            className="flex items-center gap-3 rounded-sm border border-dashed border-yellow-500/40 bg-zinc-950/40 p-4 transition-colors hover:border-yellow-500/70 hover:bg-yellow-500/5"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-yellow-500/10 text-yellow-500">
+              <Plus size={18} strokeWidth={2.5} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold text-yellow-400">Create new trip</p>
+              <p className="truncate font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                You&apos;ll be the trip admin
+              </p>
+            </div>
+            <ChevronRight size={14} className="shrink-0 text-yellow-500/60" />
+          </Link>
+
+          {memberships.length === 0 ? (
+            <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-6 text-center">
+              <p className="text-sm text-zinc-400">You&apos;re not on any other trips yet.</p>
+              <p className="mt-1 text-xs text-zinc-600">
+                A trip admin needs to add you, or you need an invite link.
+              </p>
+            </div>
+          ) : (
+            memberships.map((m) => (
               <TripCard
                 key={m.tripId}
                 href={`/trips/${m.tripSlug}/schedule`}
@@ -103,9 +119,9 @@ export default async function GlobalMePage() {
                       : 'Player'
                 }
               />
-            ))}
-          </div>
-        )}
+            ))
+          )}
+        </div>
 
         {isPlatformAdmin && otherTrips.length > 0 && (
           <>

@@ -82,9 +82,11 @@ const DAY_KEY = 'cup_schedule_day';
 export default function ScheduleClient({
   days,
   canEdit = false,
+  tripSlug,
 }: {
   days: ClientScheduleDay[];
   canEdit?: boolean;
+  tripSlug: string;
 }) {
   const [view, setView] = useState<'list' | 'day'>('list');
   const [activeDay, setActiveDay] = useState(days[0]?.date ?? '');
@@ -114,6 +116,33 @@ export default function ScheduleClient({
       <div className="mx-auto max-w-md px-4 pt-16 pb-24">
         <div className="rounded-sm border border-yellow-600/20 bg-black/50 p-8 text-center">
           <p className="text-zinc-400">No schedule yet.</p>
+          {canEdit ? (
+            <>
+              <p className="mt-1 text-xs text-zinc-600">
+                Add the first round or event to get started.
+              </p>
+              <div className="mt-6 flex flex-col items-stretch gap-2 sm:flex-row sm:justify-center">
+                <Link
+                  href={`/trips/${tripSlug}/admin/rounds/new`}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-4 py-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+                >
+                  <Plus size={12} strokeWidth={2.5} />
+                  New round
+                </Link>
+                <Link
+                  href={`/trips/${tripSlug}/events/new`}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-sm border border-zinc-700 px-4 py-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:bg-zinc-900"
+                >
+                  <Plus size={12} strokeWidth={2.5} />
+                  New event
+                </Link>
+              </div>
+            </>
+          ) : (
+            <p className="mt-1 text-xs text-zinc-600">
+              Check back when the trip admin posts the lineup.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -134,14 +163,14 @@ export default function ScheduleClient({
       {canEdit && (
         <div className="mb-6 flex justify-end gap-2">
           <Link
-            href="/admin/rounds/new"
+            href={`/trips/${tripSlug}/admin/rounds/new`}
             className="flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
           >
             <Plus size={12} strokeWidth={2.5} />
             New round
           </Link>
           <Link
-            href="/events/new"
+            href={`/trips/${tripSlug}/events/new`}
             className="flex items-center gap-1.5 rounded-sm border border-zinc-700 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:bg-zinc-900"
           >
             <Plus size={12} strokeWidth={2.5} />

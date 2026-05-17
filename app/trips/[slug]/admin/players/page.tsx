@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { asc, eq } from 'drizzle-orm';
-import { ArrowLeft, Pencil, User } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, User } from 'lucide-react';
 import { db } from '@/db/client';
 import { tripMembers, teams } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
@@ -44,10 +44,28 @@ export default async function AdminPlayersPage({
         <ArrowLeft size={12} /> Admin
       </Link>
 
-      <h1 className="mt-6 text-2xl font-bold tracking-tight">Players</h1>
+      <div className="mt-6 flex items-baseline justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">Players</h1>
+        <Link
+          href={`/trips/${slug}/admin/players/new`}
+          className="inline-flex items-center gap-1.5 rounded-sm bg-yellow-500 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-black hover:bg-yellow-400"
+        >
+          <Plus size={12} strokeWidth={2.5} />
+          Add player
+        </Link>
+      </div>
       <p className="mt-1 text-xs text-zinc-500">
         Upload photos, set handicaps, swap teams, mark captains, edit scouting reports.
       </p>
+
+      {players.length === 0 && (
+        <div className="mt-8 rounded-sm border border-dashed border-zinc-800 bg-zinc-950/40 p-6 text-center">
+          <p className="text-sm text-zinc-400">No players yet.</p>
+          <p className="mt-1 text-xs text-zinc-600">
+            Tap “Add player” above to start the roster.
+          </p>
+        </div>
+      )}
 
       <div className="mt-8 space-y-2">
         {players.map((p) => {

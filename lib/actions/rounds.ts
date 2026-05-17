@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { rounds, trips, courses } from '@/db/schema';
+import { rounds, courses } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
@@ -54,12 +54,6 @@ function parseDate(v: FormDataEntryValue | null): Date | null {
   return d;
 }
 
-async function getTripOrThrow(): Promise<typeof trips.$inferSelect> {
-  const [trip] = await db.select().from(trips).limit(1);
-  if (!trip) throw new Error('No trip configured');
-  return trip;
-}
-
 async function nextRoundOrder(tripId: string): Promise<number> {
   const [last] = await db
     .select()
@@ -74,8 +68,9 @@ export async function createRound(formData: FormData): Promise<void> {
   const ctx = await getAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
-  const trip = await getTripOrThrow();
-  requireRoundAdmin(ctx, trip.id);
+  const tripId = String(formData.get('tripId') ?? '').trim();
+  if (!tripId) throw new Error('tripId is required');
+  requireRoundAdmin(ctx, tripId);
 
   const courseId = String(formData.get('courseId') ?? '').trim();
   if (!courseId) throw new Error('Course is required');
@@ -95,17 +90,17 @@ export async function createRound(formData: FormData): Promise<void> {
   const [created] = await db
     .insert(rounds)
     .values({
-      tripId: trip.id,
+      tripId,
       courseId,
       label,
       format,
       date,
-      order: await nextRoundOrder(trip.id),
+      order: await nextRoundOrder(tripId),
       countsTowardCup,
     })
     .returning();
 
-  const tripSlug = await getTripSlugById(trip.id);
+  const tripSlug = await getTripSlugById(tripId);
   revalidatePath(`/trips/${tripSlug}/schedule`);
   revalidatePath(`/trips/${tripSlug}/admin/rounds`);
   redirect(`/trips/${tripSlug}/admin/rounds/${created.id}/edit`);

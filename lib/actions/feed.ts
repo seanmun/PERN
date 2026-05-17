@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { trips, media, messages, matches } from '@/db/schema';
+import { media, messages, matches, rounds } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
 import { AuthorizationError, requireAuth } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
@@ -15,10 +15,10 @@ function trim(v: FormDataEntryValue | null): string | null {
   return s.length ? s : null;
 }
 
-async function getTripId(): Promise<string> {
-  const [trip] = await db.select().from(trips).limit(1);
-  if (!trip) throw new Error('No trip configured');
-  return trip.id;
+function readTripId(formData: FormData): string {
+  const tripId = String(formData.get('tripId') ?? '').trim();
+  if (!tripId) throw new Error('tripId is required');
+  return tripId;
 }
 
 async function validateMatchInTrip(
@@ -27,11 +27,13 @@ async function validateMatchInTrip(
 ): Promise<void> {
   if (!matchId) return;
   const [m] = await db
-    .select({ id: matches.id })
+    .select({ id: matches.id, tripId: rounds.tripId })
     .from(matches)
+    .innerJoin(rounds, eq(rounds.id, matches.roundId))
     .where(eq(matches.id, matchId))
     .limit(1);
   if (!m) throw new Error('Match not found');
+  if (m.tripId !== tripId) throw new Error('Match is not on this trip');
 }
 
 export async function createMediaPost(formData: FormData): Promise<void> {
@@ -48,7 +50,7 @@ export async function createMediaPost(formData: FormData): Promise<void> {
   const caption = trim(formData.get('caption'));
   const matchId = trim(formData.get('matchId'));
 
-  const tripId = await getTripId();
+  const tripId = readTripId(formData);
   await validateMatchInTrip(matchId, tripId);
 
   // Moderation — image only for now. Videos pass through (would need frame
@@ -113,7 +115,7 @@ export async function createTextPost(formData: FormData): Promise<void> {
   const body = trim(formData.get('body'));
   if (!body) throw new Error('Message body required');
 
-  const tripId = await getTripId();
+  const tripId = readTripId(formData);
 
   await db.insert(messages).values({
     tripId,

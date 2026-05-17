@@ -8,9 +8,11 @@ import { reextractScorecard } from '@/lib/actions/courses';
 export default function ExtractScorecardButton({
   courseId,
   alreadyExtracted,
+  tripId,
 }: {
   courseId: string;
   alreadyExtracted: boolean;
+  tripId: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -26,6 +28,7 @@ export default function ExtractScorecardButton({
     }
     const fd = new FormData();
     fd.set('id', courseId);
+    fd.set('tripId', tripId);
     startTransition(async () => {
       try {
         await reextractScorecard(fd);

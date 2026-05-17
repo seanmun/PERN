@@ -44,6 +44,7 @@ export default async function NewRoundPage({
       </p>
 
       <form action={createRound} className="mt-8 space-y-5">
+        <input type="hidden" name="tripId" value={trip.id} />
         <Field label="Label" hint='e.g. "Wed PM — Pine Needles"'>
           <input
             type="text"
