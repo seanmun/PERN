@@ -50,6 +50,18 @@ export default async function TripSchedulePage({
           })),
         };
       }
+      if (item.kind === 'empty_round') {
+        return {
+          kind: 'empty_round',
+          startTimeISO: item.startTime.toISOString(),
+          roundId: item.round.id,
+          roundOrder: item.round.order,
+          roundLabel: item.round.label,
+          roundFormat: item.round.format,
+          courseName: item.course.name,
+          courseLocation: item.course.location,
+        };
+      }
       return {
         kind: 'event',
         startTimeISO: item.startTime.toISOString(),

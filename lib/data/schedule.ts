@@ -38,13 +38,20 @@ export type GolfItem = {
   matches: ScheduleMatch[];
 };
 
+export type EmptyRoundItem = {
+  kind: 'empty_round';
+  startTime: Date;            // synthetic — round.date if set, else epoch 0
+  round: Round;
+  course: Course;
+};
+
 export type EventItem = {
   kind: 'event';
   startTime: Date;
   event: TripEvent;
 };
 
-export type TimelineItem = GolfItem | EventItem;
+export type TimelineItem = GolfItem | EmptyRoundItem | EventItem;
 
 export type ScheduleDay = {
   date: string;       // YYYY-MM-DD in trip TZ
@@ -151,6 +158,22 @@ export async function getScheduleByDay(tripId: string): Promise<ScheduleDay[]> {
       };
     });
 
+  // Surface rounds that have been created but don't have any tee times yet,
+  // otherwise an admin sees an empty schedule after creating a round.
+  const roundIdsWithTeeTimes = new Set(teeTimesList.map((tt) => tt.roundId));
+  const emptyRoundItems: EmptyRoundItem[] = visibleRounds
+    .filter((r) => !roundIdsWithTeeTimes.has(r.round.id))
+    .map((r) => ({
+      kind: 'empty_round' as const,
+      // If the round has a date, pin to local noon so it sorts inside that day.
+      // If not, pin to the unix epoch so it appears in a "no date yet" group.
+      startTime: r.round.date
+        ? new Date(r.round.date.getTime() + 12 * 60 * 60 * 1000)
+        : new Date(0),
+      round: r.round,
+      course: r.course,
+    }));
+
   const eventsList = await db
     .select()
     .from(tripEvents)
@@ -163,7 +186,7 @@ export async function getScheduleByDay(tripId: string): Promise<ScheduleDay[]> {
     event: e,
   }));
 
-  const all: TimelineItem[] = [...golfItems, ...eventItems];
+  const all: TimelineItem[] = [...golfItems, ...emptyRoundItems, ...eventItems];
 
   const byDate = new Map<string, TimelineItem[]>();
   for (const item of all) {

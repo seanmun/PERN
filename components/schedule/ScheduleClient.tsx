@@ -57,7 +57,18 @@ export type ClientEventItem = {
   address: string | null;
 };
 
-export type ClientItem = ClientGolfItem | ClientEventItem;
+export type ClientEmptyRoundItem = {
+  kind: 'empty_round';
+  startTimeISO: string;
+  roundId: string;
+  roundOrder: number;
+  roundLabel: string | null;
+  roundFormat: 'match_play_2v2' | 'singles' | 'scramble' | 'stroke';
+  courseName: string;
+  courseLocation: string | null;
+};
+
+export type ClientItem = ClientGolfItem | ClientEventItem | ClientEmptyRoundItem;
 
 export type ClientScheduleDay = {
   date: string;
@@ -188,7 +199,7 @@ export default function ScheduleClient({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
           >
-            <ListView days={days} canEdit={canEdit} />
+            <ListView days={days} canEdit={canEdit} tripSlug={tripSlug} />
           </motion.div>
         ) : (
           <motion.div
@@ -203,6 +214,7 @@ export default function ScheduleClient({
               activeDay={activeDay || days[0].date}
               onChange={setActiveDay}
               canEdit={canEdit}
+              tripSlug={tripSlug}
             />
           </motion.div>
         )}
@@ -247,9 +259,11 @@ function ViewToggle({
 function ListView({
   days,
   canEdit,
+  tripSlug,
 }: {
   days: ClientScheduleDay[];
   canEdit?: boolean;
+  tripSlug: string;
 }) {
   return (
     <div className="space-y-8">
@@ -258,7 +272,7 @@ function ListView({
           <DayHeader day={day} />
           <div className="mt-3 space-y-2">
             {day.items.map((item, i) => (
-              <ItemRow key={i} item={item} compact canEdit={canEdit} />
+              <ItemRow key={i} item={item} compact canEdit={canEdit} tripSlug={tripSlug} />
             ))}
           </div>
         </section>
@@ -272,11 +286,13 @@ function DayCarouselView({
   activeDay,
   onChange,
   canEdit,
+  tripSlug,
 }: {
   days: ClientScheduleDay[];
   activeDay: string;
   onChange: (d: string) => void;
   canEdit?: boolean;
+  tripSlug: string;
 }) {
   const current = useMemo(
     () => days.find((d) => d.date === activeDay) ?? days[0],
@@ -321,7 +337,7 @@ function DayCarouselView({
         className="space-y-3"
       >
         {current.items.map((item, i) => (
-          <ItemRow key={i} item={item} canEdit={canEdit} />
+          <ItemRow key={i} item={item} canEdit={canEdit} tripSlug={tripSlug} />
         ))}
       </motion.div>
     </div>
@@ -343,13 +359,62 @@ function ItemRow({
   item,
   compact,
   canEdit,
+  tripSlug,
 }: {
   item: ClientItem;
   compact?: boolean;
   canEdit?: boolean;
+  tripSlug: string;
 }) {
   if (item.kind === 'golf') return <GolfRow item={item} compact={compact} canEdit={canEdit} />;
+  if (item.kind === 'empty_round') return <EmptyRoundRow item={item} tripSlug={tripSlug} canEdit={canEdit} />;
   return <EventRow item={item} compact={compact} />;
+}
+
+function EmptyRoundRow({
+  item,
+  tripSlug,
+  canEdit,
+}: {
+  item: ClientEmptyRoundItem;
+  tripSlug: string;
+  canEdit?: boolean;
+}) {
+  const editHref = `/trips/${tripSlug}/admin/rounds/${item.roundId}/edit`;
+  const formatLabel = (fmt: ClientEmptyRoundItem['roundFormat']): string => {
+    switch (fmt) {
+      case 'match_play_2v2': return '2v2 Match';
+      case 'singles': return 'Singles';
+      case 'scramble': return 'Scramble';
+      case 'stroke': return 'Stroke';
+    }
+  };
+  return (
+    <div className="rounded-sm border border-dashed border-yellow-500/40 bg-zinc-950/40 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-500">
+            Round {item.roundOrder} · {formatLabel(item.roundFormat)} · No tee times yet
+          </p>
+          <p className="mt-1.5 truncate font-semibold text-zinc-100">
+            {item.roundLabel ?? item.courseName}
+          </p>
+          <p className="truncate text-xs text-zinc-500">
+            {item.courseName}
+            {item.courseLocation ? ` · ${item.courseLocation}` : ''}
+          </p>
+        </div>
+        {canEdit && (
+          <Link
+            href={editHref}
+            className="shrink-0 rounded-sm border border-yellow-500/50 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+          >
+            Add tee times
+          </Link>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function formatTime(iso: string): string {
