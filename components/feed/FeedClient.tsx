@@ -29,12 +29,14 @@ export default function FeedClient({
   matchOptions,
   isAdmin = false,
   tripId,
+  tripSlug,
 }: {
   items: ClientFeedItem[];
   canPost: boolean;
   matchOptions: ComposerMatchOption[];
   isAdmin?: boolean;
   tripId: string;
+  tripSlug: string;
 }) {
   const router = useRouter();
   const [composerOpen, setComposerOpen] = useState(false);
@@ -115,7 +117,7 @@ export default function FeedClient({
           </div>
         ) : (
           filtered.map((item) => (
-            <FeedItemCard key={item.id} item={item} isAdmin={isAdmin} />
+            <FeedItemCard key={item.id} item={item} isAdmin={isAdmin} tripSlug={tripSlug} />
           ))
         )}
       </div>
@@ -166,13 +168,15 @@ function FilterChip({
 function FeedItemCard({
   item,
   isAdmin,
+  tripSlug,
 }: {
   item: ClientFeedItem;
   isAdmin: boolean;
+  tripSlug: string;
 }) {
   switch (item.kind) {
     case 'score':
-      return <ScoreCard item={item} />;
+      return <ScoreCard item={item} tripSlug={tripSlug} />;
     case 'media':
       return <MediaCard item={item} isAdmin={isAdmin} />;
     case 'text':
@@ -182,8 +186,10 @@ function FeedItemCard({
 
 function ScoreCard({
   item,
+  tripSlug,
 }: {
   item: Extract<ClientFeedItem, { kind: 'score' }>;
+  tripSlug: string;
 }) {
   const color = item.author.teamColor ?? '#3f3f46';
   const diff = item.gross - item.par;
@@ -202,7 +208,7 @@ function ScoreCard({
       style={{ borderLeft: `3px solid ${color}` }}
     >
       <Link
-        href={`/matches/${item.match.matchId}`}
+        href={`/trips/${tripSlug}/matches/${item.match.matchId}`}
         className="block p-3 hover:bg-zinc-900/40"
       >
         <div className="flex items-start gap-3">

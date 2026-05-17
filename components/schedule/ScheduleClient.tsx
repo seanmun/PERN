@@ -366,9 +366,9 @@ function ItemRow({
   canEdit?: boolean;
   tripSlug: string;
 }) {
-  if (item.kind === 'golf') return <GolfRow item={item} compact={compact} canEdit={canEdit} />;
+  if (item.kind === 'golf') return <GolfRow item={item} compact={compact} canEdit={canEdit} tripSlug={tripSlug} />;
   if (item.kind === 'empty_round') return <EmptyRoundRow item={item} tripSlug={tripSlug} canEdit={canEdit} />;
-  return <EventRow item={item} compact={compact} />;
+  return <EventRow item={item} compact={compact} tripSlug={tripSlug} />;
 }
 
 function EmptyRoundRow({
@@ -443,10 +443,12 @@ function GolfRow({
   item,
   compact,
   canEdit,
+  tripSlug,
 }: {
   item: ClientGolfItem;
   compact?: boolean;
   canEdit?: boolean;
+  tripSlug: string;
 }) {
   const time = formatTime(item.startTimeISO);
 
@@ -474,7 +476,7 @@ function GolfRow({
             </p>
             {canEdit && (
               <Link
-                href={`/matches/new?teeTimeId=${item.teeTimeId}`}
+                href={`/trips/${tripSlug}/matches/new?teeTimeId=${item.teeTimeId}`}
                 className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-400 hover:text-yellow-300"
               >
                 <Plus size={11} /> Add matchup
@@ -492,7 +494,7 @@ function GolfRow({
       {item.matches.map((m) => (
         <Link
           key={m.id}
-          href={`/matches/${m.id}`}
+          href={`/trips/${tripSlug}/matches/${m.id}`}
           className="block rounded-sm border border-zinc-800 bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-900/40"
         >
           <div className="flex items-start gap-3">
@@ -633,13 +635,13 @@ function TeamSide({ players, align = 'left' }: { players: ClientParticipant[]; a
   );
 }
 
-function EventRow({ item, compact }: { item: ClientEventItem; compact?: boolean }) {
+function EventRow({ item, compact, tripSlug }: { item: ClientEventItem; compact?: boolean; tripSlug: string }) {
   const time = formatTime(item.startTimeISO);
   const Icon = EVENT_ICONS[item.type] ?? Calendar;
 
   return (
     <Link
-      href={`/events/${item.eventId}`}
+      href={`/trips/${tripSlug}/events/${item.eventId}`}
       className="block rounded-sm border border-zinc-800 bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-900/40"
     >
       <div className="flex items-start gap-3">
