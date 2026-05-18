@@ -179,9 +179,8 @@ export async function updatePlayer(formData: FormData): Promise<void> {
   }
 
   const tripSlug = await getTripSlugById(existing.tripId);
-  revalidatePath(`/trips/${tripSlug}/admin/players`);
-  revalidatePath(`/trips/${tripSlug}/schedule`);
-  revalidatePath(`/trips/${tripSlug}/scoreboard`);
-  revalidatePath(`/trips/${tripSlug}/feed`);
+  // Clear every cached page under this trip — the team change cascades into
+  // match-detail, team-roster, profile, schedule, scoreboard, and feed.
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
   redirect(`/trips/${tripSlug}/admin/players`);
 }
