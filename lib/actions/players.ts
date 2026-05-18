@@ -2,9 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { tripMembers, teams } from '@/db/schema';
+import { tripMembers, teams, matchParticipants, matches, rounds } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
@@ -149,9 +149,39 @@ export async function updatePlayer(formData: FormData): Promise<void> {
     })
     .where(eq(tripMembers.id, id));
 
+  // Cascade the team change to any matchups in this trip that include this
+  // player on an UNCOMPLETED match. Completed matches keep their snapshot so
+  // historical results aren't rewritten. Without this cascade the schedule
+  // and match-detail pages keep showing the old team for the player.
+  if (teamId && teamId !== existing.teamId) {
+    const inFlightMatches = await db
+      .select({ id: matches.id })
+      .from(matches)
+      .innerJoin(rounds, eq(matches.roundId, rounds.id))
+      .where(
+        and(
+          eq(rounds.tripId, existing.tripId),
+          sql`${matches.status} <> 'completed'`,
+        ),
+      );
+    const matchIds = inFlightMatches.map((m) => m.id);
+    if (matchIds.length > 0) {
+      await db
+        .update(matchParticipants)
+        .set({ teamId })
+        .where(
+          and(
+            eq(matchParticipants.tripMemberId, id),
+            inArray(matchParticipants.matchId, matchIds),
+          ),
+        );
+    }
+  }
+
   const tripSlug = await getTripSlugById(existing.tripId);
   revalidatePath(`/trips/${tripSlug}/admin/players`);
   revalidatePath(`/trips/${tripSlug}/schedule`);
   revalidatePath(`/trips/${tripSlug}/scoreboard`);
+  revalidatePath(`/trips/${tripSlug}/feed`);
   redirect(`/trips/${tripSlug}/admin/players`);
 }

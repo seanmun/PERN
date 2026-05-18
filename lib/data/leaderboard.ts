@@ -1,4 +1,4 @@
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   matches,
@@ -6,6 +6,8 @@ import {
   rounds,
   teams,
   tripMembers,
+  holeScores,
+  courseHoles,
 } from '@/db/schema';
 
 type Team = typeof teams.$inferSelect;
@@ -24,8 +26,11 @@ export type PlayerTotal = {
   teamName: string | null;
   teamColor: string | null;
   tripHandicap: string | null;
-  points: number;
-  matchesPlayed: number;
+  holesScored: number;
+  gross: number;
+  net: number;          // gross - strokes received
+  par: number;          // par for the holes scored
+  scoreVsPar: number;   // net - par (negative is good)
 };
 
 export type Leaderboard = {
@@ -34,8 +39,29 @@ export type Leaderboard = {
   matchesContested: number;     // completed cup-counting matches
   matchesTotal: number;         // total cup-counting matches scheduled
   pointsAvailable: number;      // points still up for grabs
-  pointsContested: number;      // points already awarded (sum of team totals)
+  pointsContested: number;      // points already awarded
 };
+
+/**
+ * Allocate handicap strokes across the 18 holes using stroke index — the
+ * absolute (per-player) allocation, not match-relative. Stroke index 1 is
+ * the hardest hole; strokes go there first.
+ *
+ *   strokes(hole) = floor(hcp / 18) + (hcp % 18 >= holeSI ? 1 : 0)
+ */
+function allocateStrokes(
+  handicap: number,
+  holes: { holeNumber: number; handicapIndex: number }[],
+): Map<number, number> {
+  const result = new Map<number, number>();
+  const hcp = Math.max(0, Math.round(handicap));
+  for (const h of holes) {
+    const base = Math.floor(hcp / 18);
+    const extra = hcp % 18 >= h.handicapIndex ? 1 : 0;
+    result.set(h.holeNumber, base + extra);
+  }
+  return result;
+}
 
 export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
   const teamsList = await db
@@ -50,7 +76,7 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     .where(eq(tripMembers.tripId, tripId))
     .orderBy(asc(tripMembers.nickname));
 
-  // All cup-counting matches in this trip with their round info
+  // All matches in this trip with their round info
   const matchRows = await db
     .select({ match: matches, round: rounds })
     .from(matches)
@@ -58,33 +84,24 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     .where(eq(rounds.tripId, tripId));
 
   // Hidden rounds (e.g. test rounds) never contribute to the scoreboard
-  const cupMatches = matchRows.filter(
-    (r) => r.round.countsTowardCup && !r.round.isHidden
-  );
+  const visibleMatches = matchRows.filter((r) => !r.round.isHidden);
+  const cupMatches = visibleMatches.filter((r) => r.round.countsTowardCup);
   const completedCup = cupMatches.filter((r) => r.match.status === 'completed');
 
   const completedMatchIds = completedCup.map((r) => r.match.id);
 
-  const participants = completedMatchIds.length
-    ? await db
-        .select()
-        .from(matchParticipants)
+  const allParticipants = visibleMatches.length
+    ? await db.select().from(matchParticipants)
     : [];
 
-  const completedMatchIdSet = new Set(completedMatchIds);
-  const relevantParticipants = participants.filter((p) =>
-    completedMatchIdSet.has(p.matchId)
+  const visibleMatchIdSet = new Set(visibleMatches.map((r) => r.match.id));
+  const relevantParticipants = allParticipants.filter((p) =>
+    visibleMatchIdSet.has(p.matchId),
   );
 
-  // Map: matchId -> participants
-  const participantsByMatch = new Map<string, typeof relevantParticipants>();
-  for (const p of relevantParticipants) {
-    const list = participantsByMatch.get(p.matchId) ?? [];
-    list.push(p);
-    participantsByMatch.set(p.matchId, list);
-  }
+  const completedMatchIdSet = new Set(completedMatchIds);
 
-  // Initialise team totals
+  // ───────── Team totals: match-play points from completed cup matches ─────────
   const teamTotalsMap = new Map<string, TeamTotal>();
   for (const t of teamsList) {
     teamTotalsMap.set(t.id, {
@@ -93,6 +110,86 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
       teamColor: t.color,
       points: 0,
     });
+  }
+  for (const { match } of completedCup) {
+    if (match.isHalved) {
+      // 0.5 to each team in the match
+      const teamsInMatch = new Set(
+        relevantParticipants
+          .filter((p) => p.matchId === match.id)
+          .map((p) => p.teamId),
+      );
+      for (const teamId of teamsInMatch) {
+        const t = teamTotalsMap.get(teamId);
+        if (t) t.points += 0.5;
+      }
+    } else if (match.winningTeamId) {
+      const t = teamTotalsMap.get(match.winningTeamId);
+      if (t) t.points += 1;
+    }
+  }
+
+  // ───────── Individual leaderboard: net vs par (PGA-style) ─────────
+  // Fetch all hole scores and the relevant courseHoles in a single pass.
+  const allScores = visibleMatchIdSet.size
+    ? await db
+        .select()
+        .from(holeScores)
+        .where(inArray(holeScores.matchId, Array.from(visibleMatchIdSet)))
+    : [];
+
+  // Map match → round → courseId so we know which course's holes to look at
+  const courseIdByMatch = new Map<string, string>();
+  for (const r of visibleMatches) {
+    courseIdByMatch.set(r.match.id, r.round.courseId);
+  }
+  const courseIds = Array.from(new Set(visibleMatches.map((r) => r.round.courseId)));
+
+  const courseHolesList = courseIds.length
+    ? await db
+        .select()
+        .from(courseHoles)
+        .where(inArray(courseHoles.courseId, courseIds))
+    : [];
+
+  // courseId → (holeNumber → { par, handicapIndex })
+  const holesByCourse = new Map<
+    string,
+    Map<number, { par: number; handicapIndex: number }>
+  >();
+  for (const ch of courseHolesList) {
+    const inner =
+      holesByCourse.get(ch.courseId) ??
+      new Map<number, { par: number; handicapIndex: number }>();
+    inner.set(ch.holeNumber, { par: ch.par, handicapIndex: ch.handicapIndex });
+    holesByCourse.set(ch.courseId, inner);
+  }
+
+  // Pre-allocate stroke maps per (player, course) since strokes only depend on
+  // the player's handicap and the course's stroke indices.
+  type StrokeKey = string; // `${playerId}::${courseId}`
+  const strokesByPlayerCourse = new Map<StrokeKey, Map<number, number>>();
+
+  function getStrokes(
+    playerId: string,
+    courseId: string,
+    handicap: number,
+  ): Map<number, number> {
+    const key: StrokeKey = `${playerId}::${courseId}`;
+    let m = strokesByPlayerCourse.get(key);
+    if (m) return m;
+    const courseHolesMap = holesByCourse.get(courseId);
+    if (!courseHolesMap) {
+      m = new Map();
+    } else {
+      const holesArr = Array.from(courseHolesMap.entries()).map(([n, v]) => ({
+        holeNumber: n,
+        handicapIndex: v.handicapIndex,
+      }));
+      m = allocateStrokes(handicap, holesArr);
+    }
+    strokesByPlayerCourse.set(key, m);
+    return m;
   }
 
   // Initialise player totals
@@ -107,55 +204,59 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
       teamName: team?.name ?? null,
       teamColor: team?.color ?? null,
       tripHandicap: m.tripHandicap,
-      points: 0,
-      matchesPlayed: 0,
+      holesScored: 0,
+      gross: 0,
+      net: 0,
+      par: 0,
+      scoreVsPar: 0,
     });
   }
 
-  // Score each completed cup match
-  for (const { match } of completedCup) {
-    const matchParts = participantsByMatch.get(match.id) ?? [];
+  for (const s of allScores) {
+    const player = playerTotalsMap.get(s.tripMemberId);
+    if (!player) continue;
+    if (s.gross == null) continue;
 
-    for (const p of matchParts) {
-      const player = playerTotalsMap.get(p.tripMemberId);
-      if (player) player.matchesPlayed += 1;
-    }
+    const courseId = courseIdByMatch.get(s.matchId);
+    if (!courseId) continue;
+    const courseHolesMap = holesByCourse.get(courseId);
+    if (!courseHolesMap) continue;
+    const hole = courseHolesMap.get(s.holeNumber);
+    if (!hole) continue;
 
-    if (match.isHalved) {
-      const teamsInMatch = new Set(matchParts.map((p) => p.teamId));
-      for (const teamId of teamsInMatch) {
-        const t = teamTotalsMap.get(teamId);
-        if (t) t.points += 0.5;
-      }
-      for (const p of matchParts) {
-        const player = playerTotalsMap.get(p.tripMemberId);
-        if (player) player.points += 0.5;
-      }
-    } else if (match.winningTeamId) {
-      const t = teamTotalsMap.get(match.winningTeamId);
-      if (t) t.points += 1;
-      for (const p of matchParts) {
-        if (p.teamId === match.winningTeamId) {
-          const player = playerTotalsMap.get(p.tripMemberId);
-          if (player) player.points += 1;
-        }
-      }
-    }
+    const handicapNum = player.tripHandicap ? parseFloat(player.tripHandicap) : 0;
+    const strokeMap = getStrokes(s.tripMemberId, courseId, handicapNum);
+    const strokes = strokeMap.get(s.holeNumber) ?? 0;
+
+    const net = s.gross - strokes;
+    player.holesScored += 1;
+    player.gross += s.gross;
+    player.net += net;
+    player.par += hole.par;
+    player.scoreVsPar = player.net - player.par;
   }
 
-  const teamTotals = Array.from(teamTotalsMap.values()).sort((a, b) =>
-    b.points - a.points || a.teamName.localeCompare(b.teamName)
+  const teamTotals = Array.from(teamTotalsMap.values()).sort(
+    (a, b) => b.points - a.points || a.teamName.localeCompare(b.teamName),
   );
 
   const playerTotalsList = Array.from(playerTotalsMap.values());
-  const anyPointsScored = playerTotalsList.some((p) => p.points > 0);
-  const hcap = (s: string | null) => (s ? parseFloat(s) : Number.POSITIVE_INFINITY);
+  const anyScored = playerTotalsList.some((p) => p.holesScored > 0);
+  const hcap = (s: string | null) =>
+    s ? parseFloat(s) : Number.POSITIVE_INFINITY;
 
   const playerTotals = playerTotalsList.sort((a, b) => {
-    // While there are no points on the board, rank by handicap (low to high)
-    // so the board has meaningful order on day 1. Once scoring starts, points
-    // take over; handicap is the tiebreaker.
-    if (anyPointsScored && b.points !== a.points) return b.points - a.points;
+    // Before any scores: rank by handicap (low to high) for a meaningful order.
+    // Once scoring starts: lowest net-vs-par first; players with zero holes
+    // played fall to the bottom; ties broken by handicap, then nickname.
+    if (anyScored) {
+      if (a.holesScored === 0 && b.holesScored === 0) {
+        return hcap(a.tripHandicap) - hcap(b.tripHandicap);
+      }
+      if (a.holesScored === 0) return 1;
+      if (b.holesScored === 0) return -1;
+      if (a.scoreVsPar !== b.scoreVsPar) return a.scoreVsPar - b.scoreVsPar;
+    }
     const ah = hcap(a.tripHandicap);
     const bh = hcap(b.tripHandicap);
     if (ah !== bh) return ah - bh;

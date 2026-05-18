@@ -102,6 +102,15 @@ function TeamSide({ team, align, slug }: { team: TeamTotal; align: 'left' | 'rig
 
 function PlayerRow({ player, rank, slug }: { player: PlayerTotal; rank: number; slug: string }) {
   const color = player.teamColor ?? '#71717a';
+  const scoreLabel = formatScoreVsPar(player);
+  const scoreColor =
+    player.holesScored === 0
+      ? 'text-zinc-600'
+      : player.scoreVsPar < 0
+        ? 'text-red-400'
+        : player.scoreVsPar === 0
+          ? 'text-zinc-100'
+          : 'text-zinc-400';
   return (
     <Link
       href={`/trips/${slug}/profile/${player.tripMemberId}`}
@@ -122,12 +131,19 @@ function PlayerRow({ player, rank, slug }: { player: PlayerTotal; rank: number; 
           </p>
         )}
       </div>
-      <p className="w-12 shrink-0 text-right font-mono text-xs tabular-nums text-zinc-500">
-        {player.tripHandicap ?? '—'}
+      <p className="w-12 shrink-0 text-right font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+        {player.tripHandicap ? `${player.tripHandicap} hcp` : 'no hcp'}
       </p>
-      <p className="w-12 shrink-0 text-right font-mono text-lg font-bold tabular-nums text-yellow-400">
-        {formatPoints(player.points)}
-      </p>
+      <div className="w-16 shrink-0 text-right">
+        <p className={`font-mono text-lg font-bold tabular-nums ${scoreColor}`}>
+          {scoreLabel}
+        </p>
+        {player.holesScored > 0 && (
+          <p className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
+            thru {player.holesScored}
+          </p>
+        )}
+      </div>
       <ChevronRight size={12} className="shrink-0 text-zinc-700" />
     </Link>
   );
@@ -139,4 +155,11 @@ function formatPoints(p: number): string {
   if (half === 0) return String(whole);
   if (half === 1) return whole === 0 ? '½' : `${whole}½`;
   return String(p);
+}
+
+function formatScoreVsPar(p: PlayerTotal): string {
+  if (p.holesScored === 0) return '—';
+  if (p.scoreVsPar === 0) return 'E';
+  if (p.scoreVsPar > 0) return `+${p.scoreVsPar}`;
+  return String(p.scoreVsPar);
 }
