@@ -149,11 +149,11 @@ export async function updatePlayer(formData: FormData): Promise<void> {
     })
     .where(eq(tripMembers.id, id));
 
-  // Cascade the team change to any matchups in this trip that include this
-  // player on an UNCOMPLETED match. Completed matches keep their snapshot so
-  // historical results aren't rewritten. Without this cascade the schedule
-  // and match-detail pages keep showing the old team for the player.
-  if (teamId && teamId !== existing.teamId) {
+  // Re-sync the team assignment onto every uncompleted match this player is
+  // in for this trip. Completed matches keep their original snapshot so
+  // historical results aren't rewritten. Runs on every save (no diff check),
+  // which also lets admins re-save a player to backfill matchups that drifted.
+  if (teamId) {
     const inFlightMatches = await db
       .select({ id: matches.id })
       .from(matches)
