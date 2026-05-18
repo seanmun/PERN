@@ -264,16 +264,6 @@ export default async function Home() {
 
         <div className="relative mx-auto flex max-w-3xl flex-col items-center px-4 pb-28 pt-20 text-center sm:pb-32 sm:pt-28">
           <Reveal>
-            <div className="flex items-center justify-center gap-3">
-              <span className="h-px w-8 bg-yellow-600/60" aria-hidden="true" />
-              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
-                Defend the cup
-              </p>
-              <span className="h-px w-8 bg-yellow-600/60" aria-hidden="true" />
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.1}>
             <h1 className="mt-6 text-6xl font-bold leading-[0.95] tracking-tight drop-shadow-[0_2px_16px_rgba(0,0,0,0.8)] sm:text-7xl">
               <span className="block text-zinc-100">BUDDY</span>
               <span className="block bg-gradient-to-b from-yellow-300 via-yellow-500 to-yellow-700 bg-clip-text text-transparent">

@@ -31,6 +31,21 @@ export default async function GlobalMePage() {
     .where(eq(tripMembers.userId, user.id))
     .orderBy(asc(trips.startDate));
 
+  // Split memberships into current (upcoming or in-flight) and past
+  // (endDate strictly before today, trip-TZ). Trips without an endDate are
+  // treated as current — they're not over yet.
+  const today = getTripLocalToday();
+  const currentMemberships = memberships.filter(
+    (m) => !m.endDate || m.endDate >= today
+  );
+  const pastMemberships = memberships
+    .filter((m) => m.endDate && m.endDate < today)
+    // Most-recent past trip first.
+    .sort((a, b) => (b.endDate!.getTime() - a.endDate!.getTime()));
+  const PAST_TRIPS_VISIBLE = 5;
+  const pastVisible = pastMemberships.slice(0, PAST_TRIPS_VISIBLE);
+  const pastHidden = pastMemberships.length - pastVisible.length;
+
   // Platform admins also see trips they're NOT on (godmode).
   let otherTrips: Array<{ id: string; name: string; slug: string }> = [];
   if (isPlatformAdmin) {
@@ -96,15 +111,15 @@ export default async function GlobalMePage() {
             <ChevronRight size={14} className="shrink-0 text-yellow-500/60" />
           </Link>
 
-          {memberships.length === 0 ? (
+          {currentMemberships.length === 0 ? (
             <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-6 text-center">
-              <p className="text-sm text-zinc-400">You&apos;re not on any other trips yet.</p>
+              <p className="text-sm text-zinc-400">No upcoming trips yet.</p>
               <p className="mt-1 text-xs text-zinc-600">
                 A trip admin needs to add you, or you need an invite link.
               </p>
             </div>
           ) : (
-            memberships.map((m) => (
+            currentMemberships.map((m) => (
               <TripCard
                 key={m.tripId}
                 href={`/trips/${m.tripSlug}/schedule`}
@@ -122,6 +137,41 @@ export default async function GlobalMePage() {
             ))
           )}
         </div>
+
+        {pastMemberships.length > 0 && (
+          <div className="mt-10">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
+              Past trips
+            </p>
+            <div className="mt-3 space-y-2">
+              {pastVisible.map((m) => (
+                <TripCard
+                  key={m.tripId}
+                  href={`/trips/${m.tripSlug}/schedule`}
+                  name={m.tripName}
+                  dates={formatDates(m.startDate, m.endDate)}
+                  nickname={m.nickname}
+                  role={
+                    m.role === 'trip_admin'
+                      ? 'Admin'
+                      : m.isCaptain
+                        ? 'Captain'
+                        : 'Player'
+                  }
+                  muted
+                />
+              ))}
+              {pastHidden > 0 && (
+                <Link
+                  href="/me/past-trips"
+                  className="block rounded-sm border border-zinc-900 bg-zinc-950/40 px-4 py-3 text-center font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500 transition-colors hover:border-yellow-500/40 hover:text-yellow-400"
+                >
+                  View all {pastMemberships.length} past trips →
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
 
         {isPlatformAdmin && otherTrips.length > 0 && (
           <>
@@ -157,23 +207,37 @@ function TripCard({
   dates,
   nickname,
   role,
+  muted,
 }: {
   href: string;
   name: string;
   dates: string | null;
   nickname: string | null;
   role: string;
+  muted?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 hover:border-yellow-500/40 hover:bg-zinc-900/40"
+      className={
+        muted
+          ? 'flex items-center gap-3 rounded-sm border border-zinc-900 bg-zinc-950/20 p-4 opacity-60 transition-colors hover:border-zinc-700 hover:bg-zinc-950/40 hover:opacity-90'
+          : 'flex items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 hover:border-yellow-500/40 hover:bg-zinc-900/40'
+      }
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-zinc-900 text-yellow-500">
+      <div
+        className={
+          muted
+            ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-zinc-900 text-zinc-500'
+            : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-zinc-900 text-yellow-500'
+        }
+      >
         <UserIcon size={18} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold">{name}</p>
+        <p className={muted ? 'truncate font-semibold text-zinc-300' : 'truncate font-semibold'}>
+          {name}
+        </p>
         <p className="truncate font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
           {[dates, nickname, role].filter(Boolean).join(' · ')}
         </p>
@@ -181,6 +245,19 @@ function TripCard({
       <ChevronRight size={14} className="shrink-0 text-zinc-600" />
     </Link>
   );
+}
+
+function getTripLocalToday(): Date {
+  // Today at 00:00 in America/New_York, returned as a UTC Date so it can be
+  // compared with the timestamptz columns Drizzle returns.
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const today = fmt.format(new Date()); // e.g. "2026-05-18"
+  return new Date(`${today}T00:00:00-04:00`);
 }
 
 function formatDates(start: Date | null, end: Date | null): string | null {
