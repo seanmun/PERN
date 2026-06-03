@@ -1,0 +1,1 @@
+ALTER TABLE "trips" ADD COLUMN "image_url" text;

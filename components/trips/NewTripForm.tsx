@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createTrip } from '@/lib/actions/trips';
 import { slugifyTripName } from '@/lib/slug';
+import ImagePickerInput from '@/components/ImagePickerInput';
 
 const inputCls =
   'w-full rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:border-yellow-500/60 focus:outline-none focus:ring-1 focus:ring-yellow-500/40';
@@ -113,6 +114,16 @@ export default function NewTripForm() {
             placeholder="One sentence about the trip. Optional."
             className={`mt-1.5 ${inputCls} resize-y`}
           />
+        </div>
+
+        <div>
+          <p className={labelCls}>Icon</p>
+          <p className={`${hintCls} mt-1`}>
+            Optional. Shown on your trip list and the trip header.
+          </p>
+          <div className="mt-2">
+            <ImagePickerInput name="imageUrl" aspect="1/1" />
+          </div>
         </div>
       </section>
 

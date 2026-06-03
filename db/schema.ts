@@ -71,6 +71,7 @@ export const trips = pgTable('trips', {
   startDate: timestamp('start_date', { withTimezone: true }),
   endDate: timestamp('end_date', { withTimezone: true }),
   description: text('description'),
+  imageUrl: text('image_url'),                                    // trip icon — shown on /me cards, trip header, etc.
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

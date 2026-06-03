@@ -23,6 +23,7 @@ export default async function GlobalMePage() {
       nickname: tripMembers.nickname,
       tripName: trips.name,
       tripSlug: trips.slug,
+      tripImageUrl: trips.imageUrl,
       startDate: trips.startDate,
       endDate: trips.endDate,
     })
@@ -124,6 +125,7 @@ export default async function GlobalMePage() {
                 key={m.tripId}
                 href={`/trips/${m.tripSlug}/schedule`}
                 name={m.tripName}
+                imageUrl={m.tripImageUrl}
                 dates={formatDates(m.startDate, m.endDate)}
                 nickname={m.nickname}
                 role={
@@ -149,6 +151,7 @@ export default async function GlobalMePage() {
                   key={m.tripId}
                   href={`/trips/${m.tripSlug}/schedule`}
                   name={m.tripName}
+                  imageUrl={m.tripImageUrl}
                   dates={formatDates(m.startDate, m.endDate)}
                   nickname={m.nickname}
                   role={
@@ -204,6 +207,7 @@ export default async function GlobalMePage() {
 function TripCard({
   href,
   name,
+  imageUrl,
   dates,
   nickname,
   role,
@@ -211,6 +215,7 @@ function TripCard({
 }: {
   href: string;
   name: string;
+  imageUrl?: string | null;
   dates: string | null;
   nickname: string | null;
   role: string;
@@ -226,13 +231,16 @@ function TripCard({
       }
     >
       <div
-        className={
-          muted
-            ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-zinc-900 text-zinc-500'
-            : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-zinc-900 text-yellow-500'
-        }
+        className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-zinc-900 ${
+          muted ? 'text-zinc-500' : 'text-yellow-500'
+        }`}
       >
-        <UserIcon size={18} />
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <UserIcon size={18} />
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <p className={muted ? 'truncate font-semibold text-zinc-300' : 'truncate font-semibold'}>

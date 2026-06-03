@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, ImageIcon, Trophy, Users } from 'lucide-react';
+import { ChevronRight, ImageIcon, Settings, Trophy, Users } from 'lucide-react';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin } from '@/lib/auth/permissions';
 import ComingSoon from '@/components/ComingSoon';
@@ -37,6 +37,12 @@ export default async function AdminPage({
       <h1 className="mt-1 text-3xl font-bold tracking-tight">Trip controls</h1>
 
       <div className="mt-8 space-y-3">
+        <AdminLink
+          href={`/trips/${slug}/admin/details`}
+          icon={<Settings size={16} />}
+          label="Trip details"
+          hint="Name, dates, description, and the trip icon."
+        />
         <AdminLink
           href={`/trips/${slug}/admin/players`}
           icon={<Users size={16} />}

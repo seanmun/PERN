@@ -20,6 +20,7 @@ export default async function PastTripsPage() {
       nickname: tripMembers.nickname,
       tripName: trips.name,
       tripSlug: trips.slug,
+      tripImageUrl: trips.imageUrl,
       startDate: trips.startDate,
       endDate: trips.endDate,
     })
@@ -63,8 +64,13 @@ export default async function PastTripsPage() {
               href={`/trips/${m.tripSlug}/schedule`}
               className="flex items-center gap-3 rounded-sm border border-zinc-900 bg-zinc-950/20 p-4 opacity-60 transition-colors hover:border-zinc-700 hover:bg-zinc-950/40 hover:opacity-90"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-zinc-900 text-zinc-500">
-                <UserIcon size={18} />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-zinc-900 text-zinc-500">
+                {m.tripImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={m.tripImageUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <UserIcon size={18} />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-zinc-300">{m.tripName}</p>

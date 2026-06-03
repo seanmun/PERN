@@ -79,6 +79,7 @@ export async function createTrip(formData: FormData): Promise<void> {
     throw new Error('End date must be on or after the start date.');
   }
   const description = trim(formData.get('description'));
+  const imageUrl = trim(formData.get('imageUrl'));
 
   const team1Name = trim(formData.get('team1Name')) ?? 'Team A';
   const team1Color = readColor(formData.get('team1Color'), '#16a34a');
@@ -93,6 +94,7 @@ export async function createTrip(formData: FormData): Promise<void> {
       startDate,
       endDate,
       description,
+      imageUrl,
       createdBy: ctx.user.id,
     })
     .returning();
@@ -123,4 +125,43 @@ export async function createTrip(formData: FormData): Promise<void> {
 
   revalidatePath('/me');
   redirect(`/trips/${slug}/admin/players`);
+}
+
+export async function updateTrip(formData: FormData): Promise<void> {
+  const ctx = await getAuthContext();
+  if (!ctx) throw new AuthorizationError('Authentication required');
+
+  const id = String(formData.get('id') ?? '').trim();
+  if (!id) throw new Error('id required');
+
+  const [existing] = await db
+    .select()
+    .from(trips)
+    .where(eq(trips.id, id))
+    .limit(1);
+  if (!existing) throw new Error('Trip not found');
+
+  // Trip-admin or platform-admin.
+  const isAdmin = ctx.isPlatformAdmin || ctx.tripMember?.role === 'trip_admin';
+  if (!isAdmin) throw new AuthorizationError('Trip admin required');
+
+  const name = trim(formData.get('name'));
+  if (!name) throw new Error('Trip name is required');
+
+  const startDate = parseDate(formData.get('startDate'));
+  const endDate = parseDate(formData.get('endDate'));
+  if (startDate && endDate && endDate < startDate) {
+    throw new Error('End date must be on or after the start date.');
+  }
+  const description = trim(formData.get('description'));
+  const imageUrl = trim(formData.get('imageUrl'));
+
+  await db
+    .update(trips)
+    .set({ name, startDate, endDate, description, imageUrl })
+    .where(eq(trips.id, id));
+
+  revalidatePath('/me');
+  revalidatePath(`/trips/${existing.slug}`, 'layout');
+  redirect(`/trips/${existing.slug}/admin/details`);
 }
