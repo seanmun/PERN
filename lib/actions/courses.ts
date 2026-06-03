@@ -4,7 +4,13 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { courses, courseHoles, rounds } from '@/db/schema';
+import {
+  courses,
+  courseHoles,
+  courseTees,
+  courseTeeYardages,
+  rounds,
+} from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
@@ -41,42 +47,117 @@ async function ensureCourseAdmin(formData: FormData): Promise<string> {
   return tripId;
 }
 
+// Common tee names roughly ordered longest -> shortest. Used to pick the
+// "default" tee when the model returns multiple, and to order the tee list
+// for display. Match is case-insensitive prefix.
+const TEE_ORDER: ReadonlyArray<string> = [
+  'tournament',
+  'championship',
+  'tips',
+  'black',
+  'blue',
+  'gold',
+  'white',
+  'green',
+  'silver',
+  'yellow',
+  'red',
+  'forward',
+  'senior',
+  'junior',
+];
+
+function teeRank(name: string): number {
+  const lower = name.toLowerCase();
+  for (let i = 0; i < TEE_ORDER.length; i++) {
+    if (lower.includes(TEE_ORDER[i])) return i;
+  }
+  return TEE_ORDER.length; // unknown names fall to the bottom
+}
+
+// Pick a sensible default tee. Prefer "white" / "middle" / "regular" when
+// present; otherwise fall back to the longest tee we recognize.
+function pickDefaultTeeIndex(tees: { name: string }[]): number {
+  if (tees.length === 0) return -1;
+  const preferred = ['white', 'middle', 'regular', 'member'];
+  for (const pref of preferred) {
+    const idx = tees.findIndex((t) => t.name.toLowerCase().includes(pref));
+    if (idx !== -1) return idx;
+  }
+  return 0; // first tee in ranked order
+}
+
 /**
- * Run Claude vision on the scorecard image, validate the output, and upsert
- * the 18 holes into course_holes. Stamps scorecardExtractedAt on the course
- * when extraction succeeds. Failures are non-fatal — the URL is already
- * persisted before this runs.
+ * Run Claude vision on the scorecard image, validate the output, and persist
+ * the result. Wipes any existing course_holes / course_tees for this course
+ * and writes a fresh set. Failures are non-fatal — the scorecard image URL
+ * is already persisted before this runs, so admin can re-extract or enter
+ * holes by hand.
  */
 async function extractAndPopulateScorecard(
   courseId: string,
-  scorecardImageUrl: string
+  scorecardImageUrl: string,
 ): Promise<void> {
-  const holes = await extractScorecardFromUrl(scorecardImageUrl);
-  if (!holes) {
+  const extracted = await extractScorecardFromUrl(scorecardImageUrl);
+  if (!extracted || extracted.holes.length !== 18) {
     console.warn(
-      `[scorecard] extraction returned null for course ${courseId} — admin must enter holes manually`
+      `[scorecard] extraction returned invalid result for course ${courseId} — admin must enter holes manually`,
     );
     return;
   }
 
-  for (const h of holes) {
-    await db
-      .insert(courseHoles)
+  // Order tees longest -> shortest, with known names ranked first.
+  const orderedTees = [...extracted.tees].sort(
+    (a, b) => teeRank(a.name) - teeRank(b.name),
+  );
+  const defaultIdx = pickDefaultTeeIndex(orderedTees);
+  const defaultTee = defaultIdx >= 0 ? orderedTees[defaultIdx] : null;
+
+  // Wipe existing state for this course and rebuild. Cascade on course_tees
+  // takes course_tee_yardages with it.
+  await db.delete(courseTees).where(eq(courseTees.courseId, courseId));
+  await db.delete(courseHoles).where(eq(courseHoles.courseId, courseId));
+
+  // Insert tees + yardages
+  for (let i = 0; i < orderedTees.length; i++) {
+    const tee = orderedTees[i];
+    const [created] = await db
+      .insert(courseTees)
       .values({
         courseId,
-        holeNumber: h.holeNumber,
-        par: h.par,
-        yardage: h.yardage,
-        handicapIndex: h.handicapIndex,
+        name: tee.name,
+        color: tee.color,
+        rating: tee.rating != null ? String(tee.rating) : null,
+        slope: tee.slope,
+        totalYardage: tee.totalYardage,
+        displayOrder: i,
+        isDefault: i === defaultIdx,
       })
-      .onConflictDoUpdate({
-        target: [courseHoles.courseId, courseHoles.holeNumber],
-        set: {
-          par: h.par,
-          yardage: h.yardage,
-          handicapIndex: h.handicapIndex,
-        },
-      });
+      .returning({ id: courseTees.id });
+
+    const yardageRows = Object.entries(tee.yardages)
+      .map(([hole, y]) => ({
+        courseTeeId: created.id,
+        holeNumber: Number(hole),
+        yardage: y,
+      }))
+      .filter((r) => Number.isInteger(r.holeNumber));
+    if (yardageRows.length > 0) {
+      await db.insert(courseTeeYardages).values(yardageRows);
+    }
+  }
+
+  // Insert course_holes (par + SI), with the default tee's yardage
+  // denormalized into course_holes.yardage so legacy callers Just Work.
+  const defaultYardages = defaultTee?.yardages ?? {};
+  for (const h of extracted.holes) {
+    await db.insert(courseHoles).values({
+      courseId,
+      holeNumber: h.holeNumber,
+      par: h.par,
+      handicapIndex: h.handicapIndex,
+      yardage: defaultYardages[h.holeNumber] ?? null,
+    });
   }
 
   await db

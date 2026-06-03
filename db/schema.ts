@@ -119,10 +119,40 @@ export const courseHoles = pgTable(
     courseId: uuid('course_id').references(() => courses.id, { onDelete: 'cascade' }).notNull(),
     holeNumber: integer('hole_number').notNull(),
     par: integer('par').notNull(),
+    // Denormalized "default tee" yardage, kept in sync with the default
+    // courseTee's yardage row. Existing callers still read from here.
     yardage: integer('yardage'),
     handicapIndex: integer('handicap_index').notNull(),
   },
   (t) => [unique('course_holes_course_hole_unique').on(t.courseId, t.holeNumber)]
+);
+
+// One row per tee box a course offers (Black, Blue, White, Gold, Red, etc.).
+// Per-hole yardages live in courseTeeYardages.
+export const courseTees = pgTable(
+  'course_tees',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    courseId: uuid('course_id').references(() => courses.id, { onDelete: 'cascade' }).notNull(),
+    name: text('name').notNull(),                                   // "Black", "Blue", "White", "Senior", etc.
+    color: text('color'),                                           // #hex if shown on the card
+    rating: numeric('rating', { precision: 4, scale: 1 }),          // course rating from the card, optional
+    slope: integer('slope'),                                        // slope rating, optional
+    totalYardage: integer('total_yardage'),                         // sum across 18 holes, optional
+    displayOrder: integer('display_order').notNull(),               // 0 = longest first, ascending
+    isDefault: boolean('is_default').default(false).notNull(),      // exactly one per course is the "default"
+  },
+  (t) => [unique('course_tees_course_name_unique').on(t.courseId, t.name)]
+);
+
+export const courseTeeYardages = pgTable(
+  'course_tee_yardages',
+  {
+    courseTeeId: uuid('course_tee_id').references(() => courseTees.id, { onDelete: 'cascade' }).notNull(),
+    holeNumber: integer('hole_number').notNull(),
+    yardage: integer('yardage').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.courseTeeId, t.holeNumber] })]
 );
 
 export const rounds = pgTable('rounds', {
