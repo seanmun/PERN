@@ -239,6 +239,63 @@ export async function updateCourse(formData: FormData): Promise<void> {
 }
 
 /**
+ * Promote one tee to the course's default. Clears isDefault on all sibling
+ * tees, sets it on the chosen one, and rewrites course_holes.yardage with
+ * the new default tee's per-hole yardages so legacy callers stay correct.
+ */
+export async function setDefaultTee(formData: FormData): Promise<void> {
+  const tripId = await ensureCourseAdmin(formData);
+
+  const courseId = String(formData.get('courseId') ?? '').trim();
+  const teeId = String(formData.get('teeId') ?? '').trim();
+  if (!courseId || !teeId) throw new Error('courseId and teeId required');
+
+  // Sanity: tee must belong to the named course.
+  const [tee] = await db
+    .select()
+    .from(courseTees)
+    .where(eq(courseTees.id, teeId))
+    .limit(1);
+  if (!tee || tee.courseId !== courseId) {
+    throw new Error('Tee does not belong to this course');
+  }
+
+  // Flip the default flag.
+  await db
+    .update(courseTees)
+    .set({ isDefault: false })
+    .where(eq(courseTees.courseId, courseId));
+  await db
+    .update(courseTees)
+    .set({ isDefault: true })
+    .where(eq(courseTees.id, teeId));
+
+  // Re-denormalize course_holes.yardage from the new default tee.
+  const teeYardages = await db
+    .select()
+    .from(courseTeeYardages)
+    .where(eq(courseTeeYardages.courseTeeId, teeId));
+  const yByHole = new Map(teeYardages.map((r) => [r.holeNumber, r.yardage]));
+  const holes = await db
+    .select()
+    .from(courseHoles)
+    .where(eq(courseHoles.courseId, courseId));
+  for (const h of holes) {
+    const newY = yByHole.get(h.holeNumber) ?? null;
+    if (newY !== h.yardage) {
+      await db
+        .update(courseHoles)
+        .set({ yardage: newY })
+        .where(eq(courseHoles.id, h.id));
+    }
+  }
+
+  const tripSlug = await getTripSlugById(tripId);
+  revalidatePath(`/trips/${tripSlug}/admin/courses/${courseId}/edit`);
+  revalidatePath(`/trips/${tripSlug}/admin/courses`);
+}
+
+/**
  * Manual re-extract for an existing course. Useful when the admin tunes the
  * scorecard photo or wants to retry after a failed first pass.
  */

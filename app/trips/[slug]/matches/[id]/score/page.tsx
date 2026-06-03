@@ -87,6 +87,20 @@ export default async function ScoreEntryPage({
       </h1>
       <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
         Round {data.round.order} · {data.round.label ?? data.round.format}
+        {data.tee && (
+          <>
+            <span className="mx-1.5 text-zinc-700">·</span>
+            {data.tee.color && (
+              <span
+                aria-hidden
+                className="mr-1 inline-block h-2 w-2 rounded-full align-middle"
+                style={{ background: data.tee.color }}
+              />
+            )}
+            {data.tee.name} tees
+            {data.tee.totalYardage != null ? ` · ${data.tee.totalYardage} yds` : ''}
+          </>
+        )}
       </p>
 
       {holes.length === 0 ? (

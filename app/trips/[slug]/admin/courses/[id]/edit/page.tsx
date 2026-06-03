@@ -1,12 +1,17 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import { db } from '@/db/client';
-import { courses, courseHoles } from '@/db/schema';
+import {
+  courses,
+  courseHoles,
+  courseTees,
+  courseTeeYardages,
+} from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
-import { updateCourse } from '@/lib/actions/courses';
+import { setDefaultTee, updateCourse } from '@/lib/actions/courses';
 import ImagePickerInput from '@/components/ImagePickerInput';
 import ExtractScorecardButton from '@/components/admin/ExtractScorecardButton';
 
@@ -38,6 +43,30 @@ export default async function EditCoursePage({
     .from(courseHoles)
     .where(eq(courseHoles.courseId, course.id))
     .orderBy(asc(courseHoles.holeNumber));
+
+  const teesRows = await db
+    .select()
+    .from(courseTees)
+    .where(eq(courseTees.courseId, course.id))
+    .orderBy(asc(courseTees.displayOrder));
+
+  const teeYardageRows = teesRows.length
+    ? await db
+        .select()
+        .from(courseTeeYardages)
+        .where(
+          inArray(
+            courseTeeYardages.courseTeeId,
+            teesRows.map((t) => t.id),
+          ),
+        )
+    : [];
+
+  const yardagesByTee = new Map<string, Map<number, number>>();
+  for (const t of teesRows) yardagesByTee.set(t.id, new Map());
+  for (const y of teeYardageRows) {
+    yardagesByTee.get(y.courseTeeId)?.set(y.holeNumber, y.yardage);
+  }
 
   return (
     <div className="mx-auto max-w-md px-4 pb-24 pt-6">
@@ -188,6 +217,92 @@ export default async function EditCoursePage({
           </div>
         )}
       </section>
+
+      {/* Tees — one row per tee box on the scorecard. Per-hole yardages live
+          in courseTeeYardages, displayed in a horizontally scrollable matrix
+          so all tees can be compared side by side. */}
+      {teesRows.length > 0 && (
+        <section className="mt-12">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
+            Tees ({teesRows.length})
+          </p>
+          <p className="mt-1 text-[11px] text-zinc-500">
+            Default tee&apos;s yardages are used in score entry unless a round
+            overrides them.
+          </p>
+
+          <div className="mt-4 space-y-3">
+            {teesRows.map((t) => (
+              <div
+                key={t.id}
+                className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      {t.color && (
+                        <span
+                          aria-hidden
+                          className="inline-block h-3 w-3 rounded-full border border-zinc-700"
+                          style={{ background: t.color }}
+                        />
+                      )}
+                      <p className="text-sm font-semibold text-zinc-100">{t.name}</p>
+                      {t.isDefault && (
+                        <span className="rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-yellow-300">
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+                      {[
+                        t.rating ? `${t.rating} rating` : null,
+                        t.slope != null ? `slope ${t.slope}` : null,
+                        t.totalYardage != null ? `${t.totalYardage} yds` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || '—'}
+                    </p>
+                  </div>
+                  {!t.isDefault && (
+                    <form action={setDefaultTee}>
+                      <input type="hidden" name="tripId" value={trip.id} />
+                      <input type="hidden" name="courseId" value={course.id} />
+                      <input type="hidden" name="teeId" value={t.id} />
+                      <button
+                        type="submit"
+                        className="shrink-0 rounded-sm border border-zinc-700 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:border-yellow-500/40 hover:text-yellow-400"
+                      >
+                        Make default
+                      </button>
+                    </form>
+                  )}
+                </div>
+
+                <div className="mt-3 overflow-x-auto">
+                  <div className="inline-grid grid-cols-[20px_repeat(18,minmax(40px,1fr))] gap-x-1 font-mono text-[10px] tabular-nums text-zinc-400">
+                    <span className="text-right text-zinc-600">#</span>
+                    {Array.from({ length: 18 }, (_, i) => (
+                      <span key={`h-${i}`} className="text-right text-zinc-600">
+                        {i + 1}
+                      </span>
+                    ))}
+                    <span className="text-right text-zinc-500">Yd</span>
+                    {Array.from({ length: 18 }, (_, i) => {
+                      const y = yardagesByTee.get(t.id)?.get(i + 1);
+                      return (
+                        <span key={`y-${i}`} className="text-right">
+                          {y ?? '—'}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

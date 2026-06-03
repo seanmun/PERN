@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { rounds, courses } from '@/db/schema';
+import { rounds, courses, courseTees } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
@@ -54,6 +54,26 @@ function parseDate(v: FormDataEntryValue | null): Date | null {
   return d;
 }
 
+/**
+ * Read courseTeeId from the form. Empty/missing -> null (use course default).
+ * If set, the tee must belong to the round's course or we reject.
+ */
+async function resolveCourseTeeId(
+  raw: string | null,
+  courseId: string,
+): Promise<string | null> {
+  if (!raw) return null;
+  const [tee] = await db
+    .select()
+    .from(courseTees)
+    .where(eq(courseTees.id, raw))
+    .limit(1);
+  if (!tee || tee.courseId !== courseId) {
+    throw new Error('Tee does not belong to the selected course');
+  }
+  return tee.id;
+}
+
 async function nextRoundOrder(tripId: string): Promise<number> {
   const [last] = await db
     .select()
@@ -82,6 +102,12 @@ export async function createRound(formData: FormData): Promise<void> {
     .limit(1);
   if (!course) throw new Error('Course not found');
 
+  // Optional tee at create time. Validate it belongs to the chosen course.
+  const courseTeeId = await resolveCourseTeeId(
+    trim(formData.get('courseTeeId')),
+    courseId,
+  );
+
   const label = trim(formData.get('label'));
   const format = readFormat(formData.get('format'));
   const date = parseDate(formData.get('date'));
@@ -92,6 +118,7 @@ export async function createRound(formData: FormData): Promise<void> {
     .values({
       tripId,
       courseId,
+      courseTeeId,
       label,
       format,
       date,
@@ -125,10 +152,18 @@ export async function updateRound(formData: FormData): Promise<void> {
   const courseId = String(formData.get('courseId') ?? '').trim();
   if (!courseId) throw new Error('Course is required');
 
+  // Validate tee against whichever course is being saved (matches the form
+  // the user just submitted, not the previously saved courseId).
+  const courseTeeId = await resolveCourseTeeId(
+    trim(formData.get('courseTeeId')),
+    courseId,
+  );
+
   await db
     .update(rounds)
     .set({
       courseId,
+      courseTeeId,
       label: trim(formData.get('label')),
       format: readFormat(formData.get('format')),
       date: parseDate(formData.get('date')),

@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, and } from 'drizzle-orm';
 import { ArrowLeft, MapPin, Pencil, PenLine, Trophy } from 'lucide-react';
 import { db } from '@/db/client';
 import {
@@ -10,6 +10,7 @@ import {
   teams,
   rounds,
   courses,
+  courseTees,
   teeTimes,
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
@@ -50,6 +51,30 @@ export default async function MatchDetailPage({
     .limit(1);
 
   if (!match) notFound();
+
+  // Resolve the tee this round plays from (explicit override, else default).
+  let roundTee: typeof courseTees.$inferSelect | null = null;
+  if (match.round.courseTeeId) {
+    const [t] = await db
+      .select()
+      .from(courseTees)
+      .where(eq(courseTees.id, match.round.courseTeeId))
+      .limit(1);
+    roundTee = t ?? null;
+  }
+  if (!roundTee) {
+    const [t] = await db
+      .select()
+      .from(courseTees)
+      .where(
+        and(
+          eq(courseTees.courseId, match.course.id),
+          eq(courseTees.isDefault, true),
+        ),
+      )
+      .limit(1);
+    roundTee = t ?? null;
+  }
 
   const participants = await db
     .select({
@@ -131,6 +156,19 @@ export default async function MatchDetailPage({
                 <Trophy size={16} className="text-yellow-400" />
                 <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-400">
                   Round {match.round.order} · {roundFormatLabel(match.round.format)}
+                  {roundTee && (
+                    <>
+                      <span className="mx-1.5 text-zinc-700">·</span>
+                      {roundTee.color && (
+                        <span
+                          aria-hidden
+                          className="mr-1 inline-block h-2 w-2 rounded-full align-middle"
+                          style={{ background: roundTee.color }}
+                        />
+                      )}
+                      {roundTee.name}
+                    </>
+                  )}
                 </p>
               </div>
               <h1 className="mt-2 text-4xl font-bold tracking-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">

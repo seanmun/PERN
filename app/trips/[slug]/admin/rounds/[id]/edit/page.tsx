@@ -6,6 +6,7 @@ import { db } from '@/db/client';
 import {
   rounds,
   courses,
+  courseTees,
   teeTimes,
   matches,
   matchParticipants,
@@ -50,6 +51,14 @@ export default async function EditRoundPage({
     .select()
     .from(courses)
     .orderBy(asc(courses.name));
+
+  // Tees for the round's CURRENT course. If the admin swaps the course
+  // (rare), they can save first then re-pick the tee.
+  const teesForCourse = await db
+    .select()
+    .from(courseTees)
+    .where(eq(courseTees.courseId, round.courseId))
+    .orderBy(asc(courseTees.displayOrder));
 
   const teeTimesList = await db
     .select()
@@ -153,6 +162,32 @@ export default async function EditRoundPage({
             ))}
           </select>
         </Field>
+
+        {teesForCourse.length > 1 && (
+          <Field
+            label="Tee"
+            hint="Which tee the round plays from. Leave blank to use the course default."
+          >
+            <select
+              name="courseTeeId"
+              defaultValue={round.courseTeeId ?? ''}
+              className={inputCls}
+            >
+              <option value="">
+                Use course default
+                {teesForCourse.find((t) => t.isDefault)
+                  ? ` (${teesForCourse.find((t) => t.isDefault)!.name})`
+                  : ''}
+              </option>
+              {teesForCourse.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                  {t.totalYardage != null ? ` · ${t.totalYardage} yds` : ''}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
 
         <Field label="Format" required>
           <select
@@ -326,10 +361,12 @@ function Field({
   label,
   children,
   required,
+  hint,
 }: {
   label: string;
   children: React.ReactNode;
   required?: boolean;
+  hint?: string;
 }) {
   return (
     <label className="block">
@@ -338,6 +375,7 @@ function Field({
         {required && <span className="ml-1 text-yellow-500">*</span>}
       </span>
       {children}
+      {hint && <p className="mt-1.5 text-[11px] text-zinc-500">{hint}</p>}
     </label>
   );
 }

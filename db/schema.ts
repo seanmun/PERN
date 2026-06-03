@@ -157,6 +157,7 @@ export const courseTeeYardages = pgTable(
 
 export const rounds = pgTable('rounds', {
   id: uuid('id').primaryKey().defaultRandom(),
+  courseTeeId: uuid('course_tee_id').references(() => courseTees.id, { onDelete: 'set null' }),
   tripId: uuid('trip_id').references(() => trips.id, { onDelete: 'cascade' }).notNull(),
   courseId: uuid('course_id').references(() => courses.id).notNull(),
   date: timestamp('date', { withTimezone: true }),
