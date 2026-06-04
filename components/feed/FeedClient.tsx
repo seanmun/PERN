@@ -192,13 +192,15 @@ function ScoreCard({
   tripSlug: string;
 }) {
   const color = item.author.teamColor ?? '#3f3f46';
-  const diff = item.gross - item.par;
+  // Color is keyed off NET (gross - strokes) so a netted-down bogey reads as par.
+  // Hole in ones override even when strokes > 0.
+  const netDiff = item.gross === 1 ? -3 : item.net - item.par;
   const labelColor =
-    diff <= -1
+    netDiff <= -1
       ? 'text-emerald-400'
-      : diff === 0
+      : netDiff === 0
       ? 'text-zinc-200'
-      : diff === 1
+      : netDiff === 1
       ? 'text-yellow-400'
       : 'text-red-400';
 
@@ -221,6 +223,14 @@ function ScoreCard({
             </p>
             <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
               R{item.match.roundOrder} · {item.match.courseName}
+              {item.strokes > 0 && (
+                <>
+                  <span className="mx-1 text-zinc-700">·</span>
+                  <span className="text-emerald-400">
+                    +{item.strokes} stk · net {item.net}
+                  </span>
+                </>
+              )}
             </p>
           </div>
         </div>

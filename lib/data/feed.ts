@@ -51,7 +51,9 @@ export type FeedItem =
       holeNumber: number;
       par: number;
       gross: number;
-      resultLabel: string;
+      strokes: number;          // handicap strokes the player gets on this hole
+      net: number;              // gross - strokes
+      resultLabel: string;      // computed against NET — "Net Par" when strokes > 0
     })
   | (FeedItemBase & {
       kind: 'media';
@@ -83,12 +85,30 @@ const SCORE_LABELS: Record<number, string> = {
   [3]: 'Triple bogey',
 };
 
-function scoreLabel(gross: number, par: number): string {
-  const diff = gross - par;
-  if (gross === 1) return 'Hole in one';
+function rawLabel(net: number, par: number): string {
+  const diff = net - par;
   if (diff <= -3) return 'Albatross';
   if (diff in SCORE_LABELS) return SCORE_LABELS[diff];
-  return `+${diff}`;
+  return diff > 0 ? `+${diff}` : String(diff);
+}
+
+function scoreLabel(gross: number, par: number, strokes: number): string {
+  // Hole in one is hole in one regardless of strokes — gross is what matters.
+  if (gross === 1) return 'Hole in one';
+  const net = gross - strokes;
+  const label = rawLabel(net, par);
+  return strokes > 0 ? `Net ${label.toLowerCase()}` : label;
+}
+
+/**
+ * Allocate handicap strokes for one hole given the player's handicap and the
+ * hole's stroke index. Matches the absolute (per-player) allocation used in
+ * the leaderboard — NOT match-relative.
+ */
+function strokesForHole(handicap: number | null, holeSI: number): number {
+  if (handicap == null) return 0;
+  const h = Math.max(0, Math.round(handicap));
+  return Math.floor(h / 18) + (h % 18 >= holeSI ? 1 : 0);
 }
 
 export async function getFeed(
@@ -177,23 +197,32 @@ export async function getFeed(
 
   const scoreItems: FeedItem[] = scoreRows
     .filter((r) => r.score.gross != null)
-    .map((r) => ({
-      kind: 'score' as const,
-      id: `score:${r.score.id}`,
-      targetId: r.score.id,
-      at: r.score.enteredAt,
-      author: authorFromMember(r.score.tripMemberId),
-      match: {
-        matchId: r.match.id,
-        roundOrder: r.round.order,
-        courseName: r.course.name,
-      },
-      holeNumber: r.score.holeNumber,
-      par: r.hole.par,
-      gross: r.score.gross!,
-      resultLabel: scoreLabel(r.score.gross!, r.hole.par),
-      reactions: { counts: {}, myEmojis: [] },
-    }));
+    .map((r) => {
+      const member = memberById.get(r.score.tripMemberId);
+      const handicap = member?.tripHandicap ? parseFloat(member.tripHandicap) : null;
+      const strokes = strokesForHole(handicap, r.hole.handicapIndex);
+      const gross = r.score.gross!;
+      const net = gross - strokes;
+      return {
+        kind: 'score' as const,
+        id: `score:${r.score.id}`,
+        targetId: r.score.id,
+        at: r.score.enteredAt,
+        author: authorFromMember(r.score.tripMemberId),
+        match: {
+          matchId: r.match.id,
+          roundOrder: r.round.order,
+          courseName: r.course.name,
+        },
+        holeNumber: r.score.holeNumber,
+        par: r.hole.par,
+        gross,
+        strokes,
+        net,
+        resultLabel: scoreLabel(gross, r.hole.par, strokes),
+        reactions: { counts: {}, myEmojis: [] },
+      };
+    });
 
   // MEDIA POSTS
   const mediaWhere = opts?.matchId
