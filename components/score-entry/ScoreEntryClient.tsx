@@ -103,7 +103,8 @@ export default function ScoreEntryClient({
         <ViewToggle view={view} onChange={setView} />
       </div>
 
-      {players.length > 1 && canEdit && (
+      {/* Player picker shown only in card view, where one card = one player. */}
+      {view === 'card' && players.length > 1 && (
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
           {players.map((p) => {
             const isActive = p.tripMemberId === activePlayerId;
@@ -112,7 +113,6 @@ export default function ScoreEntryClient({
                 key={p.tripMemberId}
                 type="button"
                 onClick={() => setActivePlayerId(p.tripMemberId)}
-                disabled={!p.isSelf && !canEdit}
                 className={`shrink-0 rounded-sm border px-3 py-1.5 ${
                   isActive
                     ? 'border-yellow-500/60 bg-yellow-500/10'
@@ -138,9 +138,12 @@ export default function ScoreEntryClient({
           matchId={matchId}
           hole={activeHoleData}
           holes={holes}
-          player={activePlayer}
-          score={getScore(activePlayerId, activeHole)}
-          onScoreChange={(g) => setScore(activePlayerId, activeHole, g)}
+          players={players}
+          canEdit={canEdit}
+          getScore={(tripMemberId) => getScore(tripMemberId, activeHole)}
+          onScoreChange={(tripMemberId, g) =>
+            setScore(tripMemberId, activeHole, g)
+          }
           onPrev={() => setActiveHole((h) => Math.max(1, h - 1))}
           onNext={() => setActiveHole((h) => Math.min(holes.length, h + 1))}
           canPrev={activeHole > 1}
@@ -196,8 +199,9 @@ function HoleByHole({
   matchId,
   hole,
   holes,
-  player,
-  score,
+  players,
+  canEdit,
+  getScore,
   onScoreChange,
   onPrev,
   onNext,
@@ -207,27 +211,19 @@ function HoleByHole({
   matchId: string;
   hole: ScoreClientHole;
   holes: ScoreClientHole[];
-  player: ScoreClientPlayer;
-  score: number | null;
-  onScoreChange: (g: number | null) => void;
+  players: ScoreClientPlayer[];
+  canEdit: boolean;
+  getScore: (tripMemberId: string) => number | null;
+  onScoreChange: (tripMemberId: string, g: number | null) => void;
   onPrev: () => void;
   onNext: () => void;
   canPrev: boolean;
   canNext: boolean;
 }) {
-  const strokes = player.strokesByHole[hole.number] ?? 0;
-  const net = score != null ? score - strokes : null;
-
-  function setRel(delta: number) {
-    const next = (score ?? hole.par) + delta;
-    if (next < 1 || next > 20) return;
-    onScoreChange(next);
-  }
-
   return (
     <div className="mt-6">
       <div
-        className="rounded-sm border border-zinc-800 bg-zinc-950/60 p-6 text-center"
+        className="rounded-sm border border-zinc-800 bg-zinc-950/60 p-5 text-center"
         style={{
           background:
             'linear-gradient(180deg, rgba(20,83,45,0.15) 0%, rgba(20,83,45,0.02) 100%)',
@@ -236,22 +232,24 @@ function HoleByHole({
         <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.4em] text-zinc-400">
           Hole {hole.number} of {holes.length}
         </p>
-        <p className="mt-4 font-mono text-[80px] font-bold leading-none tabular-nums text-yellow-400 drop-shadow-[0_0_30px_rgba(202,138,4,0.4)]">
+        <p className="mt-3 font-mono text-[64px] font-bold leading-none tabular-nums text-yellow-400 drop-shadow-[0_0_30px_rgba(202,138,4,0.4)]">
           {hole.number}
         </p>
-        <div className="mt-4 flex items-center justify-center gap-6">
+        <div className="mt-3 flex items-center justify-center gap-5">
           <div>
             <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
               Par
             </p>
-            <p className="font-mono text-lg font-bold tabular-nums">{hole.par}</p>
+            <p className="font-mono text-base font-bold tabular-nums">
+              {hole.par}
+            </p>
           </div>
           {hole.yardage != null && (
             <div>
               <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
                 Yards
               </p>
-              <p className="font-mono text-lg font-bold tabular-nums">
+              <p className="font-mono text-base font-bold tabular-nums">
                 {hole.yardage}
               </p>
             </div>
@@ -260,72 +258,25 @@ function HoleByHole({
             <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
               SI
             </p>
-            <p className="font-mono text-lg font-bold tabular-nums">
+            <p className="font-mono text-base font-bold tabular-nums">
               {hole.handicapIndex}
             </p>
           </div>
-          {strokes > 0 && (
-            <div>
-              <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-emerald-400">
-                Strokes
-              </p>
-              <p className="font-mono text-lg font-bold tabular-nums text-emerald-400">
-                +{strokes}
-              </p>
-            </div>
-          )}
         </div>
       </div>
 
-      <div className="mt-6 rounded-sm border border-zinc-800 bg-zinc-950/40 p-5">
-        <div className="flex items-center justify-between">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-            {player.nickname}&apos;s score
-          </p>
-          <SaveStatus
+      <div className="mt-4 space-y-2">
+        {players.map((p) => (
+          <PlayerHoleRow
+            key={p.tripMemberId}
             matchId={matchId}
-            tripMemberId={player.tripMemberId}
-            holeNumber={hole.number}
-            gross={score}
+            hole={hole}
+            player={p}
+            score={getScore(p.tripMemberId)}
+            onScoreChange={(g) => onScoreChange(p.tripMemberId, g)}
+            disabled={!canEdit && !p.isSelf}
           />
-        </div>
-
-        <div className="mt-4 flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={() => setRel(-1)}
-            className="flex h-14 w-14 items-center justify-center rounded-sm border border-zinc-700 text-2xl font-bold hover:bg-zinc-900"
-            aria-label="Decrease score"
-          >
-            −
-          </button>
-          <div className="flex-1 text-center">
-            <p className="font-mono text-[60px] font-bold leading-none tabular-nums text-zinc-100">
-              {score ?? '—'}
-            </p>
-            {net != null && net !== score && (
-              <p className="mt-1 font-mono text-xs tabular-nums text-emerald-400">
-                net {net}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => setRel(1)}
-            className="flex h-14 w-14 items-center justify-center rounded-sm border border-zinc-700 text-2xl font-bold hover:bg-zinc-900"
-            aria-label="Increase score"
-          >
-            +
-          </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onScoreChange(null)}
-          className="mt-4 w-full rounded-sm border border-zinc-800 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500 hover:text-red-400 hover:border-red-700/40"
-        >
-          Clear
-        </button>
+        ))}
       </div>
 
       <div className="mt-6 flex gap-2">
@@ -344,6 +295,104 @@ function HoleByHole({
           className="flex flex-1 items-center justify-center gap-1 rounded-sm bg-yellow-500 px-4 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black hover:bg-yellow-400 disabled:opacity-40"
         >
           Next <ChevronRight size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PlayerHoleRow({
+  matchId,
+  hole,
+  player,
+  score,
+  onScoreChange,
+  disabled,
+}: {
+  matchId: string;
+  hole: ScoreClientHole;
+  player: ScoreClientPlayer;
+  score: number | null;
+  onScoreChange: (g: number | null) => void;
+  disabled: boolean;
+}) {
+  const color = player.teamColor ?? '#3f3f46';
+  const strokes = player.strokesByHole[hole.number] ?? 0;
+  const net = score != null ? score - strokes : null;
+
+  function setRel(delta: number) {
+    if (disabled) return;
+    const next = (score ?? hole.par) + delta;
+    if (next < 1 || next > 20) return;
+    onScoreChange(next);
+  }
+
+  return (
+    <div
+      className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-3"
+      style={{ borderLeft: `3px solid ${color}` }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-zinc-100">
+            {player.nickname}
+            {player.isSelf && (
+              <span className="ml-1.5 font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
+                you
+              </span>
+            )}
+            {strokes > 0 && (
+              <span className="ml-2 font-mono text-[10px] font-bold tabular-nums text-emerald-400">
+                +{strokes}
+              </span>
+            )}
+          </p>
+        </div>
+        <SaveStatus
+          matchId={matchId}
+          tripMemberId={player.tripMemberId}
+          holeNumber={hole.number}
+          gross={score}
+        />
+      </div>
+
+      <div className="mt-2 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setRel(-1)}
+          disabled={disabled}
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm border border-zinc-700 text-xl font-bold hover:bg-zinc-900 disabled:opacity-40"
+          aria-label={`Decrease ${player.nickname}'s score`}
+        >
+          −
+        </button>
+        <div className="flex-1 text-center">
+          <p className="font-mono text-4xl font-bold leading-none tabular-nums text-zinc-100">
+            {score ?? '—'}
+          </p>
+          {net != null && net !== score && (
+            <p className="mt-0.5 font-mono text-[10px] tabular-nums text-emerald-400">
+              net {net}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setRel(1)}
+          disabled={disabled}
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm border border-zinc-700 text-xl font-bold hover:bg-zinc-900 disabled:opacity-40"
+          aria-label={`Increase ${player.nickname}'s score`}
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={() => onScoreChange(null)}
+          disabled={disabled || score == null}
+          className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-600 hover:text-red-400 disabled:opacity-40"
+          aria-label={`Clear ${player.nickname}'s score`}
+        >
+          Clear
         </button>
       </div>
     </div>
