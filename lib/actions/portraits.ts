@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { tripMembers, users } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
@@ -90,11 +90,10 @@ export async function generateArcadePortraitForPlayer(
     throw new AuthorizationError('Trip admin required');
   }
 
-  if (!member.userId) {
-    throw new Error(
-      "This player hasn't claimed their slot yet — they need to sign in once before a portrait can be saved to their account.",
-    );
-  }
+  // Resolve the user row this portrait belongs to. If the player hasn't
+  // claimed yet, find/stub a users row keyed by email so we can attach the
+  // portrait now and the lazy-claim picks it up on first sign-in.
+  const userId = await ensurePortraitUser(member.id);
 
   const result = await generateArcadePortrait(sourceUrl);
   if (!result) {
@@ -111,10 +110,59 @@ export async function generateArcadePortraitForPlayer(
       arcadePortraitGeneratedAt: new Date(),
       updatedAt: new Date(),
     })
-    .where(eq(users.id, member.userId));
+    .where(eq(users.id, userId));
 
   const redirectTo = String(formData.get('redirectTo') ?? '').trim();
   if (redirectTo) revalidatePath(redirectTo);
+}
+
+/**
+ * Resolve (or create) the users row that owns this player's portrait. Used
+ * by admin-side portrait actions so we can pre-bake portraits before the
+ * player ever signs in.
+ *
+ * Cases:
+ *  - tripMember.userId set: use it.
+ *  - users row already exists for the email: link the tripMember and use it.
+ *  - no users row: insert a stub (email only, null clerkId). On first
+ *    sign-in, getAuthContext finds this row by email and attaches the
+ *    clerkId via existing lazy-claim logic.
+ */
+async function ensurePortraitUser(tripMemberId: string): Promise<string> {
+  const [member] = await db
+    .select()
+    .from(tripMembers)
+    .where(eq(tripMembers.id, tripMemberId))
+    .limit(1);
+  if (!member) throw new Error('Player not found');
+
+  if (member.userId) return member.userId;
+
+  const email = member.email.toLowerCase();
+
+  let [user] = await db
+    .select()
+    .from(users)
+    .where(sql`lower(${users.email}) = ${email}`)
+    .limit(1);
+
+  if (!user) {
+    [user] = await db
+      .insert(users)
+      .values({
+        email,
+        fullName: member.nickname,
+        avatarUrl: member.avatarUrl,
+      })
+      .returning();
+  }
+
+  await db
+    .update(tripMembers)
+    .set({ userId: user.id, email })
+    .where(eq(tripMembers.id, member.id));
+
+  return user.id;
 }
 
 export async function clearArcadePortraitForPlayer(

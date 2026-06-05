@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, ImageIcon, Settings, Trophy, Users } from 'lucide-react';
+import { ChevronRight, Flag, ImageIcon, Settings, Trophy, Users } from 'lucide-react';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin } from '@/lib/auth/permissions';
 import ComingSoon from '@/components/ComingSoon';
@@ -42,6 +42,12 @@ export default async function AdminPage({
           icon={<Settings size={16} />}
           label="Trip details"
           hint="Name, dates, description, and the trip icon."
+        />
+        <AdminLink
+          href={`/trips/${slug}/admin/teams`}
+          icon={<Flag size={16} />}
+          label="Teams"
+          hint="Rename and recolor the two teams competing for the cup."
         />
         <AdminLink
           href={`/trips/${slug}/admin/players`}

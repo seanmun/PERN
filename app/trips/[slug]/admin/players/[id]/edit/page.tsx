@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { tripMembers, teams, users } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
@@ -40,8 +40,9 @@ export default async function EditPlayerPage({
     .where(eq(teams.tripId, player.tripId))
     .orderBy(asc(teams.name));
 
-  // The arcade portrait lives on `users`, not `tripMembers`. Look it up only
-  // if the player has claimed their slot (userId is set after first sign-in).
+  // The arcade portrait lives on `users`. Try by linked userId first; fall
+  // back to email match for players who haven't claimed yet but might have
+  // had a portrait pre-baked (we stub a users row when admin generates).
   let portraitUser:
     | { arcadePortraitUrl: string | null; avatarUrl: string | null }
     | null = null;
@@ -53,6 +54,16 @@ export default async function EditPlayerPage({
       })
       .from(users)
       .where(eq(users.id, player.userId))
+      .limit(1);
+    portraitUser = u ?? null;
+  } else if (player.email) {
+    const [u] = await db
+      .select({
+        arcadePortraitUrl: users.arcadePortraitUrl,
+        avatarUrl: users.avatarUrl,
+      })
+      .from(users)
+      .where(sql`lower(${users.email}) = ${player.email.toLowerCase()}`)
       .limit(1);
     portraitUser = u ?? null;
   }
@@ -207,13 +218,7 @@ export default async function EditPlayerPage({
           Used on matchup reveals and player profiles.
         </p>
 
-        {!player.userId ? (
-          <p className="mt-4 text-[11px] text-zinc-500">
-            {player.nickname} hasn&apos;t signed in yet. Once they claim their
-            slot, you (or they) can generate a portrait from this screen.
-          </p>
-        ) : (
-          <div className="mt-4 grid grid-cols-[120px_1fr] items-start gap-4">
+        <div className="mt-4 grid grid-cols-[120px_1fr] items-start gap-4">
             <div
               className="aspect-square overflow-hidden rounded-sm border border-zinc-800"
               style={{
@@ -254,10 +259,15 @@ export default async function EditPlayerPage({
               )}
               <p className="text-[10px] text-zinc-600">
                 Each generation takes 15–45 seconds.
+                {!player.userId && (
+                  <>
+                    {' '}When {player.nickname} signs in, this portrait
+                    automatically becomes theirs.
+                  </>
+                )}
               </p>
             </div>
           </div>
-        )}
       </section>
     </div>
   );
