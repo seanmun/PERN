@@ -21,26 +21,37 @@ const QUALITY: 'low' | 'medium' | 'high' = 'medium';
 // Iterating this string is the entire feature; if you want to evolve the
 // look, change PROMPT and bump STYLE_VERSION so admin tooling can identify
 // portraits made on the old style later.
-export const STYLE_VERSION = 2; // v2: transparent background (no flame burst)
+export const STYLE_VERSION = 3; // v3: head-and-shoulders roster card, no swing/club
 
-const PROMPT = `Create a 16-bit Sega Genesis arcade-game style portrait of the person in the reference image. Keep their face, skin tone, hair, and identifying features clearly recognizable.
+const PROMPT = `Create a 16-bit arcade-game roster-card portrait of the person in the reference image. Keep their face, skin tone, hair, and identifying features clearly recognizable.
+
+COMPOSITION:
+- Tight head-and-shoulders framing only. Show the face, neck, and shoulders.
+- No arms, no hands, no golf clubs, no swing, no ball, no props of any kind.
+- Subject faces forward or slightly off-axis (3/4 view), confident expression.
+- Slight caricature exaggeration of distinguishing features while preserving likeness — the way 90s sports games captured a real athlete in chunky sprite art.
+- Subject is wearing a golf polo shirt. Collar visible. No visor, no cap.
+- Square aspect ratio, 1024x1024.
 
 STYLE:
-- Pixelated CRT-era video game art, NBA Jam Tournament Edition (1994) energy: chunky pixels, hard shadows, dramatic side lighting, sweat beads, intense expression.
-- The subject is a golfer wearing a polo shirt; optional golf visor or cap. Mid-swing posture or holding a golf club, chest-up framing.
-- Color palette restricted to hunter green (#14532d), bright gold (#eab308), black, and the subject's natural skin/hair tones.
-- Square aspect ratio, 1024x1024.
+- Pixel art, 16-bit / Sega Genesis / SNES era. Reference points: NBA Jam Tournament Edition (1994) roster cards, Ken Griffey Jr. Baseball player portraits, Madden / NHL / PGA Tour player-select screens from the 1990s, Golden Tee Golf character cards, and modern indie pixel-art games inspired by those titles.
+- "Hall of Fame / Legendary tier RPG character icon" energy — confident, slightly heroic, slightly stoic.
+- Chunky visible pixels and pixel-perfect dithering for shading. Hard CRT-era shadows, not soft anti-aliased gradients.
+- Bright arcade-style stage lighting from the front; clean soft shadow on the off-side of the face.
+- Color palette grounded in hunter green (#14532d), bright gold (#eab308), black, and the subject's natural skin/hair tones. Subtle gold metallic highlights along the polo's shoulders, collar trim, or shirt buttons sell the "legendary" feel.
 
 BACKGROUND:
 - The image MUST have a fully transparent background (PNG alpha channel = 0 outside the subject).
-- The subject is isolated — no scenery, no flames, no burst lines, no scoreboard, no surrounding effects, no shadow plate, no halo, no aura.
-- This portrait will be composited at render time over the player's team-color HTML background (a CSS background-color, typically hunter green #14532d or bright gold #eab308). Every pixel outside the subject's silhouette must be fully transparent so the underlying webpage background color shows through cleanly.
-- Do not fill the background with any color — not green, not gold, not black, not white, not gray. Leave it transparent.
+- The subject is isolated — no scenery, no scoreboard, no frame inside the image, no checkerboard or dithered backdrop, no shadow plate, no halo, no aura, no glow.
+- A gold frame and a gold-checkered backdrop are drawn AROUND the portrait by the app via CSS at render time. The model must NOT draw them in. Leave every pixel outside the subject's silhouette fully transparent so the app's frame and team-color backdrop show through cleanly.
+- Do not fill the background with any color — not green, not gold, not black, not white, not gray.
 
 DO NOT:
-- Add text, logos, names, scoreboards, or watermarks.
+- Add text, logos, names, jersey numbers, scoreboards, or watermarks.
 - Use blue, red, or purple anywhere.
-- Photorealism — keep it stylized and pixelated.`;
+- Photorealism — keep it stylized and pixelated.
+- Add a swing, club, ball, helmet, visor, cap, or any prop.
+- Draw a frame, border, vignette, or background pattern.`;
 
 export type PortraitResult = {
   url: string;
