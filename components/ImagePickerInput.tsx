@@ -8,13 +8,32 @@ import { compressImage } from '@/lib/upload/compress';
 export default function ImagePickerInput({
   name,
   defaultValue,
+  value,
+  onChange,
   aspect = '16/9',
 }: {
   name: string;
   defaultValue?: string;
+  // Optional controlled mode: parent owns the URL state. Useful when a
+  // sibling component (e.g. portrait generator) needs the live upload URL
+  // before the form is saved.
+  value?: string;
+  onChange?: (url: string) => void;
   aspect?: string;
 }) {
-  const [url, setUrl] = useState<string>(defaultValue ?? '');
+  const isControlled = value !== undefined;
+  const [internalUrl, setInternalUrl] = useState<string>(defaultValue ?? '');
+  const url = isControlled ? (value ?? '') : internalUrl;
+
+  function setUrl(next: string) {
+    if (isControlled) {
+      onChange?.(next);
+    } else {
+      setInternalUrl(next);
+      onChange?.(next);
+    }
+  }
+
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);

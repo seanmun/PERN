@@ -7,8 +7,7 @@ import { tripMembers, teams, users } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { updatePlayer } from '@/lib/actions/players';
-import ImagePickerInput from '@/components/ImagePickerInput';
-import PortraitGeneratorButton from '@/components/portraits/PortraitGeneratorButton';
+import PhotoWithPortraitSection from '@/components/portraits/PhotoWithPortraitSection';
 
 export default async function EditPlayerPage({
   params,
@@ -85,18 +84,14 @@ export default async function EditPlayerPage({
       <form action={updatePlayer} className="mt-8 space-y-5">
         <input type="hidden" name="id" value={player.id} />
 
-        <div>
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
-            Photo
-          </span>
-          <div className="mt-2">
-            <ImagePickerInput
-              name="avatarUrl"
-              defaultValue={player.avatarUrl ?? undefined}
-              aspect="1/1"
-            />
-          </div>
-        </div>
+        <PhotoWithPortraitSection
+          photoName="avatarUrl"
+          photoDefaultValue={player.avatarUrl ?? portraitUser?.avatarUrl ?? null}
+          portraitUrl={portraitUser?.arcadePortraitUrl ?? null}
+          redirectTo={`/trips/${slug}/admin/players/${player.id}/edit`}
+          targetTripMemberId={player.id}
+          targetLabel={`${player.nickname}'s`}
+        />
 
         <Field label="Nickname" required>
           <input
@@ -201,74 +196,6 @@ export default async function EditPlayerPage({
         </div>
       </form>
 
-      {/* Arcade portrait — separate from the main form because it submits its
-          own server action (a slow OpenAI call). Sits outside the player-save
-          form so clicking Generate doesn't trigger Save Player. */}
-      <section className="mt-10 rounded-sm border border-zinc-800 bg-zinc-950/40 p-4">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-500">
-            Arcade portrait
-          </span>
-          <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
-            NBA Jam style · AI
-          </span>
-        </div>
-        <p className="mt-1 text-[11px] text-zinc-500">
-          Turn {player.nickname}&apos;s photo into a 16-bit Sega arcade portrait.
-          Used on matchup reveals and player profiles.
-        </p>
-
-        <div className="mt-4 grid grid-cols-[120px_1fr] items-start gap-4">
-            <div
-              className="aspect-square overflow-hidden rounded-sm border border-zinc-800"
-              style={{
-                backgroundImage:
-                  'linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.04) 75%), linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.04) 75%)',
-                backgroundSize: '16px 16px',
-                backgroundPosition: '0 0, 8px 8px',
-                backgroundColor: '#0a0a0a',
-              }}
-            >
-              {portraitUser?.arcadePortraitUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={portraitUser.arcadePortraitUrl}
-                  alt={`${player.nickname}'s arcade portrait`}
-                  className="h-full w-full object-contain"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-center font-mono text-[9px] uppercase tracking-widest text-zinc-600">
-                  No portrait yet
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <PortraitGeneratorButton
-                sourceUrl={player.avatarUrl ?? portraitUser?.avatarUrl ?? null}
-                hasPortrait={!!portraitUser?.arcadePortraitUrl}
-                redirectTo={`/trips/${slug}/admin/players/${player.id}/edit`}
-                targetTripMemberId={player.id}
-                targetLabel={`${player.nickname}'s`}
-              />
-              {!player.avatarUrl && !portraitUser?.avatarUrl && (
-                <p className="text-[11px] text-zinc-500">
-                  Upload a profile photo above and click Save Player first —
-                  that&apos;s the source the AI uses.
-                </p>
-              )}
-              <p className="text-[10px] text-zinc-600">
-                Each generation takes 15–45 seconds.
-                {!player.userId && (
-                  <>
-                    {' '}When {player.nickname} signs in, this portrait
-                    automatically becomes theirs.
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-      </section>
     </div>
   );
 }
