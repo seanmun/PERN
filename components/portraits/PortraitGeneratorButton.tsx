@@ -4,7 +4,9 @@ import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Sparkles, X } from 'lucide-react';
 import {
+  clearArcadePortraitForPlayer,
   clearMyArcadePortrait,
+  generateArcadePortraitForPlayer,
   generateMyArcadePortrait,
 } from '@/lib/actions/portraits';
 
@@ -12,20 +14,27 @@ export default function PortraitGeneratorButton({
   sourceUrl,
   hasPortrait,
   redirectTo,
+  // When set, this button targets ANOTHER player's portrait (admin-side).
+  // Otherwise it targets the current user's own portrait.
+  targetTripMemberId,
+  targetLabel = 'your',
 }: {
   sourceUrl: string | null;
   hasPortrait: boolean;
   redirectTo?: string;
+  targetTripMemberId?: string;
+  targetLabel?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const isAdminMode = !!targetTripMemberId;
 
   function onGenerate() {
     if (!sourceUrl) return;
     if (
       hasPortrait &&
       !window.confirm(
-        'Regenerate? Your current arcade portrait will be replaced.',
+        `Regenerate? ${targetLabel} current arcade portrait will be replaced.`,
       )
     ) {
       return;
@@ -33,9 +42,14 @@ export default function PortraitGeneratorButton({
     const fd = new FormData();
     fd.set('sourceUrl', sourceUrl);
     if (redirectTo) fd.set('redirectTo', redirectTo);
+    if (isAdminMode) fd.set('tripMemberId', targetTripMemberId!);
     startTransition(async () => {
       try {
-        await generateMyArcadePortrait(fd);
+        if (isAdminMode) {
+          await generateArcadePortraitForPlayer(fd);
+        } else {
+          await generateMyArcadePortrait(fd);
+        }
         router.refresh();
       } catch (err) {
         console.error('[portrait] generation failed', err);
@@ -49,10 +63,17 @@ export default function PortraitGeneratorButton({
   }
 
   function onClear() {
-    if (!window.confirm('Remove your arcade portrait?')) return;
+    if (!window.confirm(`Remove ${targetLabel} arcade portrait?`)) return;
     startTransition(async () => {
       try {
-        await clearMyArcadePortrait();
+        if (isAdminMode) {
+          const fd = new FormData();
+          fd.set('tripMemberId', targetTripMemberId!);
+          if (redirectTo) fd.set('redirectTo', redirectTo);
+          await clearArcadePortraitForPlayer(fd);
+        } else {
+          await clearMyArcadePortrait();
+        }
         router.refresh();
       } catch (err) {
         console.error('[portrait] clear failed', err);
