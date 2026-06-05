@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { updateMyProfile } from '@/lib/actions/update-profile';
 import ImagePickerInput from '@/components/ImagePickerInput';
+import PortraitGeneratorButton from '@/components/portraits/PortraitGeneratorButton';
 
 export default async function EditProfilePage({
   params,
@@ -49,6 +50,12 @@ export default async function EditProfilePage({
             />
           </div>
         </div>
+
+        <ArcadePortraitSection
+          portraitUrl={user.arcadePortraitUrl ?? null}
+          sourceUrl={tripMember.avatarUrl ?? user.avatarUrl ?? null}
+          redirectTo={`/trips/${slug}/me/edit`}
+        />
 
         <Field
           label="Full name"
@@ -158,6 +165,75 @@ function Field({
       />
       {hint && <p className="mt-1.5 text-[11px] text-zinc-500">{hint}</p>}
     </label>
+  );
+}
+
+function ArcadePortraitSection({
+  portraitUrl,
+  sourceUrl,
+  redirectTo,
+}: {
+  portraitUrl: string | null;
+  sourceUrl: string | null;
+  redirectTo: string;
+}) {
+  return (
+    <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-500">
+          Arcade portrait
+        </span>
+        <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
+          NBA Jam style · AI
+        </span>
+      </div>
+      <p className="mt-1 text-[11px] text-zinc-500">
+        We take your profile photo and turn it into a 16-bit Sega arcade
+        portrait used on matchup reveals and player profiles.
+      </p>
+
+      <div className="mt-4 grid grid-cols-[120px_1fr] items-start gap-4">
+        {/* Checkered backdrop so the alpha channel is visible at a glance —
+            otherwise a transparent portrait reads as if it has a black bg. */}
+        <div
+          className="aspect-square overflow-hidden rounded-sm border border-zinc-800"
+          style={{
+            backgroundImage:
+              'linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.04) 75%), linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.04) 75%)',
+            backgroundSize: '16px 16px',
+            backgroundPosition: '0 0, 8px 8px',
+            backgroundColor: '#0a0a0a',
+          }}
+        >
+          {portraitUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={portraitUrl} alt="Your arcade portrait" className="h-full w-full object-contain" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-center font-mono text-[9px] uppercase tracking-widest text-zinc-600">
+              No portrait yet
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {!sourceUrl && (
+            <p className="text-[11px] text-zinc-500">
+              Upload a profile photo above first — that&apos;s the source the
+              AI uses to make your portrait.
+            </p>
+          )}
+          <PortraitGeneratorButton
+            sourceUrl={sourceUrl}
+            hasPortrait={!!portraitUrl}
+            redirectTo={redirectTo}
+          />
+          <p className="text-[10px] text-zinc-600">
+            Each generation takes 15–45 seconds. You can regenerate as many
+            times as you want.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 

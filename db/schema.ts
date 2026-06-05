@@ -59,6 +59,12 @@ export const users = pgTable('users', {
   avatarUrl: text('avatar_url'),
   ghinNumber: text('ghin_number'),
   handicap: numeric('handicap', { precision: 4, scale: 1 }),
+  // NBA-Jam-style arcade portrait, generated from the user's regular avatar.
+  arcadePortraitUrl: text('arcade_portrait_url'),
+  // Source photo URL used at generation time. Preserved so re-generation
+  // doesn't require re-uploading even if avatarUrl later changes.
+  arcadePortraitSourceUrl: text('arcade_portrait_source_url'),
+  arcadePortraitGeneratedAt: timestamp('arcade_portrait_generated_at', { withTimezone: true }),
   defaultTripId: uuid('default_trip_id').references((): AnyPgColumn => trips.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
