@@ -11,6 +11,12 @@ import {
   isTripAdminOf,
 } from '@/lib/auth/permissions';
 import { generateArcadePortrait } from '@/lib/portraits/generate';
+import type { PortraitActionResult } from '@/lib/portraits/types';
+
+// PortraitActionResult lives in a separate types-only module because
+// 'use server' files may only EXPORT async functions — exporting a type
+// from this file made Next.js wrap action calls in the generic
+// "Server Components render" error mask in production.
 
 /**
  * Generate the calling user's arcade portrait from a source photo URL.
@@ -21,37 +27,51 @@ import { generateArcadePortrait } from '@/lib/portraits/generate';
  * Stored at the user level (platform-wide). The same portrait shows on
  * every trip the user joins.
  */
-export async function generateMyArcadePortrait(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
-  if (!ctx) throw new AuthorizationError('Authentication required');
+export async function generateMyArcadePortrait(
+  formData: FormData,
+): Promise<PortraitActionResult> {
+  try {
+    const ctx = await getAuthContext();
+    if (!ctx) return { ok: false, error: 'You need to be signed in.' };
 
-  const sourceUrl = String(formData.get('sourceUrl') ?? '').trim();
-  if (!sourceUrl) {
-    throw new Error(
-      'Upload a profile photo first — we need a source image to generate from.',
-    );
+    const sourceUrl = String(formData.get('sourceUrl') ?? '').trim();
+    if (!sourceUrl) {
+      return {
+        ok: false,
+        error: 'Upload a profile photo first — we need a source image to generate from.',
+      };
+    }
+
+    const result = await generateArcadePortrait(sourceUrl);
+    if (!result) {
+      return {
+        ok: false,
+        error:
+          'Portrait generation failed. Check that OPENAI_API_KEY is set and the source photo is reachable, then try again.',
+      };
+    }
+
+    await db
+      .update(users)
+      .set({
+        arcadePortraitUrl: result.url,
+        arcadePortraitSourceUrl: sourceUrl,
+        arcadePortraitGeneratedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, ctx.user.id));
+
+    const redirectTo = String(formData.get('redirectTo') ?? '').trim();
+    if (redirectTo) revalidatePath(redirectTo);
+    revalidatePath('/me');
+    return { ok: true };
+  } catch (err) {
+    console.error('[portrait] generateMyArcadePortrait threw', err);
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Unknown error.',
+    };
   }
-
-  const result = await generateArcadePortrait(sourceUrl);
-  if (!result) {
-    throw new Error(
-      'Portrait generation failed. Try again in a minute, or use a clearer source photo.',
-    );
-  }
-
-  await db
-    .update(users)
-    .set({
-      arcadePortraitUrl: result.url,
-      arcadePortraitSourceUrl: sourceUrl,
-      arcadePortraitGeneratedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(users.id, ctx.user.id));
-
-  const redirectTo = String(formData.get('redirectTo') ?? '').trim();
-  if (redirectTo) revalidatePath(redirectTo);
-  revalidatePath('/me');
 }
 
 /**
@@ -65,55 +85,64 @@ export async function generateMyArcadePortrait(formData: FormData): Promise<void
  */
 export async function generateArcadePortraitForPlayer(
   formData: FormData,
-): Promise<void> {
-  const ctx = await getAuthContext();
-  if (!ctx) throw new AuthorizationError('Authentication required');
+): Promise<PortraitActionResult> {
+  try {
+    const ctx = await getAuthContext();
+    if (!ctx) return { ok: false, error: 'You need to be signed in.' };
 
-  const tripMemberId = String(formData.get('tripMemberId') ?? '').trim();
-  if (!tripMemberId) throw new Error('tripMemberId required');
+    const tripMemberId = String(formData.get('tripMemberId') ?? '').trim();
+    if (!tripMemberId) return { ok: false, error: 'Missing player id.' };
 
-  const sourceUrl = String(formData.get('sourceUrl') ?? '').trim();
-  if (!sourceUrl) {
-    throw new Error(
-      "Upload a profile photo for this player first — we need a source image to generate from.",
-    );
+    const sourceUrl = String(formData.get('sourceUrl') ?? '').trim();
+    if (!sourceUrl) {
+      return {
+        ok: false,
+        error: "Upload a profile photo for this player first — we need a source image to generate from.",
+      };
+    }
+
+    const [member] = await db
+      .select()
+      .from(tripMembers)
+      .where(eq(tripMembers.id, tripMemberId))
+      .limit(1);
+    if (!member) return { ok: false, error: 'Player not found.' };
+
+    if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, member.tripId)) {
+      return { ok: false, error: 'Trip admin required.' };
+    }
+
+    const userId = await ensurePortraitUser(member.id);
+
+    const result = await generateArcadePortrait(sourceUrl);
+    if (!result) {
+      return {
+        ok: false,
+        error:
+          'Portrait generation failed. Check that OPENAI_API_KEY is set and the source photo is reachable, then try again.',
+      };
+    }
+
+    await db
+      .update(users)
+      .set({
+        arcadePortraitUrl: result.url,
+        arcadePortraitSourceUrl: sourceUrl,
+        arcadePortraitGeneratedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+
+    const redirectTo = String(formData.get('redirectTo') ?? '').trim();
+    if (redirectTo) revalidatePath(redirectTo);
+    return { ok: true };
+  } catch (err) {
+    console.error('[portrait] generateArcadePortraitForPlayer threw', err);
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Unknown error.',
+    };
   }
-
-  const [member] = await db
-    .select()
-    .from(tripMembers)
-    .where(eq(tripMembers.id, tripMemberId))
-    .limit(1);
-  if (!member) throw new Error('Player not found');
-
-  if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, member.tripId)) {
-    throw new AuthorizationError('Trip admin required');
-  }
-
-  // Resolve the user row this portrait belongs to. If the player hasn't
-  // claimed yet, find/stub a users row keyed by email so we can attach the
-  // portrait now and the lazy-claim picks it up on first sign-in.
-  const userId = await ensurePortraitUser(member.id);
-
-  const result = await generateArcadePortrait(sourceUrl);
-  if (!result) {
-    throw new Error(
-      'Portrait generation failed. Try again in a minute, or use a clearer source photo.',
-    );
-  }
-
-  await db
-    .update(users)
-    .set({
-      arcadePortraitUrl: result.url,
-      arcadePortraitSourceUrl: sourceUrl,
-      arcadePortraitGeneratedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(users.id, userId));
-
-  const redirectTo = String(formData.get('redirectTo') ?? '').trim();
-  if (redirectTo) revalidatePath(redirectTo);
 }
 
 /**

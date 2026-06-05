@@ -45,14 +45,18 @@ export default function PortraitGeneratorButton({
     if (isAdminMode) fd.set('tripMemberId', targetTripMemberId!);
     startTransition(async () => {
       try {
-        if (isAdminMode) {
-          await generateArcadePortraitForPlayer(fd);
-        } else {
-          await generateMyArcadePortrait(fd);
+        const result = isAdminMode
+          ? await generateArcadePortraitForPlayer(fd)
+          : await generateMyArcadePortrait(fd);
+        if (!result.ok) {
+          console.error('[portrait] generation failed:', result.error);
+          alert(result.error);
+          return;
         }
         router.refresh();
       } catch (err) {
-        console.error('[portrait] generation failed', err);
+        // Fallback for anything that DOES throw (e.g. a network failure)
+        console.error('[portrait] generation threw', err);
         alert(
           err instanceof Error
             ? err.message
