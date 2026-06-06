@@ -1,6 +1,7 @@
 import 'server-only';
 import { put } from '@vercel/blob';
 import OpenAI from 'openai';
+import sharp from 'sharp';
 
 /**
  * NBA-Jam-style arcade portrait generator.
@@ -103,8 +104,9 @@ export async function generateArcadePortrait(
     };
   }
 
-  // 1. Pull the source bytes. OpenAI's images.edit endpoint needs the actual
-  // image, not a URL — so we fetch from Vercel Blob (or wherever) first.
+  // 1. Pull the source bytes. OpenAI's images.edit endpoint accepts ONLY
+  // PNG in standard sRGB mode — so we normalize via sharp regardless of
+  // what came in (iPhone HEIC, browser-compressed WebP, JPEG, etc.).
   let sourceFile: File;
   try {
     const sourceRes = await fetch(sourcePhotoUrl);
@@ -115,15 +117,28 @@ export async function generateArcadePortrait(
         detail: `Couldn't fetch the source photo from ${sourcePhotoUrl} — got ${sourceRes.status} ${sourceRes.statusText}.`,
       };
     }
-    const contentType = sourceRes.headers.get('content-type') ?? 'image/png';
-    const buf = await sourceRes.arrayBuffer();
-    const ext = contentType.includes('jpeg') ? 'jpg' : 'png';
-    sourceFile = new File([buf], `source.${ext}`, { type: contentType });
+    const sourceBuf = Buffer.from(await sourceRes.arrayBuffer());
+
+    // Normalize: force sRGB, convert to PNG, cap at 1024×1024 (gpt-image-1's
+    // edit size). `withoutEnlargement` preserves small images at native size.
+    const pngBuf = await sharp(sourceBuf)
+      .rotate() // honor EXIF orientation; phone photos are often sideways otherwise
+      .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+      .toColorspace('srgb')
+      .png()
+      .toBuffer();
+
+    // Wrap as a Uint8Array so File's BlobPart typing accepts it across
+    // Node and edge runtimes (Buffer extends Uint8Array but the global File
+    // type doesn't always recognize Buffer as a BlobPart).
+    sourceFile = new File([new Uint8Array(pngBuf)], 'source.png', {
+      type: 'image/png',
+    });
   } catch (err) {
     return {
       ok: false,
       reason: 'SOURCE_FETCH_FAILED',
-      detail: `Source photo fetch threw: ${err instanceof Error ? err.message : String(err)}`,
+      detail: `Source photo fetch/normalize threw: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
 
