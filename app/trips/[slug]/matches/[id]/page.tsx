@@ -2,7 +2,6 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { eq, asc, and } from 'drizzle-orm';
 import { ArrowLeft, MapPin, Pencil, PenLine, Trophy } from 'lucide-react';
-import MemberAvatar from '@/components/avatar/MemberAvatar';
 import { db } from '@/db/client';
 import {
   matches,
@@ -286,39 +285,41 @@ type MatchSide = {
 
 function MatchupShowdown({ left, right }: { left: MatchSide; right: MatchSide }) {
   return (
-    <div className="overflow-hidden rounded-sm border border-zinc-800">
-      <div className="grid grid-cols-[1fr_auto_1fr] items-stretch">
-        <ShowdownSide side={left} align="left" />
-        <div className="flex items-center justify-center bg-black px-2">
-          <span
-            className="font-mono text-base font-bold tabular-nums text-yellow-500"
-            style={{ textShadow: '0 0 14px rgba(202,138,4,0.5)' }}
-          >
-            VS
-          </span>
-        </div>
-        <ShowdownSide side={right} align="right" />
+    <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
+      <ShowdownSide side={left} />
+      <div className="flex items-center justify-center px-1">
+        <span
+          className="font-mono text-base font-bold tabular-nums text-yellow-500"
+          style={{ textShadow: '0 0 14px rgba(202,138,4,0.5)' }}
+        >
+          VS
+        </span>
       </div>
+      <ShowdownSide side={right} />
     </div>
   );
 }
 
-function ShowdownSide({ side, align }: { side: MatchSide; align: 'left' | 'right' }) {
+function ShowdownSide({ side }: { side: MatchSide }) {
   const color = side.team.color ?? '#71717a';
   return (
     <div
-      className="p-3"
+      className="overflow-hidden rounded-sm"
       style={{
-        background: `linear-gradient(${align === 'left' ? '90deg' : '270deg'}, ${color}33 0%, ${color}0a 100%)`,
+        // One container per side: team color flows under both players as a
+        // shared backdrop. Inner ring uses the team color too so the border
+        // visually reads as part of the team, not a generic zinc-800 box.
+        background: `linear-gradient(180deg, ${color}cc 0%, ${color}88 50%, ${color}33 100%)`,
+        boxShadow: `inset 0 0 0 2px ${color}, 0 0 18px ${color}33`,
       }}
     >
       <p
-        className="text-center font-mono text-[10px] font-bold uppercase tracking-[0.25em]"
-        style={{ color }}
+        className="border-b border-white/10 px-2 py-1.5 text-center font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-white"
+        style={{ textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}
       >
         {side.team.name}
       </p>
-      <div className="mt-3 flex items-start justify-center gap-2">
+      <div className="grid grid-cols-2 items-end px-1 pt-2 pb-3">
         {side.members.map((m) => (
           <Portrait key={m.id} member={m} color={color} />
         ))}
@@ -334,22 +335,42 @@ function Portrait({
   member: ShowdownMember;
   color: string;
 }) {
+  // Inside the shared team-color container — portraits sit directly on the
+  // team backdrop with no individual borders or rings. For non-arcade
+  // fallbacks (real photo or monogram), the small ring keeps them legible
+  // against the busy team-color gradient.
   return (
-    <div className="flex w-full max-w-[88px] flex-col items-center text-center">
-      <MemberAvatar
-        nickname={member.nickname}
-        arcadePortraitUrl={member.arcadePortraitUrl}
-        avatarUrl={member.avatarUrl}
-        teamColor={color}
-        size={88}
-        hero
-        className="w-full"
-      />
-      <p className="mt-2 max-w-full truncate text-xs font-semibold">
+    <div className="flex flex-col items-center text-center">
+      {member.arcadePortraitUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={member.arcadePortraitUrl}
+          alt={member.nickname}
+          className="h-20 w-20 object-contain"
+        />
+      ) : member.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={member.avatarUrl}
+          alt={member.nickname}
+          className="h-16 w-16 rounded-sm object-cover ring-2 ring-black/40"
+        />
+      ) : (
+        <div className="flex h-16 w-16 items-center justify-center rounded-sm bg-black/40 font-mono text-xl font-bold text-white ring-2 ring-black/40">
+          {member.nickname.slice(0, 1).toUpperCase()}
+        </div>
+      )}
+      <p
+        className="mt-1 max-w-full truncate px-1 text-xs font-bold text-white"
+        style={{ textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}
+      >
         {member.nickname}
       </p>
       {member.tripHandicap && (
-        <p className="font-mono text-[10px] tabular-nums text-zinc-500">
+        <p
+          className="font-mono text-[10px] tabular-nums text-white/70"
+          style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
+        >
           {member.tripHandicap}
         </p>
       )}

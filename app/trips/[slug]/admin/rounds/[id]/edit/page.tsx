@@ -330,9 +330,12 @@ export default async function EditRoundPage({
                     )}
                     <Link
                       href={`/trips/${slug}/matches/new?teeTimeId=${tt.id}`}
-                      className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-400 hover:text-yellow-300"
+                      className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-yellow-500/40 bg-yellow-500/5 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-300 hover:border-yellow-500/70 hover:bg-yellow-500/10"
                     >
-                      <Plus size={10} /> Add matchup
+                      <Plus size={12} strokeWidth={2.5} />
+                      {tteMatches.length === 0
+                        ? 'Add first matchup'
+                        : `Add another matchup (Match ${tteMatches.length + 1})`}
                     </Link>
                   </div>
                 </div>
