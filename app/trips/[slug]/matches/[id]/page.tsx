@@ -371,66 +371,62 @@ function PortraitsCell({
   color: string;
   align: 'left' | 'right';
 }) {
-  // Each portrait is a flex child with min-w-0 so the row never overflows.
-  // grid-cols-N with N = members.length divides the available width evenly
-  // and the portraits scale to fill — no more fixed widths fighting the
-  // container.
+  // Each slot is an identical aspect-square box, equal width via grid
+  // tracks. Portraits sit ON TOP of their box (object-bottom) so subjects
+  // share a common baseline — uneven AI crops still read as "standing on
+  // the same line" even if one subject is rendered taller in its frame.
   return (
     <div
-      className="grid items-end gap-1 px-2 pt-3 pb-2"
+      className="grid items-stretch gap-1 px-2 pt-3 pb-2"
       style={{
         gridTemplateColumns: `repeat(${members.length}, minmax(0, 1fr))`,
         background: `linear-gradient(${align === 'left' ? '90deg' : '270deg'}, ${color}55 0%, transparent 100%)`,
       }}
     >
       {members.map((m) => (
-        <ShowdownPortrait key={m.id} member={m} color={color} />
+        <PortraitSlot key={m.id} member={m} color={color} />
       ))}
     </div>
   );
 }
 
-function ShowdownPortrait({
+function PortraitSlot({
   member,
   color,
 }: {
   member: ShowdownMember;
   color: string;
 }) {
-  if (member.arcadePortraitUrl) {
-    return (
-      <div className="aspect-square w-full min-w-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
+  // One uniform slot — the OUTER container is always aspect-square w-full.
+  // What's drawn INSIDE (arcade portrait / avatar photo / monogram) varies,
+  // but the box dimensions never do, so the two slots per side render at
+  // identical pixel sizes.
+  return (
+    <div className="relative aspect-square w-full min-w-0">
+      {member.arcadePortraitUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={member.arcadePortraitUrl}
           alt={member.nickname}
-          className="h-full w-full object-contain"
-          style={{
-            // Soft team-color glow behind the transparent portrait so it
-            // pops off the dark navy bg.
-            filter: `drop-shadow(0 0 6px ${color}88)`,
-          }}
+          className="absolute inset-0 h-full w-full object-contain object-bottom"
+          style={{ filter: `drop-shadow(0 0 6px ${color}88)` }}
         />
-      </div>
-    );
-  }
-  if (member.avatarUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={member.avatarUrl}
-        alt={member.nickname}
-        className="aspect-square w-full min-w-0 rounded-sm object-cover"
-        style={{ boxShadow: `0 0 0 2px ${color}` }}
-      />
-    );
-  }
-  return (
-    <div
-      className="flex aspect-square w-full min-w-0 items-center justify-center rounded-sm bg-zinc-900 font-mono text-2xl font-bold text-white"
-      style={{ boxShadow: `0 0 0 2px ${color}` }}
-    >
-      {member.nickname.slice(0, 1).toUpperCase()}
+      ) : member.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={member.avatarUrl}
+          alt={member.nickname}
+          className="absolute inset-0 h-full w-full rounded-sm object-cover"
+          style={{ boxShadow: `0 0 0 2px ${color}` }}
+        />
+      ) : (
+        <div
+          className="absolute inset-0 flex items-center justify-center rounded-sm bg-zinc-900 font-mono text-2xl font-bold text-white"
+          style={{ boxShadow: `0 0 0 2px ${color}` }}
+        >
+          {member.nickname.slice(0, 1).toUpperCase()}
+        </div>
+      )}
     </div>
   );
 }

@@ -12,30 +12,37 @@ type NavItem = {
   label: string;
 };
 
-// While only one trip exists, this is the canonical fallback for nav rendered
-// outside a /trips/[slug]/* route (root, sign-in, etc.). Replace with a
-// user-default-trip lookup once the trip picker ships.
-const DEFAULT_TRIP_SLUG = 'pcup26';
-
-function getTripSlugFromPath(pathname: string): string {
+function getTripSlugFromPath(pathname: string): string | null {
   if (pathname.startsWith('/trips/')) {
     const slug = pathname.split('/')[2];
-    if (slug) return slug;
+    if (slug && slug !== 'new') return slug;
   }
-  return DEFAULT_TRIP_SLUG;
+  return null;
 }
 
 export default function BottomNavClient({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
   const slug = getTripSlugFromPath(pathname);
-  const tripBase = `/trips/${slug}`;
+  // Inside a trip, the four primary tabs point at the trip's pages and
+  // "Me" goes to the player's trip-scoped profile. Outside a trip, those
+  // tabs are disabled (greyed out) and "Me" goes to the global /me list.
+  const tripBase = slug ? `/trips/${slug}` : null;
+  const meHref = slug ? `/trips/${slug}/me` : '/me';
 
-  const items: NavItem[] = [
-    { href: `${tripBase}/schedule`, icon: Calendar, label: 'Schedule' },
-    { href: `${tripBase}/scoreboard`, icon: Trophy, label: 'Cup' },
-    { href: `${tripBase}/feed`, icon: Flame, label: 'Feed' },
-    { href: `${tripBase}/me`, icon: User, label: 'Me' },
-  ];
+  const items: NavItem[] = tripBase
+    ? [
+        { href: `${tripBase}/schedule`, icon: Calendar, label: 'Schedule' },
+        { href: `${tripBase}/scoreboard`, icon: Trophy, label: 'Cup' },
+        { href: `${tripBase}/feed`, icon: Flame, label: 'Feed' },
+        { href: meHref, icon: User, label: 'Me' },
+      ]
+    : [
+        { href: '#', icon: Calendar, label: 'Schedule' },
+        { href: '#', icon: Trophy, label: 'Cup' },
+        { href: '#', icon: Flame, label: 'Feed' },
+        { href: meHref, icon: User, label: 'Me' },
+      ];
+  const disabled = !tripBase;
 
   return (
     <nav
@@ -44,12 +51,34 @@ export default function BottomNavClient({ isAdmin }: { isAdmin: boolean }) {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="mx-auto flex max-w-3xl items-stretch justify-around">
-        {items.map(({ href, icon: Icon, label }) => {
+        {items.map(({ href, icon: Icon, label }, i) => {
+          const isMeTab = label === 'Me';
+          // The Me tab always works (links to /me when outside a trip);
+          // the other three are disabled when there's no trip context.
+          const isDisabled = disabled && !isMeTab;
           const isActive =
-            pathname === href || pathname.startsWith(href + '/');
+            !isDisabled &&
+            (pathname === href || pathname.startsWith(href + '/'));
+
+          if (isDisabled) {
+            return (
+              <span
+                key={`${label}-${i}`}
+                aria-disabled="true"
+                className="flex flex-1 cursor-not-allowed flex-col items-center gap-1 px-2 py-3 text-zinc-700"
+                title="Open a trip from /me to use this"
+              >
+                <Icon size={20} strokeWidth={2} />
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-widest">
+                  {label}
+                </span>
+              </span>
+            );
+          }
+
           return (
             <Link
-              key={href}
+              key={`${label}-${i}`}
               href={href}
               className={`flex flex-1 flex-col items-center gap-1 px-2 py-3 transition-colors ${
                 isActive

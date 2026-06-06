@@ -3,14 +3,17 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const DEFAULT_TRIP_SLUG = 'pcup26';
-
-function getTripSlugFromPath(pathname: string): string {
+/**
+ * If we're already inside a trip URL, the Me link goes to the trip-scoped
+ * profile page. Otherwise it goes to the global /me — the user's trips
+ * list + profile edit. No more forcing the user into pcup26 by default.
+ */
+function getMeHref(pathname: string): string {
   if (pathname.startsWith('/trips/')) {
     const slug = pathname.split('/')[2];
-    if (slug) return slug;
+    if (slug) return `/trips/${slug}/me`;
   }
-  return DEFAULT_TRIP_SLUG;
+  return '/me';
 }
 
 export default function HeaderAvatarLink({
@@ -25,14 +28,14 @@ export default function HeaderAvatarLink({
   teamColor: string | null;
 }) {
   const pathname = usePathname();
-  const slug = getTripSlugFromPath(pathname);
+  const meHref = getMeHref(pathname);
 
   const url = arcadePortraitUrl ?? avatarUrl;
   const ring = arcadePortraitUrl && teamColor ? teamColor : undefined;
 
   return (
     <Link
-      href={`/trips/${slug}/me`}
+      href={meHref}
       aria-label="Your account"
       className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-sm hover:opacity-90"
       style={{
