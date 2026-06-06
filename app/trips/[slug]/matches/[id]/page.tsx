@@ -283,97 +283,230 @@ type MatchSide = {
   members: ShowdownMember[];
 };
 
+/**
+ * NBA Jam-style roster matchup card.
+ *
+ * Single outer container with two sections:
+ *   - TOP: portraits side, banner in middle, portraits side
+ *   - BOTTOM: dark "wood" panel with names (yellow) and rating bars per player
+ *
+ * Rating bar fill % is computed from the player's trip handicap, lower
+ * handicap = longer bar.
+ */
 function MatchupShowdown({ left, right }: { left: MatchSide; right: MatchSide }) {
-  return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
-      <ShowdownSide side={left} />
-      <div className="flex items-center justify-center px-1">
-        <span
-          className="font-mono text-base font-bold tabular-nums text-yellow-500"
-          style={{ textShadow: '0 0 14px rgba(202,138,4,0.5)' }}
-        >
-          VS
-        </span>
-      </div>
-      <ShowdownSide side={right} />
-    </div>
-  );
-}
-
-function ShowdownSide({ side }: { side: MatchSide }) {
-  const color = side.team.color ?? '#71717a';
+  const leftColor = left.team.color ?? '#71717a';
+  const rightColor = right.team.color ?? '#71717a';
   return (
     <div
       className="overflow-hidden rounded-sm"
       style={{
-        // One container per side: team color flows under both players as a
-        // shared backdrop. Inner ring uses the team color too so the border
-        // visually reads as part of the team, not a generic zinc-800 box.
-        background: `linear-gradient(180deg, ${color}cc 0%, ${color}88 50%, ${color}33 100%)`,
-        boxShadow: `inset 0 0 0 2px ${color}, 0 0 18px ${color}33`,
+        // Thick gold frame, NBA Jam style.
+        boxShadow:
+          '0 0 0 3px #eab308, 0 0 0 5px #18181b, 0 0 24px rgba(202,138,4,0.25)',
       }}
     >
-      <p
-        className="border-b border-white/10 px-2 py-1.5 text-center font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-white"
-        style={{ textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}
+      {/* TOP — portraits + center banner */}
+      <div
+        className="grid grid-cols-[1fr_auto_1fr] items-stretch"
+        style={{
+          background:
+            'linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%)',
+        }}
       >
-        {side.team.name}
-      </p>
-      <div className="grid grid-cols-2 items-end px-1 pt-2 pb-3">
-        {side.members.map((m) => (
-          <Portrait key={m.id} member={m} color={color} />
-        ))}
+        <PortraitsCell members={left.members} color={leftColor} align="left" />
+        <CenterBanner />
+        <PortraitsCell members={right.members} color={rightColor} align="right" />
+      </div>
+
+      {/* BOTTOM — stats panel */}
+      <div
+        className="grid grid-cols-[1fr_auto_1fr] gap-3 border-t-2 border-yellow-600 px-3 py-3"
+        style={{
+          background:
+            'linear-gradient(180deg, #44322a 0%, #2a1f1a 60%, #1a120e 100%)',
+        }}
+      >
+        <StatsCell members={left.members} color={leftColor} align="left" />
+        <div className="flex items-center px-1">
+          <p
+            className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-yellow-400"
+            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+          >
+            Power
+          </p>
+        </div>
+        <StatsCell members={right.members} color={rightColor} align="right" />
       </div>
     </div>
   );
 }
 
-function Portrait({
+function CenterBanner() {
+  return (
+    <div className="flex items-center justify-center px-3">
+      <div
+        className="flex h-12 w-14 items-center justify-center rounded-sm border-2 border-yellow-600"
+        style={{
+          background: 'linear-gradient(180deg, #ca8a04 0%, #a16207 100%)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3), 0 0 8px rgba(0,0,0,0.6)',
+        }}
+      >
+        <span
+          className="font-mono text-base font-extrabold text-black"
+          style={{ textShadow: '0 1px 0 rgba(255,255,255,0.3)' }}
+        >
+          VS
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function PortraitsCell({
+  members,
+  color,
+  align,
+}: {
+  members: ShowdownMember[];
+  color: string;
+  align: 'left' | 'right';
+}) {
+  return (
+    <div
+      className="flex items-end justify-around gap-1 px-2 pt-3 pb-2"
+      style={{
+        background: `linear-gradient(${align === 'left' ? '90deg' : '270deg'}, ${color}55 0%, transparent 100%)`,
+      }}
+    >
+      {members.map((m) => (
+        <ShowdownPortrait key={m.id} member={m} color={color} />
+      ))}
+    </div>
+  );
+}
+
+function ShowdownPortrait({
   member,
   color,
 }: {
   member: ShowdownMember;
   color: string;
 }) {
-  // Inside the shared team-color container — portraits sit directly on the
-  // team backdrop with no individual borders or rings. For non-arcade
-  // fallbacks (real photo or monogram), the small ring keeps them legible
-  // against the busy team-color gradient.
+  if (member.arcadePortraitUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={member.arcadePortraitUrl}
+        alt={member.nickname}
+        className="h-24 w-24 object-contain"
+        style={{
+          // Soft team-color glow behind the transparent portrait to make it
+          // pop off the dark navy bg.
+          filter: `drop-shadow(0 0 6px ${color}88)`,
+        }}
+      />
+    );
+  }
+  if (member.avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={member.avatarUrl}
+        alt={member.nickname}
+        className="h-20 w-20 rounded-sm object-cover"
+        style={{ boxShadow: `0 0 0 2px ${color}` }}
+      />
+    );
+  }
   return (
-    <div className="flex flex-col items-center text-center">
-      {member.arcadePortraitUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={member.arcadePortraitUrl}
-          alt={member.nickname}
-          className="h-20 w-20 object-contain"
-        />
-      ) : member.avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={member.avatarUrl}
-          alt={member.nickname}
-          className="h-16 w-16 rounded-sm object-cover ring-2 ring-black/40"
-        />
-      ) : (
-        <div className="flex h-16 w-16 items-center justify-center rounded-sm bg-black/40 font-mono text-xl font-bold text-white ring-2 ring-black/40">
-          {member.nickname.slice(0, 1).toUpperCase()}
-        </div>
-      )}
+    <div
+      className="flex h-20 w-20 items-center justify-center rounded-sm bg-zinc-900 font-mono text-2xl font-bold text-white"
+      style={{ boxShadow: `0 0 0 2px ${color}` }}
+    >
+      {member.nickname.slice(0, 1).toUpperCase()}
+    </div>
+  );
+}
+
+function StatsCell({
+  members,
+  color,
+  align,
+}: {
+  members: ShowdownMember[];
+  color: string;
+  align: 'left' | 'right';
+}) {
+  return (
+    <div className={`flex flex-col gap-2 ${align === 'right' ? 'text-right' : 'text-left'}`}>
+      {members.map((m) => (
+        <StatRow key={m.id} member={m} color={color} align={align} />
+      ))}
+    </div>
+  );
+}
+
+function StatRow({
+  member,
+  color,
+  align,
+}: {
+  member: ShowdownMember;
+  color: string;
+  align: 'left' | 'right';
+}) {
+  const pct = handicapToRating(member.tripHandicap);
+  return (
+    <div>
       <p
-        className="mt-1 max-w-full truncate px-1 text-xs font-bold text-white"
-        style={{ textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}
+        className="truncate font-mono text-[11px] font-bold uppercase tracking-widest text-yellow-300"
+        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
       >
         {member.nickname}
       </p>
-      {member.tripHandicap && (
-        <p
-          className="font-mono text-[10px] tabular-nums text-white/70"
-          style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
-        >
-          {member.tripHandicap}
-        </p>
-      )}
+      <div
+        className="mt-1 h-2.5 overflow-hidden rounded-[1px] bg-black/60"
+        style={{
+          // Direction the bar fills — left team fills L→R, right team fills R→L.
+          direction: align === 'right' ? 'rtl' : 'ltr',
+          boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.8)',
+        }}
+      >
+        <div
+          className="h-full transition-all"
+          style={{
+            width: `${pct}%`,
+            background: `linear-gradient(90deg, ${color} 0%, ${color}cc 100%)`,
+            boxShadow: `0 0 6px ${color}88`,
+          }}
+        />
+      </div>
     </div>
   );
+}
+
+/**
+ * Trip handicap → rating-bar percentage. Lower handicap (better player) gets
+ * a longer bar.
+ *
+ *   < 5      → 100%
+ *   5–10     → 90%
+ *   10–15    → 80%
+ *   15–20    → 70%
+ *   20–25    → 60%
+ *   25–30    → 50%
+ *   > 30     → 20%
+ *   unknown  → 0%
+ */
+function handicapToRating(tripHandicap: string | null): number {
+  if (tripHandicap == null) return 0;
+  const h = parseFloat(tripHandicap);
+  if (!Number.isFinite(h)) return 0;
+  if (h < 5) return 100;
+  if (h < 10) return 90;
+  if (h < 15) return 80;
+  if (h < 20) return 70;
+  if (h < 25) return 60;
+  if (h < 30) return 50;
+  return 20;
 }

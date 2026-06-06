@@ -23,9 +23,9 @@ const QUALITY: 'low' | 'medium' | 'high' = 'high';
 // Iterating this string is the entire feature; if you want to evolve the
 // look, change PROMPT and bump STYLE_VERSION so admin tooling can identify
 // portraits made on the old style later.
-export const STYLE_VERSION = 5; // v5: identity-first prompt, quality bumped to 'high'
+export const STYLE_VERSION = 6; // v6: digitized-photo NBA Jam aesthetic, not chunky pixel art
 
-const PROMPT = `Create a 16-bit arcade-game roster-card portrait of the SPECIFIC PERSON in the reference image. The reference photo is the ground truth for identity — the pixel-art style is a layer applied on top of THIS person, not a generic character inspired by them.
+const PROMPT = `Create a 1994 NBA Jam Tournament Edition style roster portrait of the SPECIFIC PERSON in the reference image. The reference photo is the ground truth for identity — the arcade style is a finish applied to THIS person's actual face, not a generic character inspired by them.
 
 IDENTITY — THIS IS THE MOST IMPORTANT REQUIREMENT:
 - The face in the output MUST be clearly identifiable as the same person in the reference photo. A friend should look at the result and immediately recognize them.
@@ -45,12 +45,12 @@ CROP:
 - Subject is wearing a plain collared polo shirt. Collar and top button area visible. No hat, no cap, no visor, no sunglasses (unless the reference person wears prescription glasses, in which case preserve them).
 - Square aspect ratio, 1024x1024.
 
-STYLE:
-- Pixel art, 16-bit / Sega Genesis / SNES era. Reference points: NBA Jam Tournament Edition (1994) roster cards, Ken Griffey Jr. Baseball portraits, Madden / NHL / PGA Tour player-select screens from the 1990s, Golden Tee Golf character cards, and modern indie pixel-art games inspired by those titles.
-- "Hall of Fame / Legendary tier RPG character icon" energy — confident, slightly heroic, slightly stoic.
-- Chunky visible pixels and pixel-perfect dithering for shading. Hard CRT-era shadows, not soft anti-aliased gradients.
-- Bright arcade-style stage lighting from the front; clean soft shadow on the off-side of the face.
-- Color palette grounded in hunter green (#14532d), bright gold (#eab308), black, and the subject's natural skin/hair tones. Subtle gold metallic highlights on the polo's shoulders, collar trim, or shirt buttons sell the "legendary" feel.
+STYLE — NBA JAM TOURNAMENT EDITION 1994 SPECIFICALLY:
+- The aesthetic is a DIGITIZED PHOTO, not chunky pixel-art. Think: real photo passed through a 1994 16-bit arcade-game's digitizer — modest pixelation from low resolution, posterized colors, slightly compressed details, but the face still reads as a real human photograph that has been color-reduced and pixelated by old hardware.
+- Subtle pixelation from the digitization process. NOT painterly. NOT illustrated. NOT chunky retro pixel-art. NOT Minecraft-style blocks. Faces should be recognizable like in the actual 1994 NBA Jam Tournament Edition player portraits, not stylized like indie pixel-art games.
+- Color palette is posterized / reduced to about 32–64 colors per face (the 16-bit color limit), giving smooth tonal regions with subtle banding instead of full photorealistic gradients.
+- Bright frontal stage lighting like a sports broadcast — face is well-lit and clearly readable. Subtle shadow on the off-side of the face.
+- Polo shirt is a flat, slightly-pixelated color block — green or gold area if recognizable team colors fit, otherwise a neutral light/medium color.
 
 BACKGROUND:
 - The image MUST have a fully transparent background (PNG alpha channel = 0 outside the subject).
@@ -61,12 +61,12 @@ BACKGROUND:
 DO NOT, UNDER ANY CIRCUMSTANCES:
 - Draw a generic person instead of this specific person. The reference is the identity; the style is a finish, not a replacement.
 - Change the subject's facial structure, skin tone, eye color, hair, or facial hair to look "more cinematic" or "more heroic."
+- Make the result chunky, blocky, Minecraft-style, indie-pixel-art-style, or painterly. NBA Jam digitized photos do not look like that.
 - Draw a golf club. There are no clubs in this picture. The subject's hands are not in the picture.
 - Draw any sports equipment, bat, ball, flag, tee, towel, or held object.
 - Show arms, hands, elbows, the subject's waist, or anything below the upper chest.
 - Add text, logos, names, jersey numbers, scoreboards, or watermarks.
 - Use blue, red, or purple anywhere.
-- Use photorealism, smooth gradients, or anti-aliasing — keep it stylized pixel art.
 - Draw a frame, border, vignette, or background pattern.`;
 
 export type PortraitResult = {
