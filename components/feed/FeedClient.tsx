@@ -16,6 +16,7 @@ import FeedComposer, { type ComposerMatchOption } from './FeedComposer';
 import ReactionsBar from './ReactionsBar';
 import UnflagMediaButton from './UnflagMediaButton';
 import DeleteFeedItemButton from './DeleteFeedItemButton';
+import MemberAvatar from '@/components/avatar/MemberAvatar';
 import type { FeedItem } from '@/lib/data/feed';
 
 type ClientFeedItem =
@@ -403,23 +404,13 @@ function Avatar({
   color: string;
 }) {
   return (
-    <div
-      className="h-9 w-9 shrink-0 overflow-hidden rounded-sm bg-zinc-900"
-      style={{ boxShadow: `0 0 0 2px ${color}` }}
-    >
-      {author.avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={author.avatarUrl}
-          alt=""
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center text-zinc-600">
-          <UserIcon size={14} />
-        </div>
-      )}
-    </div>
+    <MemberAvatar
+      nickname={author.nickname}
+      arcadePortraitUrl={author.arcadePortraitUrl}
+      avatarUrl={author.avatarUrl}
+      teamColor={color}
+      size={36}
+    />
   );
 }
 

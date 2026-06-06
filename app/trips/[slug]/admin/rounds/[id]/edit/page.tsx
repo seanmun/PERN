@@ -228,25 +228,20 @@ export default async function EditRoundPage({
         </button>
       </form>
 
-      {/* Tee times */}
+      {/* Groups (tee times) */}
       <section className="mt-10">
-        <div className="flex items-baseline justify-between">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
-            Tee times ({teeTimesList.length})
-          </p>
-          <Link
-            href={`/trips/${slug}/admin/tee-times/new?roundId=${round.id}`}
-            className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-400 hover:text-yellow-300"
-          >
-            <Plus size={11} /> Add tee time
-          </Link>
-        </div>
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
+          Groups ({teeTimesList.length})
+        </p>
 
         <div className="mt-3 space-y-3">
           {teeTimesList.length === 0 ? (
-            <p className="text-sm text-zinc-500">
-              No tee times yet. Add one to start scheduling matchups.
-            </p>
+            <Link
+              href={`/trips/${slug}/admin/tee-times/new?roundId=${round.id}`}
+              className="flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-yellow-500/40 bg-yellow-500/5 px-4 py-6 font-mono text-xs font-bold uppercase tracking-widest text-yellow-300 hover:border-yellow-500/70 hover:bg-yellow-500/10"
+            >
+              <Plus size={14} strokeWidth={2.5} /> Add the first group
+            </Link>
           ) : (
             teeTimesList.map((tt) => {
               const tteMatches = roundMatches.filter(
@@ -343,6 +338,15 @@ export default async function EditRoundPage({
                 </div>
               );
             })
+          )}
+
+          {teeTimesList.length > 0 && (
+            <Link
+              href={`/trips/${slug}/admin/tee-times/new?roundId=${round.id}`}
+              className="flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-yellow-500/40 bg-yellow-500/5 px-4 py-3 font-mono text-xs font-bold uppercase tracking-widest text-yellow-300 hover:border-yellow-500/70 hover:bg-yellow-500/10"
+            >
+              <Plus size={14} strokeWidth={2.5} /> Add another group (Group {teeTimesList.length + 1})
+            </Link>
           )}
         </div>
       </section>

@@ -15,26 +15,40 @@ function getTripSlugFromPath(pathname: string): string {
 
 export default function HeaderAvatarLink({
   initial,
+  arcadePortraitUrl,
   avatarUrl,
+  teamColor,
 }: {
   initial: string;
+  arcadePortraitUrl: string | null;
   avatarUrl: string | null;
+  teamColor: string | null;
 }) {
   const pathname = usePathname();
   const slug = getTripSlugFromPath(pathname);
+
+  const url = arcadePortraitUrl ?? avatarUrl;
+  const ring = arcadePortraitUrl && teamColor ? teamColor : undefined;
 
   return (
     <Link
       href={`/trips/${slug}/me`}
       aria-label="Your account"
-      className="flex h-10 w-10 items-center justify-center rounded-sm overflow-hidden ring-2 ring-zinc-700 hover:ring-yellow-500"
+      className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-sm hover:opacity-90"
+      style={{
+        background:
+          arcadePortraitUrl && teamColor
+            ? `linear-gradient(180deg, ${teamColor} 0%, ${teamColor}cc 70%, ${teamColor}66 100%)`
+            : undefined,
+        boxShadow: ring ? `0 0 0 2px ${ring}` : '0 0 0 2px #3f3f46',
+      }}
     >
-      {avatarUrl ? (
+      {url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={avatarUrl}
+          src={url}
           alt=""
-          className="h-full w-full object-cover"
+          className={`h-full w-full ${arcadePortraitUrl ? 'object-contain' : 'object-cover'}`}
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-zinc-800 font-mono text-sm font-bold text-zinc-300">

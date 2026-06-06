@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft, Trophy } from 'lucide-react';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { getPlayerProfile, type ProfileMatch } from '@/lib/data/player-profile';
+import MemberAvatar from '@/components/avatar/MemberAvatar';
 import {
   formatTripTime,
   formatTripDayLong,
@@ -24,7 +25,7 @@ export default async function PlayerProfilePage({
   const profile = await getPlayerProfile(id);
   if (!profile) notFound();
 
-  const { member, team, matches } = profile;
+  const { member, team, matches, arcadePortraitUrl } = profile;
   const teamColor = team?.color ?? '#3f3f46';
 
   return (
@@ -45,22 +46,14 @@ export default async function PlayerProfilePage({
           </Link>
 
           <div className="mt-6 flex items-start gap-4">
-            {member.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={member.avatarUrl}
-                alt={member.nickname}
-                className="h-24 w-24 shrink-0 rounded-sm object-cover"
-                style={{ boxShadow: `0 0 0 3px ${teamColor}` }}
-              />
-            ) : (
-              <div
-                className="flex h-24 w-24 shrink-0 items-center justify-center rounded-sm bg-zinc-900 font-mono text-3xl font-bold text-zinc-500"
-                style={{ boxShadow: `0 0 0 3px ${teamColor}` }}
-              >
-                {member.nickname.slice(0, 1).toUpperCase()}
-              </div>
-            )}
+            <MemberAvatar
+              nickname={member.nickname}
+              arcadePortraitUrl={arcadePortraitUrl}
+              avatarUrl={member.avatarUrl}
+              teamColor={teamColor}
+              size={96}
+              hero
+            />
 
             <div className="min-w-0 flex-1">
               {team && (

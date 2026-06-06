@@ -15,24 +15,34 @@ import OpenAI from 'openai';
 
 const MODEL = 'gpt-image-1';
 const SIZE = '1024x1024';
-const QUALITY: 'low' | 'medium' | 'high' = 'medium';
+// 'high' costs ~$0.16/image vs 'medium' ~$0.04, but the extra detail noticeably
+// improves face likeness — the whole point of this feature.
+const QUALITY: 'low' | 'medium' | 'high' = 'high';
 
 // Prompt — see docs/arcade-portraits.md "The prompt (this is the work)".
 // Iterating this string is the entire feature; if you want to evolve the
 // look, change PROMPT and bump STYLE_VERSION so admin tooling can identify
 // portraits made on the old style later.
-export const STYLE_VERSION = 4; // v4: explicit chest-crop, no golf-equipment leak
+export const STYLE_VERSION = 5; // v5: identity-first prompt, quality bumped to 'high'
 
-const PROMPT = `Create a 16-bit arcade-game roster-card portrait of the person in the reference image. Keep their face, skin tone, hair, and identifying features clearly recognizable.
+const PROMPT = `Create a 16-bit arcade-game roster-card portrait of the SPECIFIC PERSON in the reference image. The reference photo is the ground truth for identity — the pixel-art style is a layer applied on top of THIS person, not a generic character inspired by them.
 
-CROP — THIS IS CRITICAL:
+IDENTITY — THIS IS THE MOST IMPORTANT REQUIREMENT:
+- The face in the output MUST be clearly identifiable as the same person in the reference photo. A friend should look at the result and immediately recognize them.
+- Preserve EXACTLY (in pixel-art form): facial structure, jawline shape and width, cheekbone position, chin shape, brow line and brow shape, nose bridge and nose tip shape, nostril width, mouth width and lip shape, ear shape and size, forehead height.
+- Preserve EXACTLY: skin tone, eye color, eye shape, eyebrow color and thickness.
+- Preserve EXACTLY: hair color, hair length, hair texture (straight/wavy/curly), hairline shape, and any part / styling visible in the reference.
+- Preserve EXACTLY: facial hair (beard, mustache, stubble, goatee, sideburns) — pattern, density, color, and coverage. If clean-shaven in the reference, the output is clean-shaven.
+- Preserve any other distinguishing features visible in the reference: glasses (same frame style/color), freckles, dimples, scars, moles, ear piercings, neck tattoos.
+- The "slight caricature" allowed by the arcade aesthetic is ONLY a small exaggeration of features the person already has — not invention. Do not add or remove features.
+
+CROP:
 - The image shows the subject's HEAD, NECK, and UPPER CHEST only.
 - The BOTTOM EDGE of the canvas cuts the subject across the upper chest, just below the collarbone. Nothing below the upper chest is visible.
-- The subject's ARMS, HANDS, ELBOWS, WAIST, and EVERYTHING BELOW THE CHEST are CROPPED OUT OF FRAME entirely — they are not in the picture at all.
-- Because the arms and hands are not in the picture, the subject cannot be holding anything. No golf club, no sports equipment, no bat, no ball, no flag, no tee — there are no hands available to hold them.
-- Subject faces forward or 3/4 angle, confident expression. No motion, no swing, no action pose — it is a static portrait, like a yearbook headshot or trading-card photo.
-- Slight caricature of distinguishing features while preserving likeness, in the spirit of 90s sports-game sprite portraits.
-- Subject is wearing a plain collared polo shirt. The collar and the top button area are visible. No hat, no cap, no visor, no sunglasses.
+- The subject's ARMS, HANDS, ELBOWS, WAIST, and everything below the chest are CROPPED OUT OF FRAME entirely — they are not in the picture at all.
+- Because the arms and hands are not in the picture, the subject cannot be holding anything. No golf club, no sports equipment, no bat, no ball, no flag, no tee.
+- Subject faces forward or 3/4 angle, confident expression. Static portrait, like a yearbook headshot or trading-card photo. No motion, no swing.
+- Subject is wearing a plain collared polo shirt. Collar and top button area visible. No hat, no cap, no visor, no sunglasses (unless the reference person wears prescription glasses, in which case preserve them).
 - Square aspect ratio, 1024x1024.
 
 STYLE:
@@ -49,6 +59,8 @@ BACKGROUND:
 - Do not fill the background with any color — not green, not gold, not black, not white, not gray.
 
 DO NOT, UNDER ANY CIRCUMSTANCES:
+- Draw a generic person instead of this specific person. The reference is the identity; the style is a finish, not a replacement.
+- Change the subject's facial structure, skin tone, eye color, hair, or facial hair to look "more cinematic" or "more heroic."
 - Draw a golf club. There are no clubs in this picture. The subject's hands are not in the picture.
 - Draw any sports equipment, bat, ball, flag, tee, towel, or held object.
 - Show arms, hands, elbows, the subject's waist, or anything below the upper chest.

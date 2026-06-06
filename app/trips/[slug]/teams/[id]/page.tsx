@@ -3,8 +3,9 @@ import Link from 'next/link';
 import { ArrowLeft, ChevronRight, User } from 'lucide-react';
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { teams, tripMembers } from '@/db/schema';
+import { teams, tripMembers, users } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
+import MemberAvatar from '@/components/avatar/MemberAvatar';
 
 export default async function TeamPage({
   params,
@@ -26,11 +27,19 @@ export default async function TeamPage({
 
   if (!team) notFound();
 
-  const roster = await db
-    .select()
+  const rosterRows = await db
+    .select({
+      member: tripMembers,
+      arcadePortraitUrl: users.arcadePortraitUrl,
+    })
     .from(tripMembers)
+    .leftJoin(users, eq(tripMembers.userId, users.id))
     .where(eq(tripMembers.teamId, team.id))
     .orderBy(asc(tripMembers.nickname));
+  const roster = rosterRows.map((r) => ({
+    ...r.member,
+    arcadePortraitUrl: r.arcadePortraitUrl,
+  }));
 
   const color = team.color ?? '#3f3f46';
 
@@ -78,20 +87,13 @@ export default async function TeamPage({
               className="flex items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-900/40"
               style={{ borderLeft: `3px solid ${color}` }}
             >
-              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-sm bg-zinc-900">
-                {m.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={m.avatarUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-zinc-600">
-                    <User size={18} />
-                  </div>
-                )}
-              </div>
+              <MemberAvatar
+                nickname={m.nickname}
+                arcadePortraitUrl={m.arcadePortraitUrl}
+                avatarUrl={m.avatarUrl}
+                teamColor={color}
+                size={56}
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                   <p className="truncate text-lg font-semibold">{m.nickname}</p>

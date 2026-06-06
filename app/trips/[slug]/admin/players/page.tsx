@@ -3,8 +3,9 @@ import Link from 'next/link';
 import { asc, eq } from 'drizzle-orm';
 import { ArrowLeft, Pencil, Plus, User } from 'lucide-react';
 import { db } from '@/db/client';
-import { tripMembers, teams } from '@/db/schema';
+import { tripMembers, teams, users } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
+import MemberAvatar from '@/components/avatar/MemberAvatar';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 
 export default async function AdminPlayersPage({
@@ -29,11 +30,19 @@ export default async function AdminPlayersPage({
     .orderBy(asc(teams.name));
   const teamById = new Map(teamsList.map((t) => [t.id, t]));
 
-  const players = await db
-    .select()
+  const playerRows = await db
+    .select({
+      player: tripMembers,
+      arcadePortraitUrl: users.arcadePortraitUrl,
+    })
     .from(tripMembers)
+    .leftJoin(users, eq(tripMembers.userId, users.id))
     .where(eq(tripMembers.tripId, trip.id))
     .orderBy(asc(tripMembers.nickname));
+  const players = playerRows.map((r) => ({
+    ...r.player,
+    arcadePortraitUrl: r.arcadePortraitUrl,
+  }));
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-6">
@@ -78,20 +87,13 @@ export default async function AdminPlayersPage({
               className="flex items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-900/40"
               style={{ borderLeft: `3px solid ${color}` }}
             >
-              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-sm bg-zinc-900">
-                {p.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={p.avatarUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-zinc-600">
-                    <User size={18} />
-                  </div>
-                )}
-              </div>
+              <MemberAvatar
+                nickname={p.nickname}
+                arcadePortraitUrl={p.arcadePortraitUrl}
+                avatarUrl={p.avatarUrl}
+                teamColor={color}
+                size={48}
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                   <p className="truncate font-semibold">{p.nickname}</p>

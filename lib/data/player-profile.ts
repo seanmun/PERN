@@ -8,6 +8,7 @@ import {
   rounds,
   courses,
   teeTimes,
+  users,
 } from '@/db/schema';
 
 type TripMember = typeof tripMembers.$inferSelect;
@@ -37,6 +38,7 @@ export type ProfileMatch = {
 
 export type PlayerProfile = {
   member: TripMember;
+  arcadePortraitUrl: string | null;
   team: Team | null;
   matches: ProfileMatch[];
 };
@@ -44,12 +46,18 @@ export type PlayerProfile = {
 export async function getPlayerProfile(
   tripMemberId: string
 ): Promise<PlayerProfile | null> {
-  const [member] = await db
-    .select()
+  const [row] = await db
+    .select({
+      member: tripMembers,
+      arcadePortraitUrl: users.arcadePortraitUrl,
+    })
     .from(tripMembers)
+    .leftJoin(users, eq(tripMembers.userId, users.id))
     .where(eq(tripMembers.id, tripMemberId))
     .limit(1);
-  if (!member) return null;
+  if (!row) return null;
+  const member = row.member;
+  const arcadePortraitUrl = row.arcadePortraitUrl;
 
   let team: Team | null = null;
   if (member.teamId) {
@@ -111,6 +119,7 @@ export async function getPlayerProfile(
 
   return {
     member,
+    arcadePortraitUrl,
     team,
     matches: playerMatches.map((pm) => ({
       match: pm.match,

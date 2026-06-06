@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { eq, asc, and } from 'drizzle-orm';
 import { ArrowLeft, MapPin, Pencil, PenLine, Trophy } from 'lucide-react';
+import MemberAvatar from '@/components/avatar/MemberAvatar';
 import { db } from '@/db/client';
 import {
   matches,
@@ -12,6 +13,7 @@ import {
   courses,
   courseTees,
   teeTimes,
+  users,
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
@@ -81,6 +83,10 @@ export default async function MatchDetailPage({
       participant: matchParticipants,
       member: tripMembers,
       team: teams,
+      // Pull the arcade portrait off the user row so we can show it in the
+      // face-to-face showdown. leftJoin because unclaimed members have no
+      // userId yet — they fall back to regular avatar / monogram.
+      arcadePortraitUrl: users.arcadePortraitUrl,
     })
     .from(matchParticipants)
     .innerJoin(
@@ -88,17 +94,22 @@ export default async function MatchDetailPage({
       eq(matchParticipants.tripMemberId, tripMembers.id)
     )
     .innerJoin(teams, eq(matchParticipants.teamId, teams.id))
+    .leftJoin(users, eq(tripMembers.userId, users.id))
     .where(eq(matchParticipants.matchId, id))
     .orderBy(asc(teams.name));
+
+  type ShowdownMember = typeof tripMembers.$inferSelect & {
+    arcadePortraitUrl: string | null;
+  };
 
   // Group participants by team
   const byTeam = new Map<
     string,
-    { team: typeof teams.$inferSelect; members: (typeof tripMembers.$inferSelect)[] }
+    { team: typeof teams.$inferSelect; members: ShowdownMember[] }
   >();
   for (const p of participants) {
     const entry = byTeam.get(p.team.id) ?? { team: p.team, members: [] };
-    entry.members.push(p.member);
+    entry.members.push({ ...p.member, arcadePortraitUrl: p.arcadePortraitUrl });
     byTeam.set(p.team.id, entry);
   }
   const sides = Array.from(byTeam.values());
@@ -264,9 +275,13 @@ export default async function MatchDetailPage({
   );
 }
 
+type ShowdownMember = typeof tripMembers.$inferSelect & {
+  arcadePortraitUrl: string | null;
+};
+
 type MatchSide = {
   team: typeof teams.$inferSelect;
-  members: (typeof tripMembers.$inferSelect)[];
+  members: ShowdownMember[];
 };
 
 function MatchupShowdown({ left, right }: { left: MatchSide; right: MatchSide }) {
@@ -316,27 +331,20 @@ function Portrait({
   member,
   color,
 }: {
-  member: typeof tripMembers.$inferSelect;
+  member: ShowdownMember;
   color: string;
 }) {
   return (
     <div className="flex w-full max-w-[88px] flex-col items-center text-center">
-      {member.avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={member.avatarUrl}
-          alt={member.nickname}
-          className="aspect-square w-full rounded-sm object-cover"
-          style={{ boxShadow: `0 0 0 2px ${color}` }}
-        />
-      ) : (
-        <div
-          className="flex aspect-square w-full items-center justify-center rounded-sm bg-zinc-900 font-mono text-xl font-bold text-zinc-500"
-          style={{ boxShadow: `0 0 0 2px ${color}` }}
-        >
-          {member.nickname.slice(0, 1).toUpperCase()}
-        </div>
-      )}
+      <MemberAvatar
+        nickname={member.nickname}
+        arcadePortraitUrl={member.arcadePortraitUrl}
+        avatarUrl={member.avatarUrl}
+        teamColor={color}
+        size={88}
+        hero
+        className="w-full"
+      />
       <p className="mt-2 max-w-full truncate text-xs font-semibold">
         {member.nickname}
       </p>

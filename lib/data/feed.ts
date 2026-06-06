@@ -19,7 +19,8 @@ import {
 export type FeedAuthor = {
   tripMemberId: string | null;
   nickname: string;
-  avatarUrl: string | null;
+  avatarUrl: string | null;            // regular photo (tripMember.avatarUrl fallback)
+  arcadePortraitUrl: string | null;    // NBA Jam portrait (users.arcadePortraitUrl)
   teamId: string | null;
   teamName: string | null;
   teamColor: string | null;
@@ -123,12 +124,29 @@ export async function getFeed(
   const teamById = new Map(teamRows.map((t) => [t.id, t]));
 
   const memberRows = await db
-    .select()
+    .select({
+      member: tripMembers,
+      arcadePortraitUrl: users.arcadePortraitUrl,
+    })
     .from(tripMembers)
+    .leftJoin(users, eq(tripMembers.userId, users.id))
     .where(eq(tripMembers.tripId, tripId));
-  const memberById = new Map(memberRows.map((m) => [m.id, m]));
-  const memberByUserId = new Map(
-    memberRows.filter((m) => m.userId).map((m) => [m.userId as string, m])
+  type MemberRow = (typeof memberRows)[number]['member'] & {
+    arcadePortraitUrl: string | null;
+  };
+  const memberById = new Map<string, MemberRow>(
+    memberRows.map((r) => [
+      r.member.id,
+      { ...r.member, arcadePortraitUrl: r.arcadePortraitUrl },
+    ]),
+  );
+  const memberByUserId = new Map<string, MemberRow>(
+    memberRows
+      .filter((r) => r.member.userId)
+      .map((r) => [
+        r.member.userId as string,
+        { ...r.member, arcadePortraitUrl: r.arcadePortraitUrl },
+      ]),
   );
 
   function authorFromMember(memberId: string): FeedAuthor {
@@ -138,6 +156,7 @@ export async function getFeed(
         tripMemberId: null,
         nickname: 'Unknown',
         avatarUrl: null,
+        arcadePortraitUrl: null,
         teamId: null,
         teamName: null,
         teamColor: null,
@@ -148,6 +167,7 @@ export async function getFeed(
       tripMemberId: m.id,
       nickname: m.nickname,
       avatarUrl: m.avatarUrl,
+      arcadePortraitUrl: m.arcadePortraitUrl,
       teamId: m.teamId,
       teamName: t?.name ?? null,
       teamColor: t?.color ?? null,
@@ -161,6 +181,7 @@ export async function getFeed(
       tripMemberId: null,
       nickname: fallback,
       avatarUrl: null,
+      arcadePortraitUrl: null,
       teamId: null,
       teamName: null,
       teamColor: null,
