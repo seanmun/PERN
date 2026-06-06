@@ -24,17 +24,17 @@ const QUALITY: 'low' | 'medium' | 'high' = 'high';
 // Iterating this string is the entire feature; if you want to evolve the
 // look, change PROMPT and bump STYLE_VERSION so admin tooling can identify
 // portraits made on the old style later.
-export const STYLE_VERSION = 9; // v9: faithful-to-source, pixelate the subject, remove background
+export const STYLE_VERSION = 10; // v10: faithful-to-source, but force a golf polo regardless of source clothing
 
 const PROMPT = `Take the reference photo and produce a 1994-NBA-Jam-style digitized portrait of the SAME PERSON, with the SAME everything, just pixelated and with the background removed.
 
 GOAL — THIS IS THE WHOLE BRIEF:
-The output should look like someone fed the reference photo into a 1994 16-bit arcade game's photo digitizer: modest pixelation, color palette reduced to about 32–64 colors, subtle posterization banding. Otherwise the output is the SAME image as the reference — same person, same pose, same clothing, same accessories, same framing, same expression — minus the background.
+The output should look like someone fed the reference photo into a 1994 16-bit arcade game's photo digitizer: modest pixelation, color palette reduced to about 32–64 colors, subtle posterization banding. Otherwise the output is the SAME image as the reference — same person, same pose, same accessories, same framing, same expression — minus the background, and the subject's clothing is swapped to a golf polo shirt.
 
 FAITHFUL TO THE SOURCE:
 - The face MUST be clearly recognizable as the same person. Preserve exactly: facial structure, jawline, cheekbones, chin, brow, nose, mouth, ears, forehead, skin tone, eye color, eyebrows, hair color, hair length, hairline, facial hair pattern, freckles, dimples, scars, moles, piercings, tattoos.
 - POSE / EXPRESSION: match the reference. If they're smiling in the reference, they're smiling in the output. Same head angle. Same gaze direction. Same expression.
-- CLOTHING: match the reference. Whatever shirt / jacket / collar they're wearing in the photo is what they're wearing in the output. Do NOT substitute it for a polo shirt or anything else.
+- CLOTHING: this is the ONE exception to faithfulness. The subject is wearing a plain collared golf POLO SHIRT in the output, regardless of what they're wearing in the reference photo. Polo collar and the top button area are visible. Polo color is a flat neutral (light/medium gray, white, or muted green/gold). Do not draw a tee shirt, hoodie, jacket, sweater, button-down, jersey, suit, tank top, or anything else — always a golf polo.
 - HEADWEAR: if the reference person is wearing a cap, visor, golf hat, beanie, snapback, bucket hat, or any other headwear, preserve it in the same style, color, and orientation (forward / backward / sideways). If bareheaded, leave them bareheaded. Do NOT invent or remove headwear.
 - EYEWEAR: preserve prescription glasses (same frame style and color), sunglasses (same shape, frames, lens tint), or nothing — match the reference. Do NOT invent or remove eyewear.
 - FRAMING: match the reference's crop. If the reference is head-and-shoulders, the output is head-and-shoulders. If the reference is a wider shot or shows the person from the chest up, match that. Do not change the framing.
@@ -53,9 +53,9 @@ BACKGROUND — REMOVED:
 
 DO NOT:
 - Draw a generic person — the reference is the identity.
-- Change the subject's clothing, accessories, headwear, eyewear, hair, or facial hair.
+- Change the subject's accessories, headwear, eyewear, hair, or facial hair.
 - Restage the subject in a different pose, expression, head angle, or gaze.
-- Substitute the clothing in the reference for a polo shirt or any other garment.
+- Draw the original clothing from the reference photo — always swap to a plain golf polo shirt.
 - Make the result chunky, blocky, Minecraft-style, indie-pixel-art-style, or painterly.
 - Add text, logos, names, jersey numbers, scoreboards, watermarks, frames, borders, vignettes, or background patterns.
 - Replace the background — leave it transparent.`;
