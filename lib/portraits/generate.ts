@@ -24,51 +24,41 @@ const QUALITY: 'low' | 'medium' | 'high' = 'high';
 // Iterating this string is the entire feature; if you want to evolve the
 // look, change PROMPT and bump STYLE_VERSION so admin tooling can identify
 // portraits made on the old style later.
-export const STYLE_VERSION = 6; // v6: digitized-photo NBA Jam aesthetic, not chunky pixel art
+export const STYLE_VERSION = 9; // v9: faithful-to-source, pixelate the subject, remove background
 
-const PROMPT = `Create a 1994 NBA Jam Tournament Edition style roster portrait of the SPECIFIC PERSON in the reference image. The reference photo is the ground truth for identity — the arcade style is a finish applied to THIS person's actual face, not a generic character inspired by them.
+const PROMPT = `Take the reference photo and produce a 1994-NBA-Jam-style digitized portrait of the SAME PERSON, with the SAME everything, just pixelated and with the background removed.
 
-IDENTITY — THIS IS THE MOST IMPORTANT REQUIREMENT:
-- The face in the output MUST be clearly identifiable as the same person in the reference photo. A friend should look at the result and immediately recognize them.
-- Preserve EXACTLY (in pixel-art form): facial structure, jawline shape and width, cheekbone position, chin shape, brow line and brow shape, nose bridge and nose tip shape, nostril width, mouth width and lip shape, ear shape and size, forehead height.
-- Preserve EXACTLY: skin tone, eye color, eye shape, eyebrow color and thickness.
-- Preserve EXACTLY: hair color, hair length, hair texture (straight/wavy/curly), hairline shape, and any part / styling visible in the reference.
-- Preserve EXACTLY: facial hair (beard, mustache, stubble, goatee, sideburns) — pattern, density, color, and coverage. If clean-shaven in the reference, the output is clean-shaven.
-- Preserve any other distinguishing features visible in the reference: glasses (same frame style/color), freckles, dimples, scars, moles, ear piercings, neck tattoos.
-- The "slight caricature" allowed by the arcade aesthetic is ONLY a small exaggeration of features the person already has — not invention. Do not add or remove features.
+GOAL — THIS IS THE WHOLE BRIEF:
+The output should look like someone fed the reference photo into a 1994 16-bit arcade game's photo digitizer: modest pixelation, color palette reduced to about 32–64 colors, subtle posterization banding. Otherwise the output is the SAME image as the reference — same person, same pose, same clothing, same accessories, same framing, same expression — minus the background.
 
-CROP:
-- The image shows the subject's HEAD, NECK, and UPPER CHEST only.
-- The BOTTOM EDGE of the canvas cuts the subject across the upper chest, just below the collarbone. Nothing below the upper chest is visible.
-- The subject's ARMS, HANDS, ELBOWS, WAIST, and everything below the chest are CROPPED OUT OF FRAME entirely — they are not in the picture at all.
-- Because the arms and hands are not in the picture, the subject cannot be holding anything. No golf club, no sports equipment, no bat, no ball, no flag, no tee.
-- Subject faces forward or 3/4 angle, confident expression. Static portrait, like a yearbook headshot or trading-card photo. No motion, no swing.
-- Subject is wearing a plain collared polo shirt. Collar and top button area visible. No hat, no cap, no visor, no sunglasses (unless the reference person wears prescription glasses, in which case preserve them).
-- Square aspect ratio, 1024x1024.
+FAITHFUL TO THE SOURCE:
+- The face MUST be clearly recognizable as the same person. Preserve exactly: facial structure, jawline, cheekbones, chin, brow, nose, mouth, ears, forehead, skin tone, eye color, eyebrows, hair color, hair length, hairline, facial hair pattern, freckles, dimples, scars, moles, piercings, tattoos.
+- POSE / EXPRESSION: match the reference. If they're smiling in the reference, they're smiling in the output. Same head angle. Same gaze direction. Same expression.
+- CLOTHING: match the reference. Whatever shirt / jacket / collar they're wearing in the photo is what they're wearing in the output. Do NOT substitute it for a polo shirt or anything else.
+- HEADWEAR: if the reference person is wearing a cap, visor, golf hat, beanie, snapback, bucket hat, or any other headwear, preserve it in the same style, color, and orientation (forward / backward / sideways). If bareheaded, leave them bareheaded. Do NOT invent or remove headwear.
+- EYEWEAR: preserve prescription glasses (same frame style and color), sunglasses (same shape, frames, lens tint), or nothing — match the reference. Do NOT invent or remove eyewear.
+- FRAMING: match the reference's crop. If the reference is head-and-shoulders, the output is head-and-shoulders. If the reference is a wider shot or shows the person from the chest up, match that. Do not change the framing.
 
-STYLE — NBA JAM TOURNAMENT EDITION 1994 SPECIFICALLY:
-- The aesthetic is a DIGITIZED PHOTO, not chunky pixel-art. Think: real photo passed through a 1994 16-bit arcade-game's digitizer — modest pixelation from low resolution, posterized colors, slightly compressed details, but the face still reads as a real human photograph that has been color-reduced and pixelated by old hardware.
-- Subtle pixelation from the digitization process. NOT painterly. NOT illustrated. NOT chunky retro pixel-art. NOT Minecraft-style blocks. Faces should be recognizable like in the actual 1994 NBA Jam Tournament Edition player portraits, not stylized like indie pixel-art games.
-- Color palette is posterized / reduced to about 32–64 colors per face (the 16-bit color limit), giving smooth tonal regions with subtle banding instead of full photorealistic gradients.
-- Bright frontal stage lighting like a sports broadcast — face is well-lit and clearly readable. Subtle shadow on the off-side of the face.
-- Polo shirt is a flat, slightly-pixelated color block — green or gold area if recognizable team colors fit, otherwise a neutral light/medium color.
+STYLE — 1994 NBA JAM TOURNAMENT EDITION DIGITIZER:
+- Modest pixelation: the image looks like a real photo passed through a 16-bit arcade game's low-res digitizer. The face still reads as a real human photo that has been color-reduced and pixelated by old hardware.
+- NOT chunky retro pixel-art. NOT Minecraft blocks. NOT painterly. NOT illustrated. NOT indie-pixel-art-style. Reference: the actual 1994 NBA Jam Tournament Edition player portraits.
+- Color palette reduced to roughly 32–64 colors per face — smooth tonal regions with subtle banding instead of photorealistic gradients.
+- Lighting matches the reference photo. Do NOT restage or relight the subject.
 
-BACKGROUND:
-- The image MUST have a fully transparent background (PNG alpha channel = 0 outside the subject).
-- The subject is isolated — no scenery, no scoreboard, no frame inside the image, no checkerboard or dithered backdrop, no shadow plate, no halo, no aura, no glow.
-- A gold frame and a gold-checkered backdrop are drawn AROUND the portrait by the app via CSS at render time. The model must NOT draw them. Leave every pixel outside the subject's silhouette fully transparent.
-- Do not fill the background with any color — not green, not gold, not black, not white, not gray.
+BACKGROUND — REMOVED:
+- The image MUST have a fully transparent background (PNG alpha channel = 0 outside the subject's silhouette).
+- Whatever was behind the subject in the reference (room, sky, foliage, indoor scene, wall, fabric) is GONE. Cut the subject out and leave everything else fully transparent.
+- Do NOT replace the background with another color, gradient, scene, frame, glow, halo, shadow plate, checkerboard, dither, or pattern.
+- The app draws a gold frame and team-color backdrop around the portrait via CSS at render time. The model draws only the subject.
 
-DO NOT, UNDER ANY CIRCUMSTANCES:
-- Draw a generic person instead of this specific person. The reference is the identity; the style is a finish, not a replacement.
-- Change the subject's facial structure, skin tone, eye color, hair, or facial hair to look "more cinematic" or "more heroic."
-- Make the result chunky, blocky, Minecraft-style, indie-pixel-art-style, or painterly. NBA Jam digitized photos do not look like that.
-- Draw a golf club. There are no clubs in this picture. The subject's hands are not in the picture.
-- Draw any sports equipment, bat, ball, flag, tee, towel, or held object.
-- Show arms, hands, elbows, the subject's waist, or anything below the upper chest.
-- Add text, logos, names, jersey numbers, scoreboards, or watermarks.
-- Use blue, red, or purple anywhere.
-- Draw a frame, border, vignette, or background pattern.`;
+DO NOT:
+- Draw a generic person — the reference is the identity.
+- Change the subject's clothing, accessories, headwear, eyewear, hair, or facial hair.
+- Restage the subject in a different pose, expression, head angle, or gaze.
+- Substitute the clothing in the reference for a polo shirt or any other garment.
+- Make the result chunky, blocky, Minecraft-style, indie-pixel-art-style, or painterly.
+- Add text, logos, names, jersey numbers, scoreboards, watermarks, frames, borders, vignettes, or background patterns.
+- Replace the background — leave it transparent.`;
 
 export type PortraitOk = {
   ok: true;

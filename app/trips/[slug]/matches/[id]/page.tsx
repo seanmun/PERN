@@ -332,7 +332,7 @@ function MatchupShowdown({ left, right }: { left: MatchSide; right: MatchSide })
             className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-yellow-400"
             style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
           >
-            Power
+            Rating
           </p>
         </div>
         <StatsCell members={right.members} color={rightColor} align="right" />
