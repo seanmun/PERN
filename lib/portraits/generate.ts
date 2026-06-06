@@ -21,36 +21,40 @@ const QUALITY: 'low' | 'medium' | 'high' = 'medium';
 // Iterating this string is the entire feature; if you want to evolve the
 // look, change PROMPT and bump STYLE_VERSION so admin tooling can identify
 // portraits made on the old style later.
-export const STYLE_VERSION = 3; // v3: head-and-shoulders roster card, no swing/club
+export const STYLE_VERSION = 4; // v4: explicit chest-crop, no golf-equipment leak
 
 const PROMPT = `Create a 16-bit arcade-game roster-card portrait of the person in the reference image. Keep their face, skin tone, hair, and identifying features clearly recognizable.
 
-COMPOSITION:
-- Tight head-and-shoulders framing only. Show the face, neck, and shoulders.
-- No arms, no hands, no golf clubs, no swing, no ball, no props of any kind.
-- Subject faces forward or slightly off-axis (3/4 view), confident expression.
-- Slight caricature exaggeration of distinguishing features while preserving likeness — the way 90s sports games captured a real athlete in chunky sprite art.
-- Subject is wearing a golf polo shirt. Collar visible. No visor, no cap.
+CROP — THIS IS CRITICAL:
+- The image shows the subject's HEAD, NECK, and UPPER CHEST only.
+- The BOTTOM EDGE of the canvas cuts the subject across the upper chest, just below the collarbone. Nothing below the upper chest is visible.
+- The subject's ARMS, HANDS, ELBOWS, WAIST, and EVERYTHING BELOW THE CHEST are CROPPED OUT OF FRAME entirely — they are not in the picture at all.
+- Because the arms and hands are not in the picture, the subject cannot be holding anything. No golf club, no sports equipment, no bat, no ball, no flag, no tee — there are no hands available to hold them.
+- Subject faces forward or 3/4 angle, confident expression. No motion, no swing, no action pose — it is a static portrait, like a yearbook headshot or trading-card photo.
+- Slight caricature of distinguishing features while preserving likeness, in the spirit of 90s sports-game sprite portraits.
+- Subject is wearing a plain collared polo shirt. The collar and the top button area are visible. No hat, no cap, no visor, no sunglasses.
 - Square aspect ratio, 1024x1024.
 
 STYLE:
-- Pixel art, 16-bit / Sega Genesis / SNES era. Reference points: NBA Jam Tournament Edition (1994) roster cards, Ken Griffey Jr. Baseball player portraits, Madden / NHL / PGA Tour player-select screens from the 1990s, Golden Tee Golf character cards, and modern indie pixel-art games inspired by those titles.
+- Pixel art, 16-bit / Sega Genesis / SNES era. Reference points: NBA Jam Tournament Edition (1994) roster cards, Ken Griffey Jr. Baseball portraits, Madden / NHL / PGA Tour player-select screens from the 1990s, Golden Tee Golf character cards, and modern indie pixel-art games inspired by those titles.
 - "Hall of Fame / Legendary tier RPG character icon" energy — confident, slightly heroic, slightly stoic.
 - Chunky visible pixels and pixel-perfect dithering for shading. Hard CRT-era shadows, not soft anti-aliased gradients.
 - Bright arcade-style stage lighting from the front; clean soft shadow on the off-side of the face.
-- Color palette grounded in hunter green (#14532d), bright gold (#eab308), black, and the subject's natural skin/hair tones. Subtle gold metallic highlights along the polo's shoulders, collar trim, or shirt buttons sell the "legendary" feel.
+- Color palette grounded in hunter green (#14532d), bright gold (#eab308), black, and the subject's natural skin/hair tones. Subtle gold metallic highlights on the polo's shoulders, collar trim, or shirt buttons sell the "legendary" feel.
 
 BACKGROUND:
 - The image MUST have a fully transparent background (PNG alpha channel = 0 outside the subject).
 - The subject is isolated — no scenery, no scoreboard, no frame inside the image, no checkerboard or dithered backdrop, no shadow plate, no halo, no aura, no glow.
-- A gold frame and a gold-checkered backdrop are drawn AROUND the portrait by the app via CSS at render time. The model must NOT draw them in. Leave every pixel outside the subject's silhouette fully transparent so the app's frame and team-color backdrop show through cleanly.
+- A gold frame and a gold-checkered backdrop are drawn AROUND the portrait by the app via CSS at render time. The model must NOT draw them. Leave every pixel outside the subject's silhouette fully transparent.
 - Do not fill the background with any color — not green, not gold, not black, not white, not gray.
 
-DO NOT:
+DO NOT, UNDER ANY CIRCUMSTANCES:
+- Draw a golf club. There are no clubs in this picture. The subject's hands are not in the picture.
+- Draw any sports equipment, bat, ball, flag, tee, towel, or held object.
+- Show arms, hands, elbows, the subject's waist, or anything below the upper chest.
 - Add text, logos, names, jersey numbers, scoreboards, or watermarks.
 - Use blue, red, or purple anywhere.
-- Photorealism — keep it stylized and pixelated.
-- Add a swing, club, ball, helmet, visor, cap, or any prop.
+- Use photorealism, smooth gradients, or anti-aliasing — keep it stylized pixel art.
 - Draw a frame, border, vignette, or background pattern.`;
 
 export type PortraitResult = {
