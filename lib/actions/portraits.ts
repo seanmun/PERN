@@ -43,12 +43,8 @@ export async function generateMyArcadePortrait(
     }
 
     const result = await generateArcadePortrait(sourceUrl);
-    if (!result) {
-      return {
-        ok: false,
-        error:
-          'Portrait generation failed. Check that OPENAI_API_KEY is set and the source photo is reachable, then try again.',
-      };
+    if (!result.ok) {
+      return { ok: false, error: `[${result.reason}] ${result.detail}` };
     }
 
     await db
@@ -115,12 +111,8 @@ export async function generateArcadePortraitForPlayer(
     const userId = await ensurePortraitUser(member.id);
 
     const result = await generateArcadePortrait(sourceUrl);
-    if (!result) {
-      return {
-        ok: false,
-        error:
-          'Portrait generation failed. Check that OPENAI_API_KEY is set and the source photo is reachable, then try again.',
-      };
+    if (!result.ok) {
+      return { ok: false, error: `[${result.reason}] ${result.detail}` };
     }
 
     await db

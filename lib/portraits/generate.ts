@@ -69,18 +69,38 @@ DO NOT, UNDER ANY CIRCUMSTANCES:
 - Use blue, red, or purple anywhere.
 - Draw a frame, border, vignette, or background pattern.`;
 
-export type PortraitResult = {
+export type PortraitOk = {
+  ok: true;
   url: string;
   styleVersion: number;
 };
 
+export type PortraitErr = {
+  ok: false;
+  /** Machine-readable bucket for logging / metrics. */
+  reason:
+    | 'NO_API_KEY'
+    | 'SOURCE_FETCH_FAILED'
+    | 'OPENAI_FAILED'
+    | 'NO_IMAGE_DATA'
+    | 'BLOB_UPLOAD_FAILED';
+  /** Human-readable detail, surfaced to the admin running the action. */
+  detail: string;
+};
+
+export type PortraitResult = PortraitOk | PortraitErr;
+
 export async function generateArcadePortrait(
   sourcePhotoUrl: string,
-): Promise<PortraitResult | null> {
+): Promise<PortraitResult> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    console.warn('[portrait] OPENAI_API_KEY missing — skipping generation');
-    return null;
+    return {
+      ok: false,
+      reason: 'NO_API_KEY',
+      detail:
+        'OPENAI_API_KEY is not set. Add it in Vercel → Settings → Environment Variables (or .env.local for local dev) and redeploy.',
+    };
   }
 
   // 1. Pull the source bytes. OpenAI's images.edit endpoint needs the actual
@@ -89,17 +109,22 @@ export async function generateArcadePortrait(
   try {
     const sourceRes = await fetch(sourcePhotoUrl);
     if (!sourceRes.ok) {
-      throw new Error(
-        `Source photo fetch failed: ${sourceRes.status} ${sourceRes.statusText}`,
-      );
+      return {
+        ok: false,
+        reason: 'SOURCE_FETCH_FAILED',
+        detail: `Couldn't fetch the source photo from ${sourcePhotoUrl} — got ${sourceRes.status} ${sourceRes.statusText}.`,
+      };
     }
     const contentType = sourceRes.headers.get('content-type') ?? 'image/png';
     const buf = await sourceRes.arrayBuffer();
     const ext = contentType.includes('jpeg') ? 'jpg' : 'png';
     sourceFile = new File([buf], `source.${ext}`, { type: contentType });
   } catch (err) {
-    console.warn('[portrait] failed to fetch source photo', err);
-    return null;
+    return {
+      ok: false,
+      reason: 'SOURCE_FETCH_FAILED',
+      detail: `Source photo fetch threw: ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
 
   // 2. Hit OpenAI's image-edit endpoint with the baked prompt.
@@ -118,12 +143,23 @@ export async function generateArcadePortrait(
     });
     b64 = res.data?.[0]?.b64_json ?? undefined;
   } catch (err) {
-    console.warn('[portrait] OpenAI image edit failed', err);
-    return null;
+    // OpenAI's SDK throws an APIError with a useful `.message` and `.status`.
+    const detail =
+      err instanceof Error ? err.message : 'Unknown OpenAI error.';
+    console.error('[portrait] OpenAI image edit failed', err);
+    return {
+      ok: false,
+      reason: 'OPENAI_FAILED',
+      detail: `OpenAI rejected the request: ${detail}`,
+    };
   }
   if (!b64) {
-    console.warn('[portrait] OpenAI returned no b64_json');
-    return null;
+    return {
+      ok: false,
+      reason: 'NO_IMAGE_DATA',
+      detail:
+        'OpenAI accepted the request but returned no image data. Try again, or use a clearer source photo.',
+    };
   }
 
   // 3. Upload the generated PNG to Vercel Blob.
@@ -135,9 +171,15 @@ export async function generateArcadePortrait(
       contentType: 'image/png',
       addRandomSuffix: false,
     });
-    return { url: blob.url, styleVersion: STYLE_VERSION };
+    return { ok: true, url: blob.url, styleVersion: STYLE_VERSION };
   } catch (err) {
-    console.warn('[portrait] Blob upload failed', err);
-    return null;
+    const detail =
+      err instanceof Error ? err.message : 'Unknown Vercel Blob error.';
+    console.error('[portrait] Blob upload failed', err);
+    return {
+      ok: false,
+      reason: 'BLOB_UPLOAD_FAILED',
+      detail: `Generated image but couldn't save it to Vercel Blob: ${detail}`,
+    };
   }
 }

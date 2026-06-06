@@ -371,10 +371,15 @@ function PortraitsCell({
   color: string;
   align: 'left' | 'right';
 }) {
+  // Each portrait is a flex child with min-w-0 so the row never overflows.
+  // grid-cols-N with N = members.length divides the available width evenly
+  // and the portraits scale to fill — no more fixed widths fighting the
+  // container.
   return (
     <div
-      className="flex items-end justify-around gap-1 px-2 pt-3 pb-2"
+      className="grid items-end gap-1 px-2 pt-3 pb-2"
       style={{
+        gridTemplateColumns: `repeat(${members.length}, minmax(0, 1fr))`,
         background: `linear-gradient(${align === 'left' ? '90deg' : '270deg'}, ${color}55 0%, transparent 100%)`,
       }}
     >
@@ -394,17 +399,19 @@ function ShowdownPortrait({
 }) {
   if (member.arcadePortraitUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={member.arcadePortraitUrl}
-        alt={member.nickname}
-        className="h-24 w-24 object-contain"
-        style={{
-          // Soft team-color glow behind the transparent portrait to make it
-          // pop off the dark navy bg.
-          filter: `drop-shadow(0 0 6px ${color}88)`,
-        }}
-      />
+      <div className="aspect-square w-full min-w-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={member.arcadePortraitUrl}
+          alt={member.nickname}
+          className="h-full w-full object-contain"
+          style={{
+            // Soft team-color glow behind the transparent portrait so it
+            // pops off the dark navy bg.
+            filter: `drop-shadow(0 0 6px ${color}88)`,
+          }}
+        />
+      </div>
     );
   }
   if (member.avatarUrl) {
@@ -413,14 +420,14 @@ function ShowdownPortrait({
       <img
         src={member.avatarUrl}
         alt={member.nickname}
-        className="h-20 w-20 rounded-sm object-cover"
+        className="aspect-square w-full min-w-0 rounded-sm object-cover"
         style={{ boxShadow: `0 0 0 2px ${color}` }}
       />
     );
   }
   return (
     <div
-      className="flex h-20 w-20 items-center justify-center rounded-sm bg-zinc-900 font-mono text-2xl font-bold text-white"
+      className="flex aspect-square w-full min-w-0 items-center justify-center rounded-sm bg-zinc-900 font-mono text-2xl font-bold text-white"
       style={{ boxShadow: `0 0 0 2px ${color}` }}
     >
       {member.nickname.slice(0, 1).toUpperCase()}
