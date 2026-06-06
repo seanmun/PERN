@@ -53,10 +53,14 @@ export default async function EditProfilePage({
         <Field
           label="Trip handicap"
           name="tripHandicap"
-          defaultValue={tripMember.tripHandicap ?? ''}
+          defaultValue={tripMember.tripHandicap ?? user.handicap ?? ''}
           placeholder="24.5"
           inputMode="decimal"
-          hint="One decimal, e.g. 12.3. This drives stroke allocation for this trip."
+          hint={`One decimal, e.g. 12.3. This drives stroke allocation for THIS trip${
+            user.handicap
+              ? ` (your default is ${user.handicap} from your profile)`
+              : ''
+          }.`}
         />
         <Field
           label="GHIN number"

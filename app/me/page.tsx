@@ -88,7 +88,27 @@ export default async function GlobalMePage() {
           <h1 className="mt-1 truncate text-xl font-bold">{displayName}</h1>
           <p className="truncate text-xs text-zinc-500">{user.email}</p>
         </div>
+        <Link
+          href="/me/edit"
+          className="shrink-0 rounded-sm border border-zinc-700 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:border-yellow-500/50 hover:text-yellow-400"
+        >
+          Edit
+        </Link>
       </header>
+
+      {user.handicap && (
+        <div className="mt-4 flex items-baseline gap-2 rounded-sm border border-zinc-800 bg-zinc-950/40 px-3 py-2">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500">
+            Default handicap
+          </span>
+          <span className="font-mono text-sm font-bold tabular-nums text-zinc-100">
+            {user.handicap}
+          </span>
+          <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-zinc-600">
+            Used on new trips
+          </span>
+        </div>
+      )}
 
       <section className="mt-10">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
