@@ -59,6 +59,15 @@ export const users = pgTable('users', {
   avatarUrl: text('avatar_url'),
   ghinNumber: text('ghin_number'),
   handicap: numeric('handicap', { precision: 4, scale: 1 }),
+  // Public handle for future social features (profile URLs, @mentions,
+  // friend search). Stored lowercase; uniqueness enforced case-insensitively
+  // via the unique index. Nullable so existing users aren't forced to pick
+  // a username immediately — they can claim one on /me/edit.
+  username: text('username').unique(),
+  city: text('city'),
+  state: text('state'),
+  // The user's home club, or blank if they're a free agent.
+  clubName: text('club_name'),
   // NBA-Jam-style arcade portrait, generated from the user's regular avatar.
   arcadePortraitUrl: text('arcade_portrait_url'),
   // Source photo URL used at generation time. Preserved so re-generation

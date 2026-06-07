@@ -371,13 +371,13 @@ function PortraitsCell({
   color: string;
   align: 'left' | 'right';
 }) {
-  // Each slot is an identical aspect-square box, equal width via grid
-  // tracks. Portraits sit ON TOP of their box (object-bottom) so subjects
-  // share a common baseline — uneven AI crops still read as "standing on
-  // the same line" even if one subject is rendered taller in its frame.
+  // Bottom-aligned grid: even if subjects have different vertical sizes
+  // inside their PNGs (AI variance), every portrait gets anchored to the
+  // SAME baseline at the bottom of the cell. Reads as "standing on the
+  // same floor" instead of floating at random heights.
   return (
     <div
-      className="grid items-stretch gap-1 px-2 pt-3 pb-2"
+      className="grid items-end gap-1 px-2 pt-3"
       style={{
         gridTemplateColumns: `repeat(${members.length}, minmax(0, 1fr))`,
         background: `linear-gradient(${align === 'left' ? '90deg' : '270deg'}, ${color}55 0%, transparent 100%)`,
@@ -397,18 +397,18 @@ function PortraitSlot({
   member: ShowdownMember;
   color: string;
 }) {
-  // One uniform slot — the OUTER container is always aspect-square w-full.
-  // What's drawn INSIDE (arcade portrait / avatar photo / monogram) varies,
-  // but the box dimensions never do, so the two slots per side render at
-  // identical pixel sizes.
+  // Slot is aspect-square + bottom-aligned via flex on the wrapper. The
+  // arcade portrait's <img> uses object-contain + object-bottom so the
+  // subject's feet/chest sit at the bottom edge of the slot — uneven
+  // subject heights still read as standing on the same line.
   return (
-    <div className="relative aspect-square w-full min-w-0">
+    <div className="relative flex aspect-square w-full min-w-0 items-end justify-center">
       {member.arcadePortraitUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={member.arcadePortraitUrl}
           alt={member.nickname}
-          className="absolute inset-0 h-full w-full object-contain object-bottom"
+          className="absolute inset-x-0 bottom-0 h-full w-full object-contain object-bottom"
           style={{ filter: `drop-shadow(0 0 6px ${color}88)` }}
         />
       ) : member.avatarUrl ? (
@@ -416,7 +416,7 @@ function PortraitSlot({
         <img
           src={member.avatarUrl}
           alt={member.nickname}
-          className="absolute inset-0 h-full w-full rounded-sm object-cover"
+          className="absolute inset-0 h-full w-full rounded-sm object-cover object-bottom"
           style={{ boxShadow: `0 0 0 2px ${color}` }}
         />
       ) : (
