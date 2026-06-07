@@ -11,7 +11,7 @@ export type AuthContext = {
   isPlatformAdmin: boolean;
 };
 
-export async function getAuthContext(): Promise<AuthContext | null> {
+export async function getGlobalAuthContext(): Promise<AuthContext | null> {
   const { userId: clerkUserId } = await auth();
   if (!clerkUserId) return null;
 

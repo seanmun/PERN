@@ -1,8 +1,8 @@
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import BottomNavClient from './BottomNavClient';
 
 export default async function BottomNav() {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) return null;
 
   const isAdmin =

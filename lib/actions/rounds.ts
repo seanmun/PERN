@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { rounds, courses, courseTees } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
   isPlatformAdmin,
@@ -85,7 +85,7 @@ async function nextRoundOrder(tripId: string): Promise<number> {
 }
 
 export async function createRound(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const tripId = String(formData.get('tripId') ?? '').trim();
@@ -134,7 +134,7 @@ export async function createRound(formData: FormData): Promise<void> {
 }
 
 export async function updateRound(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const id = String(formData.get('id') ?? '').trim();
@@ -179,7 +179,7 @@ export async function updateRound(formData: FormData): Promise<void> {
 }
 
 export async function deleteRound(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const id = String(formData.get('id') ?? '').trim();

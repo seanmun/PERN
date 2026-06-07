@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { users } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import { AuthorizationError } from '@/lib/auth/permissions';
 
 function trim(v: FormDataEntryValue | null): string | null {
@@ -34,7 +34,7 @@ function parseHandicap(v: FormDataEntryValue | null): string | null {
  * per-trip handicap without touching this field.
  */
 export async function updateMyUserProfile(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const fullName = trim(formData.get('fullName'));

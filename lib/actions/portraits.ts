@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { tripMembers, users } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
   isPlatformAdmin,
@@ -31,7 +31,7 @@ export async function generateMyArcadePortrait(
   formData: FormData,
 ): Promise<PortraitActionResult> {
   try {
-    const ctx = await getAuthContext();
+    const ctx = await getGlobalAuthContext();
     if (!ctx) return { ok: false, error: 'You need to be signed in.' };
 
     const sourceUrl = String(formData.get('sourceUrl') ?? '').trim();
@@ -83,7 +83,7 @@ export async function generateArcadePortraitForPlayer(
   formData: FormData,
 ): Promise<PortraitActionResult> {
   try {
-    const ctx = await getAuthContext();
+    const ctx = await getGlobalAuthContext();
     if (!ctx) return { ok: false, error: 'You need to be signed in.' };
 
     const tripMemberId = String(formData.get('tripMemberId') ?? '').trim();
@@ -146,7 +146,7 @@ export async function generateArcadePortraitForPlayer(
  *  - tripMember.userId set: use it.
  *  - users row already exists for the email: link the tripMember and use it.
  *  - no users row: insert a stub (email only, null clerkId). On first
- *    sign-in, getAuthContext finds this row by email and attaches the
+ *    sign-in, getGlobalAuthContext finds this row by email and attaches the
  *    clerkId via existing lazy-claim logic.
  */
 async function ensurePortraitUser(tripMemberId: string): Promise<string> {
@@ -198,7 +198,7 @@ async function ensurePortraitUser(tripMemberId: string): Promise<string> {
 export async function clearArcadePortraitForPlayer(
   formData: FormData,
 ): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const tripMemberId = String(formData.get('tripMemberId') ?? '').trim();
@@ -231,7 +231,7 @@ export async function clearArcadePortraitForPlayer(
 }
 
 export async function clearMyArcadePortrait(): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   await db

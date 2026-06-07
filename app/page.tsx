@@ -12,7 +12,7 @@ import {
   Trophy,
   Users,
 } from 'lucide-react';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import HomeBgVideo from '@/components/HomeBgVideo';
 import Footer from '@/components/marketing/Footer';
 import Reveal from '@/components/marketing/Reveal';
@@ -276,7 +276,7 @@ function handicapToRating(handicap: string | null): number {
 }
 
 export default async function Home() {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (ctx) redirect('/me');
 
   return (

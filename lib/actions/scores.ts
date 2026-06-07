@@ -10,7 +10,7 @@ import {
   holeScores,
   tripMembers,
 } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
   canEnterScoreFor,
@@ -88,7 +88,7 @@ function parseGross(v: FormDataEntryValue | null): number | null {
  * Players can write their own; admin/trip-admin can write anyone's.
  */
 export async function upsertHoleScore(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   requireAuth(ctx);
 
   const matchId = String(formData.get('matchId') ?? '').trim();

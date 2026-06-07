@@ -70,41 +70,6 @@ export default async function EditProfilePage({
           hint="Optional. Used later for handicap verification."
         />
 
-        <fieldset className="space-y-4 rounded-sm border border-zinc-800 bg-zinc-950/40 p-4">
-          <legend className="px-2 font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-500">
-            Flights
-          </legend>
-          <p className="-mt-2 text-[11px] text-zinc-500">
-            Shared on the Flights page so everyone can coordinate.
-          </p>
-
-          <Field
-            label="Arrival time"
-            name="flightArrivalAt"
-            type="datetime-local"
-            defaultValue={toWallTimeInput(tripMember.flightArrivalAt)}
-            hint="Local at Pinehurst."
-          />
-          <Field
-            label="Arrival details"
-            name="flightArrivalDetails"
-            defaultValue={tripMember.flightArrivalDetails ?? ''}
-            placeholder="AA 123 from JFK → RDU"
-          />
-          <Field
-            label="Departure time"
-            name="flightDepartureAt"
-            type="datetime-local"
-            defaultValue={toWallTimeInput(tripMember.flightDepartureAt)}
-          />
-          <Field
-            label="Departure details"
-            name="flightDepartureDetails"
-            defaultValue={tripMember.flightDepartureDetails ?? ''}
-            placeholder="AA 456 RDU → JFK"
-          />
-        </fieldset>
-
         <div className="flex items-center gap-3 pt-4">
           <button
             type="submit"
@@ -159,20 +124,3 @@ function Field({
   );
 }
 
-const TRIP_TZ = 'America/New_York';
-
-function toWallTimeInput(d: Date | null | undefined): string {
-  if (!d) return '';
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: TRIP_TZ,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(d);
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '00';
-  const hour = get('hour') === '24' ? '00' : get('hour');
-  return `${get('year')}-${get('month')}-${get('day')}T${hour}:${get('minute')}`;
-}

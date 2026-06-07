@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { tripEvents } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
   isPlatformAdmin,
@@ -69,7 +69,7 @@ function readType(s: FormDataEntryValue | null): EventType {
 }
 
 export async function createEvent(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const tripId = String(formData.get('tripId') ?? '').trim();
@@ -99,7 +99,7 @@ export async function createEvent(formData: FormData): Promise<void> {
 }
 
 export async function updateEvent(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const id = String(formData.get('id') ?? '').trim();
@@ -141,7 +141,7 @@ export async function updateEvent(formData: FormData): Promise<void> {
 }
 
 export async function deleteEvent(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const id = String(formData.get('id') ?? '').trim();

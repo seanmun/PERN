@@ -11,9 +11,8 @@ import {
   matches,
   rounds,
 } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
-import { requireAuth } from '@/lib/auth/permissions';
-import { getTripSlugById } from '@/lib/auth/trip-context';
+import { AuthorizationError, requireAuth } from '@/lib/auth/permissions';
+import { getTripAuthContext, getTripSlugById } from '@/lib/auth/trip-context';
 import { REACTION_EMOJIS, REACTION_TARGET_KINDS } from '@/lib/feed/constants';
 
 async function resolveTripIdForTarget(
@@ -51,9 +50,6 @@ const VALID_EMOJIS = new Set<string>(REACTION_EMOJIS);
 const VALID_KINDS = new Set<string>(REACTION_TARGET_KINDS);
 
 export async function toggleReaction(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
-  requireAuth(ctx);
-
   const targetKindRaw = String(formData.get('targetKind') ?? '').trim();
   const targetId = String(formData.get('targetId') ?? '').trim();
   const emoji = String(formData.get('emoji') ?? '').trim();
@@ -63,6 +59,17 @@ export async function toggleReaction(formData: FormData): Promise<void> {
   if (!VALID_EMOJIS.has(emoji)) throw new Error('Invalid emoji');
 
   const targetKind = targetKindRaw as 'score' | 'media' | 'text';
+
+  // Resolve the target's trip first so we can verify the caller is on it.
+  // Any signed-in user used to be able to react to any trip's content.
+  const tripId = await resolveTripIdForTarget(targetKind, targetId);
+  if (!tripId) throw new Error('Target not found');
+
+  const ctx = await getTripAuthContext(tripId);
+  requireAuth(ctx);
+  if (!ctx.tripMember && !ctx.isPlatformAdmin) {
+    throw new AuthorizationError('You are not on this trip');
+  }
 
   const [existing] = await db
     .select()
@@ -88,9 +95,6 @@ export async function toggleReaction(formData: FormData): Promise<void> {
     });
   }
 
-  const tripId = await resolveTripIdForTarget(targetKind, targetId);
-  if (tripId) {
-    const tripSlug = await getTripSlugById(tripId);
-    revalidatePath(`/trips/${tripSlug}/feed`);
-  }
+  const tripSlug = await getTripSlugById(tripId);
+  revalidatePath(`/trips/${tripSlug}/feed`);
 }

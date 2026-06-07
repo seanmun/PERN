@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import HeaderAvatarLink from './HeaderAvatarLink';
 
 export default async function HeaderAvatar() {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
 
   if (!ctx) {
     return (

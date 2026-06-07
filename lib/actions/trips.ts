@@ -5,8 +5,9 @@ import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { teams, tripMembers, trips, users } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
-import { AuthorizationError } from '@/lib/auth/permissions';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
+import { getTripAuthContext } from '@/lib/auth/trip-context';
+import { AuthorizationError, canEditTrip } from '@/lib/auth/permissions';
 import { slugifyTripName } from '@/lib/slug';
 
 const TRIP_TZ_OFFSET = '-04:00';
@@ -51,7 +52,7 @@ function readColor(v: FormDataEntryValue | null, fallback: string): string {
 }
 
 export async function createTrip(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const name = trim(formData.get('name'));
@@ -128,9 +129,6 @@ export async function createTrip(formData: FormData): Promise<void> {
 }
 
 export async function updateTrip(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
-  if (!ctx) throw new AuthorizationError('Authentication required');
-
   const id = String(formData.get('id') ?? '').trim();
   if (!id) throw new Error('id required');
 
@@ -141,9 +139,13 @@ export async function updateTrip(formData: FormData): Promise<void> {
     .limit(1);
   if (!existing) throw new Error('Trip not found');
 
-  // Trip-admin or platform-admin.
-  const isAdmin = ctx.isPlatformAdmin || ctx.tripMember?.role === 'trip_admin';
-  if (!isAdmin) throw new AuthorizationError('Trip admin required');
+  // Scope auth to THIS trip — global getAuthContext can't tell if the caller's
+  // trip_admin role is for this trip or some other one.
+  const ctx = await getTripAuthContext(id);
+  if (!ctx) throw new AuthorizationError('Authentication required');
+  if (!canEditTrip(ctx, id)) {
+    throw new AuthorizationError('Trip admin required');
+  }
 
   const name = trim(formData.get('name'));
   if (!name) throw new Error('Trip name is required');

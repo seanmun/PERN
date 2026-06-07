@@ -5,18 +5,18 @@ import { ChevronRight, Plus, User as UserIcon } from 'lucide-react';
 import MemberAvatar from '@/components/avatar/MemberAvatar';
 import { db } from '@/db/client';
 import { trips, tripMembers } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import { claimTripMember, listClaimableSlots } from '@/lib/actions/claim';
 import SignOutLink from '@/components/SignOutLink';
 
 export default async function GlobalMePage() {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) redirect('/sign-in');
 
   const { user, isPlatformAdmin } = ctx;
 
   // Trips the user is a member of (lazy-claim matches by userId once the
-  // tripMember row has been stitched, which getAuthContext does on first load).
+  // tripMember row has been stitched, which getGlobalAuthContext does on first load).
   const memberships = await db
     .select({
       tripId: tripMembers.tripId,

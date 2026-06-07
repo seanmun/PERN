@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { tripMembers } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import { AuthorizationError } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
 
@@ -12,11 +12,11 @@ import { getTripSlugById } from '@/lib/auth/trip-context';
  * Explicit claim of a specific tripMember by id. The row's email must match
  * the calling user's email (case-insensitive) — that's the security check.
  *
- * Used when getAuthContext's lazy-claim missed a row (e.g. an admin set the
+ * Used when getGlobalAuthContext's lazy-claim missed a row (e.g. an admin set the
  * email AFTER the user's first sign-in, so the auto-claim never re-ran).
  */
 export async function claimTripMember(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const tripMemberId = String(formData.get('tripMemberId') ?? '').trim();
@@ -67,7 +67,7 @@ export type ClaimableSlot = {
  * so we can render a "claim missed slot" CTA if any slip through.
  */
 export async function listClaimableSlots(): Promise<ClaimableSlot[]> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) return [];
 
   const email = ctx.user.email.toLowerCase();

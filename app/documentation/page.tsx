@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowLeft, AlertTriangle, ShieldCheck, ShieldAlert } from 'lucide-react';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 
 export const metadata: Metadata = {
   title: 'Documentation · BuddyCup',
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function DocumentationPage() {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) redirect('/sign-in');
   if (!ctx.isPlatformAdmin) redirect('/me');
 
@@ -61,10 +61,11 @@ export default async function DocumentationPage() {
         </p>
         <Bugs />
         <p className="mt-4 text-sm text-zinc-400">
-          Note on the flights leak you observed: the page itself enforces membership. The most likely culprit is the
-          bottom-nav linking to the Pinehurst slug as a fallback instead of the current trip's slug — confirm by
-          looking at the URL bar when you saw the Pinehurst flights from a different trip. (If it really was the
-          current trip's slug, the page would have redirected and we have a different bug.)
+          The "flights from a trip I'm not on" symptom was a separate bug in <code>components/MoreMenu.tsx</code>:
+          when rendered outside a trip route, it fell back to <code>DEFAULT_TRIP_SLUG = 'pcup26'</code> and linked
+          its menu items at Pinehurst. The page itself enforced membership, but the menu deep-linked into a trip the
+          user happened to be on (Pinehurst), so no redirect fired. Fixed by removing the fallback — if there's no
+          trip in the URL, the More menu now disables.
         </p>
       </Section>
 
@@ -86,7 +87,7 @@ export default async function DocumentationPage() {
           <strong>Two auth contexts</strong> — pick the right one:
         </p>
         <List>
-          <li><code>getAuthContext()</code> — used on <code>/me</code>, claim actions, and anywhere no specific trip is in scope. Returns the user's <em>first</em> tripMember. <strong>Do not</strong> use it for permission checks on a specific trip — it can return Trip A's membership while the URL is for Trip B.</li>
+          <li><code>getGlobalAuthContext()</code> — used on <code>/me</code>, claim actions, and anywhere no specific trip is in scope. Returns the user's <em>first</em> tripMember. <strong>Do not</strong> use it for permission checks on a specific trip — it can return Trip A's membership while the URL is for Trip B.</li>
           <li><code>getTripAuthContext(tripId)</code> — used inside every <code>/trips/[slug]/*</code> page. Returns the membership for <em>that exact trip</em>, or null if not a member.</li>
         </List>
       </Section>
@@ -94,7 +95,7 @@ export default async function DocumentationPage() {
       <Section id="claims" title="4. Auth & lazy-claim flow">
         <ol className="mt-2 space-y-2 text-sm text-zinc-300 list-decimal pl-5">
           <li>Admin adds a player on <code>/trips/[slug]/admin/players/new</code> with an email. A <code>tripMembers</code> row is inserted with <code>userId = NULL</code>.</li>
-          <li>That person signs in via Clerk (magic link). <code>getAuthContext()</code> runs.</li>
+          <li>That person signs in via Clerk (magic link). <code>getGlobalAuthContext()</code> runs.</li>
           <li>Clerk email is normalized to lowercase. Lookup <code>users</code> by <code>clerkId</code> — if absent, lookup by lowercase email and attach <code>clerkId</code>, otherwise insert a new row.</li>
           <li>Bulk UPDATE: every <code>tripMembers</code> row where <code>lower(email) = email AND userId IS NULL</code> gets stitched to this user. This handles multi-trip cases.</li>
           <li><code>/me</code> queries by <code>userId</code> — the trip now appears. <code>listClaimableSlots()</code> renders any leftover unclaimed rows as a fallback "Pending claims" CTA.</li>
@@ -128,7 +129,7 @@ export default async function DocumentationPage() {
           rows={[
             ['trips', 'Top-level container', 'slug (unique), name, startDate, endDate, description, imageUrl, createdBy'],
             ['teams', 'Two teams per trip', 'tripId, name, color (hex), captainUserId'],
-            ['tripMembers', 'Roster — central to permissions', 'tripId, userId (nullable until claimed), email (nullable since 0017), teamId, nickname, avatarUrl, role (trip_admin|player), isCaptain, tripHandicap, scoutingReport, flight{Arrival,Departure}{At,Details}'],
+            ['tripMembers', 'Roster — central to permissions', 'tripId, userId (nullable until claimed), email (nullable since 0017), teamId, nickname, avatarUrl, role (trip_admin|player), isCaptain, tripHandicap, scoutingReport (flight columns retained but unused after flights page removal)'],
             ['rounds', 'Golf outings (5–6 per trip)', 'tripId, courseId, courseTeeId, date, format (match_play_2v2|singles|scramble|stroke), order, label, countsTowardCup, isHidden'],
             ['teeTimes', 'Groups within a round', 'roundId, time, groupNumber'],
             ['matches', 'One match per tee time', 'roundId, teeTimeId, status (scheduled|in_progress|completed), resultText, winningTeamId, isHalved'],
@@ -162,10 +163,10 @@ export default async function DocumentationPage() {
         <Table
           head={['Path', 'Purpose', 'Auth']}
           rows={[
-            ['/me', 'Dashboard — current trips, past trips, pending claims', 'getAuthContext'],
-            ['/me/edit', 'Profile editor (fullName, handicap, ghin, avatar, portrait)', 'getAuthContext'],
-            ['/me/past-trips', 'All past trips (endDate < today)', 'getAuthContext'],
-            ['/trips/new', 'Create a new trip (caller becomes trip_admin)', 'getAuthContext'],
+            ['/me', 'Dashboard — current trips, past trips, pending claims', 'getGlobalAuthContext'],
+            ['/me/edit', 'Profile editor (fullName, handicap, ghin, avatar, portrait)', 'getGlobalAuthContext'],
+            ['/me/past-trips', 'All past trips (endDate < today)', 'getGlobalAuthContext'],
+            ['/trips/new', 'Create a new trip (caller becomes trip_admin)', 'getGlobalAuthContext'],
             ['/documentation', 'This page', 'platform_admin only'],
           ]}
         />
@@ -177,9 +178,8 @@ export default async function DocumentationPage() {
             ['/trips/[slug]/schedule', 'Daily schedule (golf rounds + events)'],
             ['/trips/[slug]/scoreboard', 'Cup standings + individual leaderboard'],
             ['/trips/[slug]/feed', 'Trip feed (media posts, reactions, match tags)'],
-            ['/trips/[slug]/flights', 'Travel coordination — arrival/departure times'],
             ['/trips/[slug]/me', 'Your profile in this trip'],
-            ['/trips/[slug]/me/edit', 'Edit your trip profile (photo, handicap, flights)'],
+            ['/trips/[slug]/me/edit', 'Edit your trip profile (photo, handicap)'],
             ['/trips/[slug]/teams/[id]', 'Team roster'],
             ['/trips/[slug]/profile/[id]', 'Player profile + scouting report + matches'],
             ['/trips/[slug]/matches/[id]', 'Match detail card'],
@@ -223,11 +223,11 @@ export default async function DocumentationPage() {
           head={['Action', 'File', 'Check', 'Writes', 'Note']}
           rows={[
             ['createTrip', 'trips.ts', 'requireAuth', 'trips, teams, tripMembers', 'Caller becomes trip_admin of the new trip.'],
-            ['updateTrip', 'trips.ts', 'role on ctx.tripMember', 'trips', '⚠ Uses getAuthContext, not getTripAuthContext(id). Multi-trip admin can edit wrong trip.'],
+            ['updateTrip', 'trips.ts', 'role on ctx.tripMember', 'trips', '⚠ Uses getGlobalAuthContext, not getTripAuthContext(id). Multi-trip admin can edit wrong trip.'],
             ['createPlayer', 'players.ts', 'isTripAdminOf(tripId)', 'tripMembers', 'Supports shell players (email nullable) + linkedUserId.'],
             ['updatePlayer', 'players.ts', 'isTripAdminOf(player.tripId)', 'tripMembers, matchParticipants', 'Safe — derives tripId from row.'],
             ['updateMyUserProfile', 'me.ts', 'requireAuth', 'users', 'Edits caller\'s own row.'],
-            ['updateMyProfile', 'update-profile.ts', 'canEditTripMember', 'users, tripMembers', 'Trip-scoped profile + flights.'],
+            ['updateMyProfile', 'update-profile.ts', 'canEditTripMember', 'users, tripMembers', 'Trip-scoped profile (name, handicap, GHIN, avatar).'],
             ['createTeeTime / updateTeeTime / deleteTeeTime', 'tee-times.ts', 'requireTeeTimeAdmin(round.tripId)', 'teeTimes', 'Safe — joins round to get tripId.'],
             ['createRound / updateRound / deleteRound', 'rounds.ts', 'requireRoundAdmin(tripId)', 'rounds', 'Safe.'],
             ['createMatch / updateMatchParticipants / deleteMatch', 'matches.ts', 'requireMatchAdmin(round.tripId)', 'matches, matchParticipants', 'Safe.'],
@@ -491,7 +491,7 @@ function Bugs() {
       title: 'updateTrip',
       where: 'lib/actions/trips.ts',
       problem:
-        'Uses generic getAuthContext() and checks ctx.tripMember.role === "trip_admin". If the caller is admin of Trip A and submits Trip B\'s ID, the check might pass against A\'s membership while editing B.',
+        'Uses generic getGlobalAuthContext() and checks ctx.tripMember.role === "trip_admin". If the caller is admin of Trip A and submits Trip B\'s ID, the check might pass against A\'s membership while editing B.',
       fix: 'Call getTripAuthContext(id) for the specific trip being edited.',
     },
   ];

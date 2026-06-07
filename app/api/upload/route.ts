@@ -3,7 +3,7 @@ import {
   handleUpload,
   type HandleUploadBody,
 } from '@vercel/blob/client';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 
 const MAX_BYTES = 100 * 1024 * 1024; // 100 MB per file — enough for short feed videos
 
@@ -17,7 +17,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       onBeforeGenerateToken: async () => {
         // Any signed-in user can upload (avatars, etc.). Write-scope per
         // resource is enforced when the URL is saved back to the DB.
-        const ctx = await getAuthContext();
+        const ctx = await getGlobalAuthContext();
         if (!ctx) throw new Error('Not authenticated');
 
         return {

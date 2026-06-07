@@ -12,7 +12,7 @@ import {
   tripMembers,
   teams,
 } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
   isPlatformAdmin,
@@ -28,7 +28,7 @@ function requireMatchAdmin(ctx: AuthContext, tripId: string): void {
 }
 
 export async function updateMatchParticipants(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const matchId = String(formData.get('matchId') ?? '').trim();
@@ -78,7 +78,7 @@ export async function updateMatchParticipants(formData: FormData): Promise<void>
 }
 
 export async function createMatch(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const teeTimeId = String(formData.get('teeTimeId') ?? '').trim();
@@ -132,7 +132,7 @@ export async function createMatch(formData: FormData): Promise<void> {
 }
 
 export async function deleteMatch(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const matchId = String(formData.get('matchId') ?? '').trim();

@@ -4,9 +4,12 @@ import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { media, messages, matches, rounds } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
-import { AuthorizationError, requireAuth } from '@/lib/auth/permissions';
-import { getTripSlugById } from '@/lib/auth/trip-context';
+import {
+  AuthorizationError,
+  canEditTrip,
+  requireAuth,
+} from '@/lib/auth/permissions';
+import { getTripAuthContext, getTripSlugById } from '@/lib/auth/trip-context';
 import { moderateImage } from '@/lib/moderation/sightengine';
 
 function trim(v: FormDataEntryValue | null): string | null {
@@ -37,8 +40,12 @@ async function validateMatchInTrip(
 }
 
 export async function createMediaPost(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const tripId = readTripId(formData);
+  const ctx = await getTripAuthContext(tripId);
   requireAuth(ctx);
+  if (!ctx.tripMember && !ctx.isPlatformAdmin) {
+    throw new AuthorizationError('You are not on this trip');
+  }
 
   const url = trim(formData.get('url'));
   if (!url) throw new Error('Media URL required');
@@ -50,7 +57,6 @@ export async function createMediaPost(formData: FormData): Promise<void> {
   const caption = trim(formData.get('caption'));
   const matchId = trim(formData.get('matchId'));
 
-  const tripId = readTripId(formData);
   await validateMatchInTrip(matchId, tripId);
 
   // Moderation — image only for now. Videos pass through (would need frame
@@ -83,12 +89,6 @@ export async function createMediaPost(formData: FormData): Promise<void> {
 }
 
 export async function unflagMediaPost(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
-  requireAuth(ctx);
-  if (!ctx.isPlatformAdmin && ctx.tripMember?.role !== 'trip_admin') {
-    throw new AuthorizationError('Trip admin required');
-  }
-
   const id = String(formData.get('id') ?? '').trim();
   if (!id) throw new Error('id required');
 
@@ -98,6 +98,12 @@ export async function unflagMediaPost(formData: FormData): Promise<void> {
     .where(eq(media.id, id))
     .limit(1);
   if (!row) throw new Error('Media not found');
+
+  const ctx = await getTripAuthContext(row.tripId);
+  requireAuth(ctx);
+  if (!canEditTrip(ctx, row.tripId)) {
+    throw new AuthorizationError('Trip admin required');
+  }
 
   await db
     .update(media)
@@ -109,13 +115,15 @@ export async function unflagMediaPost(formData: FormData): Promise<void> {
 }
 
 export async function createTextPost(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const tripId = readTripId(formData);
+  const ctx = await getTripAuthContext(tripId);
   requireAuth(ctx);
+  if (!ctx.tripMember && !ctx.isPlatformAdmin) {
+    throw new AuthorizationError('You are not on this trip');
+  }
 
   const body = trim(formData.get('body'));
   if (!body) throw new Error('Message body required');
-
-  const tripId = readTripId(formData);
 
   await db.insert(messages).values({
     tripId,
@@ -128,18 +136,15 @@ export async function createTextPost(formData: FormData): Promise<void> {
 }
 
 export async function deleteFeedItem(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
-  requireAuth(ctx);
-
   const kind = trim(formData.get('kind'));
   const id = trim(formData.get('id'));
   if (!kind || !id) throw new Error('kind and id required');
 
-  const isAdmin =
-    ctx.isPlatformAdmin || ctx.tripMember?.role === 'trip_admin';
-
-  let tripId: string | null = null;
-
+  // Fetch the row first so we know which trip's context to load. The auth
+  // check has to be scoped to THIS post's trip — a Trip A admin must not be
+  // able to delete Trip B's posts.
+  let tripId: string;
+  let ownerUserId: string;
   if (kind === 'media') {
     const [row] = await db
       .select()
@@ -147,12 +152,8 @@ export async function deleteFeedItem(formData: FormData): Promise<void> {
       .where(eq(media.id, id))
       .limit(1);
     if (!row) return;
-    const isOwner = row.uploadedBy === ctx.user.id;
-    if (!isOwner && !isAdmin) {
-      throw new AuthorizationError('Only the uploader or an admin can delete');
-    }
     tripId = row.tripId;
-    await db.delete(media).where(eq(media.id, id));
+    ownerUserId = row.uploadedBy;
   } else if (kind === 'text') {
     const [row] = await db
       .select()
@@ -160,18 +161,26 @@ export async function deleteFeedItem(formData: FormData): Promise<void> {
       .where(eq(messages.id, id))
       .limit(1);
     if (!row) return;
-    const isOwner = row.authorId === ctx.user.id;
-    if (!isOwner && !isAdmin) {
-      throw new AuthorizationError('Only the author or an admin can delete');
-    }
     tripId = row.tripId;
-    await db.delete(messages).where(eq(messages.id, id));
+    ownerUserId = row.authorId;
   } else {
     throw new Error('Cannot delete this item kind');
   }
 
-  if (tripId) {
-    const tripSlug = await getTripSlugById(tripId);
-    revalidatePath(`/trips/${tripSlug}/feed`);
+  const ctx = await getTripAuthContext(tripId);
+  requireAuth(ctx);
+  const isOwner = ownerUserId === ctx.user.id;
+  const isAdmin = canEditTrip(ctx, tripId);
+  if (!isOwner && !isAdmin) {
+    throw new AuthorizationError('Only the author or an admin can delete');
   }
+
+  if (kind === 'media') {
+    await db.delete(media).where(eq(media.id, id));
+  } else {
+    await db.delete(messages).where(eq(messages.id, id));
+  }
+
+  const tripSlug = await getTripSlugById(tripId);
+  revalidatePath(`/trips/${tripSlug}/feed`);
 }

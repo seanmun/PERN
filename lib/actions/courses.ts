@@ -11,7 +11,7 @@ import {
   courseTeeYardages,
   rounds,
 } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
   isPlatformAdmin,
@@ -35,7 +35,7 @@ function intOrNull(v: FormDataEntryValue | null): number | null {
 }
 
 async function ensureCourseAdmin(formData: FormData): Promise<string> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const tripId = String(formData.get('tripId') ?? '').trim();

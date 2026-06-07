@@ -33,7 +33,7 @@ export const getTripSlugById = cache(async (tripId: string): Promise<string> => 
 });
 
 /**
- * Trip-scoped auth context. Unlike getAuthContext() (which returns the user's
+ * Trip-scoped auth context. Unlike getGlobalAuthContext() (which returns the user's
  * first matching tripMember), this returns the tripMember for the *given* trip
  * — or null if the user isn't on it. Platform admins still get null for
  * tripMember; their access flows through ctx.isPlatformAdmin in the cascade.

@@ -5,21 +5,9 @@ import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { users, tripMembers } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import { AuthorizationError, canEditTripMember, requireAuth } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
-
-// Trip is in EDT (-04:00) in August. Wall-time string → UTC.
-const TRIP_TZ_OFFSET = '-04:00';
-
-function parseFlightTime(v: FormDataEntryValue | null): Date | null {
-  if (v == null) return null;
-  const s = String(v).trim();
-  if (!s) return null;
-  const d = new Date(`${s}:00${TRIP_TZ_OFFSET}`);
-  if (Number.isNaN(d.getTime())) throw new Error('Invalid flight time');
-  return d;
-}
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;
@@ -42,7 +30,7 @@ function parseHandicap(v: FormDataEntryValue | null): string | null {
 }
 
 export async function updateMyProfile(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   requireAuth(ctx);
 
   if (!ctx.tripMember) {
@@ -57,10 +45,6 @@ export async function updateMyProfile(formData: FormData): Promise<void> {
   const avatarUrl = trimOrNull(formData.get('avatarUrl'));
   const ghinNumber = trimOrNull(formData.get('ghinNumber'));
   const tripHandicap = parseHandicap(formData.get('tripHandicap'));
-  const flightArrivalAt = parseFlightTime(formData.get('flightArrivalAt'));
-  const flightArrivalDetails = trimOrNull(formData.get('flightArrivalDetails'));
-  const flightDepartureAt = parseFlightTime(formData.get('flightDepartureAt'));
-  const flightDepartureDetails = trimOrNull(formData.get('flightDepartureDetails'));
 
   await db
     .update(users)
@@ -76,10 +60,6 @@ export async function updateMyProfile(formData: FormData): Promise<void> {
     .set({
       tripHandicap,
       avatarUrl,
-      flightArrivalAt,
-      flightArrivalDetails,
-      flightDepartureAt,
-      flightDepartureDetails,
     })
     .where(eq(tripMembers.id, ctx.tripMember.id));
 

@@ -1,11 +1,10 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Pencil, PlaneLanding, PlaneTakeoff } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { teams } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { formatTripDayLong, formatTripTime } from '@/lib/format';
 import SignOutLink from '@/components/SignOutLink';
 
 export default async function MePage({
@@ -111,50 +110,6 @@ export default async function MePage({
         {isPlatformAdmin && <Pill label="PLATFORM ADMIN" accent="#f59e0b" />}
       </div>
 
-      <section className="mt-8">
-        <div className="flex items-baseline justify-between">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
-            Flights
-          </p>
-          <Link
-            href={`/trips/${slug}/flights`}
-            className="font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500 hover:text-yellow-400"
-          >
-            See everyone
-          </Link>
-        </div>
-
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <MyFlightLeg
-            icon={<PlaneLanding size={14} className="text-emerald-400" />}
-            label="Arrive"
-            at={tripMember.flightArrivalAt}
-            details={tripMember.flightArrivalDetails}
-          />
-          <MyFlightLeg
-            icon={<PlaneTakeoff size={14} className="text-zinc-400" />}
-            label="Depart"
-            at={tripMember.flightDepartureAt}
-            details={tripMember.flightDepartureDetails}
-          />
-        </div>
-
-        {!tripMember.flightArrivalAt &&
-          !tripMember.flightDepartureAt &&
-          !tripMember.flightArrivalDetails &&
-          !tripMember.flightDepartureDetails && (
-            <Link
-              href={`/trips/${slug}/me/edit`}
-              className="mt-3 flex items-center justify-between rounded-sm border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 hover:bg-yellow-500/10"
-            >
-              <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-yellow-300">
-                Add your flight details
-              </span>
-              <ChevronRight size={14} className="text-yellow-400" />
-            </Link>
-          )}
-      </section>
-
       <div className="mt-10 border-t border-zinc-800 pt-6 text-sm text-zinc-500">
         <p className="font-mono text-xs uppercase tracking-widest text-zinc-600">
           Trip
@@ -172,42 +127,6 @@ export default async function MePage({
       <div className="mt-4">
         <SignOutLink />
       </div>
-    </div>
-  );
-}
-
-function MyFlightLeg({
-  icon,
-  label,
-  at,
-  details,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  at: Date | null;
-  details: string | null;
-}) {
-  return (
-    <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-3">
-      <div className="flex items-center gap-1.5">
-        {icon}
-        <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
-          {label}
-        </p>
-      </div>
-      {at ? (
-        <>
-          <p className="mt-1 text-sm text-zinc-200">{formatTripDayLong(at)}</p>
-          <p className="font-mono text-xs tabular-nums text-yellow-400">
-            {formatTripTime(at)}
-          </p>
-        </>
-      ) : (
-        <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-zinc-600">
-          Not set yet
-        </p>
-      )}
-      {details && <p className="mt-1 text-xs text-zinc-400">{details}</p>}
     </div>
   );
 }

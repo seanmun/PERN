@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { tripMembers, teams, matchParticipants, matches, rounds, users } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
   isPlatformAdmin,
@@ -30,7 +30,7 @@ function parseHandicap(v: FormDataEntryValue | null): string | null {
 }
 
 export async function createPlayer(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const tripId = String(formData.get('tripId') ?? '').trim();
@@ -118,7 +118,7 @@ export async function createPlayer(formData: FormData): Promise<void> {
 }
 
 export async function updatePlayer(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const id = String(formData.get('id') ?? '').trim();

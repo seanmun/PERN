@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import { updateMyUserProfile } from '@/lib/actions/me';
 import PhotoWithPortraitSection from '@/components/portraits/PhotoWithPortraitSection';
 
 export default async function GlobalMeEditPage() {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) redirect('/sign-in?redirect_url=/me/edit');
 
   const { user } = ctx;

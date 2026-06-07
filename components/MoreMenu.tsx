@@ -4,17 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, Plane, Cog } from 'lucide-react';
+import { Menu, Cog } from 'lucide-react';
 
-// Mirror of BottomNavClient. Once trip-picker ships, derive from user default.
-const DEFAULT_TRIP_SLUG = 'pcup26';
-
-function getTripSlugFromPath(pathname: string): string {
+function getTripSlugFromPath(pathname: string): string | null {
   if (pathname.startsWith('/trips/')) {
     const slug = pathname.split('/')[2];
-    if (slug) return slug;
+    if (slug && slug !== 'new') return slug;
   }
-  return DEFAULT_TRIP_SLUG;
+  return null;
 }
 
 export default function MoreMenu({ isAdmin }: { isAdmin: boolean }) {
@@ -22,16 +19,13 @@ export default function MoreMenu({ isAdmin }: { isAdmin: boolean }) {
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const slug = getTripSlugFromPath(pathname);
-  const tripBase = `/trips/${slug}`;
+  const tripBase = slug ? `/trips/${slug}` : null;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
-
-  // Close menu when route changes
   useEffect(() => setOpen(false), [pathname]);
 
-  // Close on Escape and click outside
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -56,8 +50,24 @@ export default function MoreMenu({ isAdmin }: { isAdmin: boolean }) {
     };
   }, [open]);
 
-  const activeWhenOnMenuPath =
-    pathname.includes('/admin') || pathname.includes('/flights');
+  const showAdmin = Boolean(tripBase && isAdmin);
+  const hasItems = showAdmin;
+  const activeWhenOnMenuPath = pathname.includes('/admin');
+
+  if (!hasItems) {
+    return (
+      <span
+        aria-disabled="true"
+        className="flex flex-1 cursor-not-allowed flex-col items-center gap-1 px-2 py-3 text-zinc-700"
+        title="Open a trip to use this"
+      >
+        <Menu size={20} strokeWidth={2} />
+        <span className="font-mono text-[10px] font-semibold uppercase tracking-widest">
+          More
+        </span>
+      </span>
+    );
+  }
 
   return (
     <div className="flex flex-1 items-stretch">
@@ -88,19 +98,12 @@ export default function MoreMenu({ isAdmin }: { isAdmin: boolean }) {
               className="fixed right-2 z-[60] w-52 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 shadow-2xl"
               style={{ bottom: 'calc(env(safe-area-inset-bottom) + 72px)' }}
             >
-              <MenuLink
-                href={`${tripBase}/flights`}
-                icon={<Plane size={16} />}
-                label="Flights"
-                hint="Travel coordination"
-              />
-              {isAdmin && (
+              {showAdmin && tripBase && (
                 <MenuLink
                   href={`${tripBase}/admin`}
                   icon={<Cog size={16} />}
                   label="Admin"
                   hint="Trip controls"
-                  divider
                 />
               )}
             </div>,

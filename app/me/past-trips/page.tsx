@@ -4,10 +4,10 @@ import { asc, eq } from 'drizzle-orm';
 import { ArrowLeft, ChevronRight, User as UserIcon } from 'lucide-react';
 import { db } from '@/db/client';
 import { trips, tripMembers } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 
 export default async function PastTripsPage() {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) redirect('/sign-in');
 
   const { user } = ctx;

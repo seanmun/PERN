@@ -3,7 +3,7 @@
 import { sql, or } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { users } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import { AuthorizationError } from '@/lib/auth/permissions';
 
 export type UserSearchResult = {
@@ -33,7 +33,7 @@ export async function searchUsers(
   query: string,
   opts?: { limit?: number },
 ): Promise<UserSearchResult[]> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const q = query.trim();

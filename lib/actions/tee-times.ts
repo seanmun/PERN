@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { teeTimes, rounds } from '@/db/schema';
-import { getAuthContext } from '@/lib/auth/current-user';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
   isPlatformAdmin,
@@ -40,7 +40,7 @@ function parseGroup(v: FormDataEntryValue | null): number {
 }
 
 export async function createTeeTime(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const roundId = String(formData.get('roundId') ?? '').trim();
@@ -68,7 +68,7 @@ export async function createTeeTime(formData: FormData): Promise<void> {
 }
 
 export async function updateTeeTime(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const id = String(formData.get('id') ?? '').trim();
@@ -99,7 +99,7 @@ export async function updateTeeTime(formData: FormData): Promise<void> {
 }
 
 export async function deleteTeeTime(formData: FormData): Promise<void> {
-  const ctx = await getAuthContext();
+  const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
 
   const id = String(formData.get('id') ?? '').trim();
