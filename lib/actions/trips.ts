@@ -124,7 +124,7 @@ export async function createTrip(formData: FormData): Promise<void> {
     .set({ defaultTripId: trip.id, updatedAt: new Date() })
     .where(eq(users.id, ctx.user.id));
 
-  revalidatePath('/me');
+  revalidatePath('/home');
   redirect(`/trips/${slug}/admin/players`);
 }
 
@@ -163,7 +163,7 @@ export async function updateTrip(formData: FormData): Promise<void> {
     .set({ name, startDate, endDate, description, imageUrl })
     .where(eq(trips.id, id));
 
-  revalidatePath('/me');
+  revalidatePath('/home');
   revalidatePath(`/trips/${existing.slug}`, 'layout');
   redirect(`/trips/${existing.slug}/admin/details`);
 }

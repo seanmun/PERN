@@ -1,337 +1,181 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { asc, eq, isNotNull } from 'drizzle-orm';
-import { ChevronRight, Plus, User as UserIcon } from 'lucide-react';
-import MemberAvatar from '@/components/avatar/MemberAvatar';
-import { db } from '@/db/client';
-import { trips, tripMembers } from '@/db/schema';
+import { ArrowLeft } from 'lucide-react';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
-import { claimTripMember, listClaimableSlots } from '@/lib/actions/claim';
-import SignOutLink from '@/components/SignOutLink';
+import { updateMyUserProfile } from '@/lib/actions/me';
+import PhotoWithPortraitSection from '@/components/portraits/PhotoWithPortraitSection';
 
-export default async function GlobalMePage() {
+export default async function MyProfilePage() {
   const ctx = await getGlobalAuthContext();
-  if (!ctx) redirect('/sign-in');
+  if (!ctx) redirect('/sign-in?redirect_url=/me');
 
-  const { user, isPlatformAdmin } = ctx;
-
-  // Trips the user is a member of (lazy-claim matches by userId once the
-  // tripMember row has been stitched, which getGlobalAuthContext does on first load).
-  const memberships = await db
-    .select({
-      tripId: tripMembers.tripId,
-      role: tripMembers.role,
-      isCaptain: tripMembers.isCaptain,
-      nickname: tripMembers.nickname,
-      tripName: trips.name,
-      tripSlug: trips.slug,
-      tripImageUrl: trips.imageUrl,
-      startDate: trips.startDate,
-      endDate: trips.endDate,
-    })
-    .from(tripMembers)
-    .innerJoin(trips, eq(tripMembers.tripId, trips.id))
-    .where(eq(tripMembers.userId, user.id))
-    .orderBy(asc(trips.startDate));
-
-  // Split memberships into current (upcoming or in-flight) and past
-  // (endDate strictly before today, trip-TZ). Trips without an endDate are
-  // treated as current — they're not over yet.
-  const today = getTripLocalToday();
-  const currentMemberships = memberships.filter(
-    (m) => !m.endDate || m.endDate >= today
-  );
-  const pastMemberships = memberships
-    .filter((m) => m.endDate && m.endDate < today)
-    // Most-recent past trip first.
-    .sort((a, b) => (b.endDate!.getTime() - a.endDate!.getTime()));
-  const PAST_TRIPS_VISIBLE = 5;
-  const pastVisible = pastMemberships.slice(0, PAST_TRIPS_VISIBLE);
-  const pastHidden = pastMemberships.length - pastVisible.length;
-
-  // Any tripMember rows whose email matches the user but never got claimed.
-  // Auto-claim usually handles this on sign-in; this catches anyone the
-  // admin added AFTER first sign-in or any case-different stragglers.
-  const claimableSlots = await listClaimableSlots();
-
-  // Platform admins also see trips they're NOT on (godmode).
-  let otherTrips: Array<{ id: string; name: string; slug: string }> = [];
-  if (isPlatformAdmin) {
-    const memberTripIds = new Set(memberships.map((m) => m.tripId));
-    const all = await db
-      .select({ id: trips.id, name: trips.name, slug: trips.slug })
-      .from(trips)
-      .where(isNotNull(trips.id))
-      .orderBy(asc(trips.startDate));
-    otherTrips = all.filter((t) => !memberTripIds.has(t.id));
-  }
-
-  const displayName = user.displayName ?? user.fullName ?? user.email;
-  const initial = (user.displayName ?? user.fullName ?? user.email)
-    .slice(0, 1)
-    .toUpperCase();
+  const { user } = ctx;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 pb-24 pt-6">
-      <header className="flex items-center gap-4">
-        <MemberAvatar
-          nickname={displayName}
-          arcadePortraitUrl={user.arcadePortraitUrl ?? null}
-          avatarUrl={user.avatarUrl ?? null}
-          size={72}
+    <div className="mx-auto max-w-md px-4 pb-24 pt-6">
+      <Link
+        href="/home"
+        className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500 hover:text-yellow-400"
+      >
+        <ArrowLeft size={12} /> Home
+      </Link>
+
+      <h1 className="mt-6 text-2xl font-bold tracking-tight">Profile</h1>
+      <p className="mt-1 text-xs text-zinc-500">
+        Your platform-wide profile. The handicap here is your default — when
+        you join a new trip, your trip handicap starts from this value. Trip
+        admins can override your handicap on a specific trip without changing
+        this one.
+      </p>
+
+      <form action={updateMyUserProfile} className="mt-8 space-y-6">
+        <PhotoWithPortraitSection
+          photoName="avatarUrl"
+          photoDefaultValue={user.avatarUrl ?? null}
+          portraitUrl={user.arcadePortraitUrl ?? null}
+          redirectTo="/me"
         />
-        <div className="min-w-0 flex-1">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
-            Signed in
+
+        <Field label="Email">
+          <input
+            type="email"
+            value={user.email}
+            disabled
+            className={`${inputCls} cursor-not-allowed opacity-60`}
+          />
+          <p className="mt-1.5 text-[11px] text-zinc-500">
+            Email comes from your sign-in account and can&apos;t be changed here.
           </p>
-          <h1 className="mt-1 truncate text-xl font-bold">{displayName}</h1>
-          <p className="truncate text-xs text-zinc-500">{user.email}</p>
-        </div>
-        <Link
-          href="/me/edit"
-          className="shrink-0 rounded-sm border border-zinc-700 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:border-yellow-500/50 hover:text-yellow-400"
+        </Field>
+
+        <Field label="Full name">
+          <input
+            type="text"
+            name="fullName"
+            defaultValue={user.fullName ?? ''}
+            placeholder="Sean Munley"
+            className={inputCls}
+          />
+        </Field>
+
+        <Field
+          label="Username"
+          hint="3–20 characters, lowercase. Will be your @handle when friends/social ships."
         >
-          Edit
-        </Link>
-      </header>
+          <input
+            type="text"
+            name="username"
+            defaultValue={user.username ?? ''}
+            placeholder="seanmun"
+            autoCapitalize="none"
+            autoComplete="off"
+            spellCheck={false}
+            className={inputCls}
+          />
+        </Field>
 
-      {user.handicap && (
-        <div className="mt-4 flex items-baseline gap-2 rounded-sm border border-zinc-800 bg-zinc-950/40 px-3 py-2">
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500">
-            Default handicap
-          </span>
-          <span className="font-mono text-sm font-bold tabular-nums text-zinc-100">
-            {user.handicap}
-          </span>
-          <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-zinc-600">
-            Used on new trips
-          </span>
-        </div>
-      )}
+        <Field
+          label="Handicap"
+          hint="One decimal, e.g. 12.3. This is your default across every trip you join. Trip admins can override per trip."
+        >
+          <input
+            type="text"
+            name="handicap"
+            inputMode="decimal"
+            defaultValue={user.handicap ?? ''}
+            placeholder="12.3"
+            className={inputCls}
+          />
+        </Field>
 
-      {claimableSlots.length > 0 && (
-        <section className="mt-8">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-emerald-400">
-            Pending claims · {claimableSlots.length}
-          </p>
-          <p className="mt-1 text-[11px] text-zinc-500">
-            Trip admins added you to these but the slot hasn&apos;t been linked to your account yet. Claim it to make changes.
-          </p>
-          <div className="mt-3 space-y-2">
-            {claimableSlots.map((s) => (
-              <form
-                key={s.tripMemberId}
-                action={claimTripMember}
-                className="flex items-center gap-3 rounded-sm border border-emerald-700/40 bg-emerald-950/20 p-3"
-              >
-                <input type="hidden" name="tripMemberId" value={s.tripMemberId} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-zinc-100">
-                    {s.tripName}
-                  </p>
-                  <p className="truncate font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-                    as {s.nickname}
-                  </p>
-                </div>
-                <button
-                  type="submit"
-                  className="shrink-0 rounded-sm border border-emerald-500/60 bg-emerald-500/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-300 hover:bg-emerald-500/20"
-                >
-                  Claim
-                </button>
-              </form>
-            ))}
-          </div>
-        </section>
-      )}
+        <Field
+          label="GHIN number"
+          hint="Optional. Used later for handicap verification."
+        >
+          <input
+            type="text"
+            name="ghinNumber"
+            defaultValue={user.ghinNumber ?? ''}
+            placeholder="0000000"
+            className={inputCls}
+          />
+        </Field>
 
-      <section className="mt-10">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
-          Your trips
-        </p>
+        <Field label="Home club" hint="Where you play most. Leave blank if you're a free agent.">
+          <input
+            type="text"
+            name="clubName"
+            defaultValue={user.clubName ?? ''}
+            placeholder="Pinehurst Resort"
+            className={inputCls}
+          />
+        </Field>
 
-        <div className="mt-3 space-y-2">
-          <Link
-            href="/trips/new"
-            className="flex items-center gap-3 rounded-sm border border-dashed border-yellow-500/40 bg-zinc-950/40 p-4 transition-colors hover:border-yellow-500/70 hover:bg-yellow-500/5"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-yellow-500/10 text-yellow-500">
-              <Plus size={18} strokeWidth={2.5} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-yellow-400">Create new trip</p>
-              <p className="truncate font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-                You&apos;ll be the trip admin
-              </p>
-            </div>
-            <ChevronRight size={14} className="shrink-0 text-yellow-500/60" />
-          </Link>
-
-          {currentMemberships.length === 0 ? (
-            <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-6 text-center">
-              <p className="text-sm text-zinc-400">No upcoming trips yet.</p>
-              <p className="mt-1 text-xs text-zinc-600">
-                A trip admin needs to add you, or you need an invite link.
-              </p>
-            </div>
-          ) : (
-            currentMemberships.map((m) => (
-              <TripCard
-                key={m.tripId}
-                href={`/trips/${m.tripSlug}/schedule`}
-                name={m.tripName}
-                imageUrl={m.tripImageUrl}
-                dates={formatDates(m.startDate, m.endDate)}
-                nickname={m.nickname}
-                role={
-                  m.role === 'trip_admin'
-                    ? 'Admin'
-                    : m.isCaptain
-                      ? 'Captain'
-                      : 'Player'
-                }
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2">
+            <Field label="City">
+              <input
+                type="text"
+                name="city"
+                defaultValue={user.city ?? ''}
+                placeholder="Hoboken"
+                className={inputCls}
               />
-            ))
-          )}
+            </Field>
+          </div>
+          <div className="col-span-1">
+            <Field label="State">
+              <input
+                type="text"
+                name="state"
+                defaultValue={user.state ?? ''}
+                placeholder="NJ"
+                maxLength={2}
+                autoCapitalize="characters"
+                className={inputCls}
+              />
+            </Field>
+          </div>
         </div>
 
-        {pastMemberships.length > 0 && (
-          <div className="mt-10">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
-              Past trips
-            </p>
-            <div className="mt-3 space-y-2">
-              {pastVisible.map((m) => (
-                <TripCard
-                  key={m.tripId}
-                  href={`/trips/${m.tripSlug}/schedule`}
-                  name={m.tripName}
-                  imageUrl={m.tripImageUrl}
-                  dates={formatDates(m.startDate, m.endDate)}
-                  nickname={m.nickname}
-                  role={
-                    m.role === 'trip_admin'
-                      ? 'Admin'
-                      : m.isCaptain
-                        ? 'Captain'
-                        : 'Player'
-                  }
-                  muted
-                />
-              ))}
-              {pastHidden > 0 && (
-                <Link
-                  href="/me/past-trips"
-                  className="block rounded-sm border border-zinc-900 bg-zinc-950/40 px-4 py-3 text-center font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500 transition-colors hover:border-yellow-500/40 hover:text-yellow-400"
-                >
-                  View all {pastMemberships.length} past trips →
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
-
-        {isPlatformAdmin && otherTrips.length > 0 && (
-          <>
-            <p className="mt-8 font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
-              Platform admin · other trips
-            </p>
-            <div className="mt-3 space-y-2">
-              {otherTrips.map((t) => (
-                <TripCard
-                  key={t.id}
-                  href={`/trips/${t.slug}/schedule`}
-                  name={t.name}
-                  dates={null}
-                  nickname={null}
-                  role="Platform"
-                />
-              ))}
-            </div>
-          </>
-        )}
-      </section>
-
-      <div className="mt-12 flex items-center justify-between border-t border-zinc-800 pt-6">
-        <SignOutLink />
-      </div>
+        <div className="flex items-center gap-3 pt-4">
+          <button
+            type="submit"
+            className="flex-1 rounded-sm bg-yellow-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400"
+          >
+            Save
+          </button>
+          <Link
+            href="/home"
+            className="rounded-sm border border-zinc-700 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+          >
+            Cancel
+          </Link>
+        </div>
+      </form>
     </div>
   );
 }
 
-function TripCard({
-  href,
-  name,
-  imageUrl,
-  dates,
-  nickname,
-  role,
-  muted,
+const inputCls =
+  'mt-2 block w-full rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
+
+function Field({
+  label,
+  children,
+  hint,
 }: {
-  href: string;
-  name: string;
-  imageUrl?: string | null;
-  dates: string | null;
-  nickname: string | null;
-  role: string;
-  muted?: boolean;
+  label: string;
+  children: React.ReactNode;
+  hint?: string;
 }) {
   return (
-    <Link
-      href={href}
-      className={
-        muted
-          ? 'flex items-center gap-3 rounded-sm border border-zinc-900 bg-zinc-950/20 p-4 opacity-60 transition-colors hover:border-zinc-700 hover:bg-zinc-950/40 hover:opacity-90'
-          : 'flex items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 hover:border-yellow-500/40 hover:bg-zinc-900/40'
-      }
-    >
-      <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-zinc-900 ${
-          muted ? 'text-zinc-500' : 'text-yellow-500'
-        }`}
-      >
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <UserIcon size={18} />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className={muted ? 'truncate font-semibold text-zinc-300' : 'truncate font-semibold'}>
-          {name}
-        </p>
-        <p className="truncate font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-          {[dates, nickname, role].filter(Boolean).join(' · ')}
-        </p>
-      </div>
-      <ChevronRight size={14} className="shrink-0 text-zinc-600" />
-    </Link>
+    <label className="block">
+      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+        {label}
+      </span>
+      {children}
+      {hint && <p className="mt-1.5 text-[11px] text-zinc-500">{hint}</p>}
+    </label>
   );
-}
-
-function getTripLocalToday(): Date {
-  // Today at 00:00 in America/New_York, returned as a UTC Date so it can be
-  // compared with the timestamptz columns Drizzle returns.
-  const fmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/New_York',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const today = fmt.format(new Date()); // e.g. "2026-05-18"
-  return new Date(`${today}T00:00:00-04:00`);
-}
-
-function formatDates(start: Date | null, end: Date | null): string | null {
-  if (!start) return null;
-  const opts: Intl.DateTimeFormatOptions = {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  };
-  const s = new Intl.DateTimeFormat('en-US', opts).format(start);
-  if (!end) return s;
-  const e = new Intl.DateTimeFormat('en-US', opts).format(end);
-  return `${s} – ${e}`;
 }

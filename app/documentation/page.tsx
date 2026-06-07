@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowLeft, AlertTriangle, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 
 export const metadata: Metadata = {
@@ -12,12 +12,12 @@ export const metadata: Metadata = {
 export default async function DocumentationPage() {
   const ctx = await getGlobalAuthContext();
   if (!ctx) redirect('/sign-in');
-  if (!ctx.isPlatformAdmin) redirect('/me');
+  if (!ctx.isPlatformAdmin) redirect('/home');
 
   return (
     <article className="mx-auto max-w-4xl px-4 py-16 sm:py-20">
       <Link
-        href="/me"
+        href="/home"
         className="group inline-flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 transition-colors hover:text-yellow-400"
       >
         <ArrowLeft size={12} strokeWidth={2.5} className="transition-transform group-hover:-translate-x-0.5" />
@@ -31,8 +31,9 @@ export default async function DocumentationPage() {
         <h1 className="mt-2 text-4xl font-bold tracking-tight">BuddyCup — full app map</h1>
         <p className="mt-3 text-sm text-zinc-400">
           One scrollable page. Every feature, every route, every server action, every table, every permission rule.
-          Cross-trip leak findings are flagged with <ShieldAlert size={12} className="inline text-red-400" /> — fix
-          those first.
+          Past security findings (now patched) are kept with{' '}
+          <ShieldCheck size={12} className="inline text-emerald-400" /> so the fix and the original mistake stay
+          documented together.
         </p>
       </header>
 
@@ -50,22 +51,28 @@ export default async function DocumentationPage() {
         </List>
       </Section>
 
-      <Section id="bugs" title="2. Known security issues (FIX FIRST)" warn>
+      <Section id="bugs" title="2. Security audit — all leaks closed">
         <p className="text-sm text-zinc-300">
-          A route audit found that every page under <code>/trips/[slug]/*</code> correctly calls{' '}
-          <code>getTripAuthContext(trip.id)</code> and redirects non-members. That part is safe.
+          Page-level: every page under <code>/trips/[slug]/*</code> calls{' '}
+          <code>getTripAuthContext(trip.id)</code> and redirects non-members. Safe.
         </p>
         <p className="mt-3 text-sm text-zinc-300">
-          A server-action audit found <strong>six actions that trust input or use the wrong context</strong>. These are
-          the cross-trip leaks you keep tripping over:
+          Action-level: six actions previously trusted input or used the wrong auth context. All six were patched in
+          the same pass:
         </p>
         <Bugs />
         <p className="mt-4 text-sm text-zinc-400">
-          The "flights from a trip I'm not on" symptom was a separate bug in <code>components/MoreMenu.tsx</code>:
-          when rendered outside a trip route, it fell back to <code>DEFAULT_TRIP_SLUG = 'pcup26'</code> and linked
-          its menu items at Pinehurst. The page itself enforced membership, but the menu deep-linked into a trip the
-          user happened to be on (Pinehurst), so no redirect fired. Fixed by removing the fallback — if there's no
-          trip in the URL, the More menu now disables.
+          The "flights from a trip I'm not on" symptom traced to a separate bug in the (now-removed)
+          <code>MoreMenu</code>: when rendered outside a trip route, it fell back to{' '}
+          <code>DEFAULT_TRIP_SLUG = 'pcup26'</code> and linked its menu items at Pinehurst. The page enforced
+          membership, but the menu deep-linked into a trip the user happened to be on (Pinehurst), so no redirect
+          fired. The fallback is gone and the menu component itself was deleted in the BottomNav restructure.
+        </p>
+        <p className="mt-3 text-sm text-zinc-400">
+          Architectural follow-through: <code>getAuthContext</code> was renamed to{' '}
+          <code>getGlobalAuthContext</code> across the codebase (80 references, 27 files) so any future call site
+          that reaches for the global context to make a trip-scoped permission decision has to actively rename it —
+          the wrong-context bug class can't recur silently.
         </p>
       </Section>
 
@@ -148,11 +155,17 @@ export default async function DocumentationPage() {
       </Section>
 
       <Section id="routes" title="6. Routes — every page">
+        <SubHeading>App shell &amp; navigation</SubHeading>
+        <List>
+          <li><strong>BottomNav</strong> ([components/BottomNav.tsx](components/BottomNav.tsx)): five tabs — <strong>Home · Schedule · Cup · Feed · Me</strong>. Home (<code>/home</code>) and Me (<code>/me</code>) work everywhere. Schedule, Cup, Feed grey out unless the URL contains a trip slug. No "More" button, no fallback slug.</li>
+          <li><strong>HeaderAvatar</strong> ([components/HeaderAvatar.tsx](components/HeaderAvatar.tsx) → [HeaderAvatarLink.tsx](components/HeaderAvatarLink.tsx)): avatar links to <code>/me</code>. When you're inside a <code>/trips/[slug]/*</code> route AND you're a trip_admin of that slug (or platform_admin), a yellow <strong>Admin</strong> button appears immediately to the left, linking to <code>/trips/[slug]/admin</code>. The server queries every trip slug where the user is trip_admin and passes them to the client component, which does the slug-vs-pathname check.</li>
+          <li><strong>Two surfaces, two purposes:</strong> <code>/home</code> is the trip dashboard (your trips, claims, past trips). <code>/me</code> is the personal profile editor (one place for username, name, handicap, GHIN, photo, arcade portrait, city, state, club).</li>
+        </List>
         <SubHeading>Public</SubHeading>
         <Table
           head={['Path', 'Purpose', 'Auth']}
           rows={[
-            ['/', 'Marketing home; redirects signed-in users to /me', 'optional'],
+            ['/', 'Marketing home; redirects signed-in users to /home', 'optional'],
             ['/sign-in', 'Clerk sign-in', 'none'],
             ['/sign-up', 'Clerk sign-up', 'none'],
             ['/brand', 'Design system reference', 'none'],
@@ -163,9 +176,9 @@ export default async function DocumentationPage() {
         <Table
           head={['Path', 'Purpose', 'Auth']}
           rows={[
-            ['/me', 'Dashboard — current trips, past trips, pending claims', 'getGlobalAuthContext'],
-            ['/me/edit', 'Profile editor (fullName, handicap, ghin, avatar, portrait)', 'getGlobalAuthContext'],
-            ['/me/past-trips', 'All past trips (endDate < today)', 'getGlobalAuthContext'],
+            ['/home', 'Dashboard — current trips, past trips, pending claims', 'getGlobalAuthContext'],
+            ['/me', 'Profile editor (name, username, handicap, GHIN, avatar, portrait, city, state, club)', 'getGlobalAuthContext'],
+            ['/home/past-trips', 'All past trips (endDate < today)', 'getGlobalAuthContext'],
             ['/trips/new', 'Create a new trip (caller becomes trip_admin)', 'getGlobalAuthContext'],
             ['/documentation', 'This page', 'platform_admin only'],
           ]}
@@ -216,35 +229,35 @@ export default async function DocumentationPage() {
 
       <Section id="actions" title="7. Server actions — every mutation">
         <p className="text-sm text-zinc-400">
-          Files in <code>lib/actions/</code>. Each action's permission check is the security boundary. The audit
-          flagged six actions with cross-trip risk — they appear with <ShieldAlert size={12} className="inline text-red-400" />.
+          Files in <code>lib/actions/</code>. Each action's permission check is the security boundary. The six that
+          previously had cross-trip risk are now patched (see §2).
         </p>
         <Table
           head={['Action', 'File', 'Check', 'Writes', 'Note']}
           rows={[
             ['createTrip', 'trips.ts', 'requireAuth', 'trips, teams, tripMembers', 'Caller becomes trip_admin of the new trip.'],
-            ['updateTrip', 'trips.ts', 'role on ctx.tripMember', 'trips', '⚠ Uses getGlobalAuthContext, not getTripAuthContext(id). Multi-trip admin can edit wrong trip.'],
+            ['updateTrip', 'trips.ts', 'getTripAuthContext(id) + canEditTrip', 'trips', 'Scoped to the specific trip being edited.'],
             ['createPlayer', 'players.ts', 'isTripAdminOf(tripId)', 'tripMembers', 'Supports shell players (email nullable) + linkedUserId.'],
-            ['updatePlayer', 'players.ts', 'isTripAdminOf(player.tripId)', 'tripMembers, matchParticipants', 'Safe — derives tripId from row.'],
-            ['updateMyUserProfile', 'me.ts', 'requireAuth', 'users', 'Edits caller\'s own row.'],
+            ['updatePlayer', 'players.ts', 'isTripAdminOf(player.tripId)', 'tripMembers, matchParticipants', 'Derives tripId from row.'],
+            ['updateMyUserProfile', 'me.ts', 'requireAuth', 'users', 'Edits caller\'s own row. Writes name, username, handicap, GHIN, avatar, city, state, clubName.'],
             ['updateMyProfile', 'update-profile.ts', 'canEditTripMember', 'users, tripMembers', 'Trip-scoped profile (name, handicap, GHIN, avatar).'],
-            ['createTeeTime / updateTeeTime / deleteTeeTime', 'tee-times.ts', 'requireTeeTimeAdmin(round.tripId)', 'teeTimes', 'Safe — joins round to get tripId.'],
-            ['createRound / updateRound / deleteRound', 'rounds.ts', 'requireRoundAdmin(tripId)', 'rounds', 'Safe.'],
-            ['createMatch / updateMatchParticipants / deleteMatch', 'matches.ts', 'requireMatchAdmin(round.tripId)', 'matches, matchParticipants', 'Safe.'],
-            ['upsertHoleScore', 'scores.ts', 'canEnterScoreFor(target)', 'holeScores → recomputeMatchStatus → matches', 'Safe — self or admin.'],
-            ['updateTeam', 'teams.ts', 'isTripAdminOf(team.tripId)', 'teams', 'Safe.'],
-            ['createEvent / updateEvent / deleteEvent', 'events.ts', 'requireEventAdmin(tripId)', 'tripEvents', 'Safe.'],
-            ['createCourse / updateCourse / setDefaultTee / reextractScorecard', 'courses.ts', '"some" trip_admin', 'courses, courseTees, courseHoles', 'Design issue: courses are platform-wide so any trip admin can edit any course. Acceptable for now.'],
-            ['createMediaPost', 'feed.ts', 'requireAuth (no trip check!)', 'media', '⚠ Any signed-in user can post to any trip ID.'],
-            ['createTextPost', 'feed.ts', 'requireAuth (no trip check!)', 'messages', '⚠ Same — no membership check.'],
-            ['unflagMediaPost', 'feed.ts', '"some" trip_admin', 'media', '⚠ Doesn\'t verify caller admins this media\'s trip.'],
-            ['deleteFeedItem', 'feed.ts', 'owner OR "some" trip_admin', 'media or messages', '⚠ Trip admin of Trip A can delete posts in Trip B.'],
-            ['toggleReaction', 'reactions.ts', 'requireAuth (no trip check!)', 'reactions', '⚠ Any signed-in user can react to any score/media/message in any trip.'],
-            ['claimTripMember', 'claim.ts', 'email match', 'tripMembers', 'Safe — slot\'s email must match caller\'s.'],
+            ['createTeeTime / updateTeeTime / deleteTeeTime', 'tee-times.ts', 'requireTeeTimeAdmin(round.tripId)', 'teeTimes', 'Joins round to get tripId.'],
+            ['createRound / updateRound / deleteRound', 'rounds.ts', 'requireRoundAdmin(tripId)', 'rounds', ''],
+            ['createMatch / updateMatchParticipants / deleteMatch', 'matches.ts', 'requireMatchAdmin(round.tripId)', 'matches, matchParticipants', ''],
+            ['upsertHoleScore', 'scores.ts', 'canEnterScoreFor(target)', 'holeScores → recomputeMatchStatus → matches', 'Self or admin.'],
+            ['updateTeam', 'teams.ts', 'isTripAdminOf(team.tripId)', 'teams', ''],
+            ['createEvent / updateEvent / deleteEvent', 'events.ts', 'requireEventAdmin(tripId)', 'tripEvents', ''],
+            ['createCourse / updateCourse / setDefaultTee / reextractScorecard', 'courses.ts', '"some" trip_admin', 'courses, courseTees, courseHoles', 'Courses are platform-wide so any trip admin can edit any course. Accepted for now.'],
+            ['createMediaPost', 'feed.ts', 'getTripAuthContext(tripId) + membership', 'media', 'Was: no trip check. Now scoped.'],
+            ['createTextPost', 'feed.ts', 'getTripAuthContext(tripId) + membership', 'messages', 'Was: no trip check. Now scoped.'],
+            ['unflagMediaPost', 'feed.ts', 'getTripAuthContext(media.tripId) + canEditTrip', 'media', 'Was: any trip admin. Now scoped to media\'s trip.'],
+            ['deleteFeedItem', 'feed.ts', 'owner OR canEditTrip(post.tripId)', 'media or messages', 'Was: any trip admin. Now scoped to post\'s trip.'],
+            ['toggleReaction', 'reactions.ts', 'resolve trip → getTripAuthContext + membership', 'reactions', 'Was: any signed-in user. Now requires membership.'],
+            ['claimTripMember', 'claim.ts', 'email match', 'tripMembers', 'Slot\'s email must match caller\'s.'],
             ['listClaimableSlots', 'claim.ts', 'requireAuth', '(read only)', 'Returns only slots matching caller\'s email.'],
-            ['generateMyArcadePortrait', 'portraits.ts', 'requireAuth', 'users (own row)', 'Safe.'],
-            ['generateArcadePortraitForPlayer', 'portraits.ts', 'isTripAdminOf(member.tripId)', 'users (player\'s row)', 'Safe.'],
-            ['clearArcadePortrait{ForPlayer,My}', 'portraits.ts', 'admin / self', 'users', 'Safe.'],
+            ['generateMyArcadePortrait', 'portraits.ts', 'requireAuth', 'users (own row)', ''],
+            ['generateArcadePortraitForPlayer', 'portraits.ts', 'isTripAdminOf(member.tripId)', 'users (player\'s row)', ''],
+            ['clearArcadePortrait{ForPlayer,My}', 'portraits.ts', 'admin / self', 'users', ''],
             ['searchUsers', 'users.ts', 'requireAuth', '(read only)', 'Used by admin "add player" picker.'],
           ]}
         />
@@ -452,47 +465,42 @@ function Table({ head, rows }: { head: readonly string[]; rows: readonly (readon
 }
 
 function Bugs() {
-  const bugs: Array<{ title: string; where: string; problem: string; fix: string }> = [
+  const bugs: Array<{ title: string; where: string; was: string; now: string }> = [
     {
       title: 'createMediaPost',
       where: 'lib/actions/feed.ts',
-      problem:
-        'Only calls requireAuth(). Any signed-in user can POST media to any trip ID they know. Trip data appears in another trip\'s feed.',
-      fix: 'Call getTripAuthContext(tripId) and reject if !ctx.tripMember.',
+      was: 'Only required auth. Any signed-in user could post media to any tripId.',
+      now: 'Resolves tripId, then getTripAuthContext(tripId) — rejects if caller is not on the trip.',
     },
     {
       title: 'createTextPost',
       where: 'lib/actions/feed.ts',
-      problem: 'Same as above for text messages — no trip membership check.',
-      fix: 'Call getTripAuthContext(tripId) and reject if !ctx.tripMember.',
+      was: 'Same shape — no membership check.',
+      now: 'Same fix — getTripAuthContext(tripId) before insert.',
     },
     {
       title: 'unflagMediaPost',
       where: 'lib/actions/feed.ts',
-      problem:
-        'Checks "is the caller some trip_admin?" but not "is the caller admin of THIS media\'s trip?" Trip A\'s admin can unflag Trip B\'s media.',
-      fix: 'Fetch media first, then require isTripAdminOf(ctx, media.tripId).',
+      was: 'Checked "is some trip admin?" not "admin of THIS media\'s trip?"',
+      now: 'Fetches media first, then canEditTrip(ctx, media.tripId) via getTripAuthContext(media.tripId).',
     },
     {
       title: 'deleteFeedItem',
       where: 'lib/actions/feed.ts',
-      problem:
-        'When the caller is an admin, only checks generic admin role — not admin of the post\'s trip. Any trip admin can delete any post in any trip.',
-      fix: 'After fetching the row, require isTripAdminOf(ctx, post.tripId) for the admin path.',
+      was: 'Admin path used generic admin role, letting Trip A admin delete Trip B posts.',
+      now: 'Fetches the row, scopes auth to the row\'s trip, admin check applies only there.',
     },
     {
       title: 'toggleReaction',
       where: 'lib/actions/reactions.ts',
-      problem:
-        'Only requireAuth(). Any signed-in user can react to any score/media/message in any trip. Pollutes other trips\' reaction counts and revalidates the wrong feed.',
-      fix: 'After resolving the target\'s tripId, require ctx is a member via getTripAuthContext(tripId).',
+      was: 'No membership check. Any signed-in user could react across all trips.',
+      now: 'Resolves target → tripId, then requires membership via getTripAuthContext(tripId).',
     },
     {
       title: 'updateTrip',
       where: 'lib/actions/trips.ts',
-      problem:
-        'Uses generic getGlobalAuthContext() and checks ctx.tripMember.role === "trip_admin". If the caller is admin of Trip A and submits Trip B\'s ID, the check might pass against A\'s membership while editing B.',
-      fix: 'Call getTripAuthContext(id) for the specific trip being edited.',
+      was: 'Used the global context\'s "first" tripMember, so a multi-trip admin could update the wrong trip.',
+      now: 'Uses getTripAuthContext(id) for the specific trip being edited.',
     },
   ];
   return (
@@ -500,16 +508,18 @@ function Bugs() {
       {bugs.map((b) => (
         <li
           key={b.title}
-          className="rounded-md border border-red-900/40 bg-red-950/20 p-3"
+          className="rounded-md border border-emerald-900/40 bg-emerald-950/10 p-3"
         >
-          <p className="flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-red-300">
-            <ShieldAlert size={12} />
-            {b.title} <span className="text-red-500/60">·</span>{' '}
+          <p className="flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300">
+            <ShieldCheck size={12} />
+            {b.title} <span className="text-emerald-500/60">·</span>{' '}
             <span className="text-zinc-500">{b.where}</span>
           </p>
-          <p className="mt-1 text-zinc-300">{b.problem}</p>
           <p className="mt-1 text-zinc-400">
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald-400">Fix:</span> {b.fix}
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-red-400">Was:</span> {b.was}
+          </p>
+          <p className="mt-1 text-zinc-300">
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald-400">Now:</span> {b.now}
           </p>
         </li>
       ))}

@@ -48,7 +48,7 @@ export async function claimTripMember(formData: FormData): Promise<void> {
     .where(eq(tripMembers.id, member.id));
 
   const tripSlug = await getTripSlugById(member.tripId);
-  revalidatePath('/me');
+  revalidatePath('/home');
   revalidatePath(`/trips/${tripSlug}`, 'layout');
 }
 

@@ -16,10 +16,10 @@ export default async function NewTripPage() {
   return (
     <div className="mx-auto max-w-xl px-4 pb-24 pt-6">
       <Link
-        href="/me"
+        href="/home"
         className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500 hover:text-yellow-400"
       >
-        <ArrowLeft size={12} /> My trips
+        <ArrowLeft size={12} /> Home
       </Link>
 
       <header className="mt-6">

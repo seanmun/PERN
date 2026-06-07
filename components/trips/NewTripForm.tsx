@@ -160,7 +160,7 @@ export default function NewTripForm() {
           Create trip
         </button>
         <a
-          href="/me"
+          href="/home"
           className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 hover:text-zinc-300"
         >
           Cancel

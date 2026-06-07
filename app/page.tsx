@@ -277,7 +277,7 @@ function handicapToRating(handicap: string | null): number {
 
 export default async function Home() {
   const ctx = await getGlobalAuthContext();
-  if (ctx) redirect('/me');
+  if (ctx) redirect('/home');
 
   return (
     <div className="bg-[#0a0a0a] text-zinc-100">
