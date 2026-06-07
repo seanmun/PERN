@@ -2,9 +2,11 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { asc, eq, isNotNull } from 'drizzle-orm';
 import { ChevronRight, Plus, User as UserIcon } from 'lucide-react';
+import MemberAvatar from '@/components/avatar/MemberAvatar';
 import { db } from '@/db/client';
 import { trips, tripMembers } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
+import { claimTripMember, listClaimableSlots } from '@/lib/actions/claim';
 import SignOutLink from '@/components/SignOutLink';
 
 export default async function GlobalMePage() {
@@ -47,6 +49,11 @@ export default async function GlobalMePage() {
   const pastVisible = pastMemberships.slice(0, PAST_TRIPS_VISIBLE);
   const pastHidden = pastMemberships.length - pastVisible.length;
 
+  // Any tripMember rows whose email matches the user but never got claimed.
+  // Auto-claim usually handles this on sign-in; this catches anyone the
+  // admin added AFTER first sign-in or any case-different stragglers.
+  const claimableSlots = await listClaimableSlots();
+
   // Platform admins also see trips they're NOT on (godmode).
   let otherTrips: Array<{ id: string; name: string; slug: string }> = [];
   if (isPlatformAdmin) {
@@ -67,20 +74,12 @@ export default async function GlobalMePage() {
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-6">
       <header className="flex items-center gap-4">
-        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-sm bg-zinc-900 ring-2 ring-zinc-700">
-          {user.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={user.avatarUrl}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center font-mono text-2xl font-bold text-zinc-400">
-              {initial}
-            </div>
-          )}
-        </div>
+        <MemberAvatar
+          nickname={displayName}
+          arcadePortraitUrl={user.arcadePortraitUrl ?? null}
+          avatarUrl={user.avatarUrl ?? null}
+          size={72}
+        />
         <div className="min-w-0 flex-1">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
             Signed in
@@ -108,6 +107,42 @@ export default async function GlobalMePage() {
             Used on new trips
           </span>
         </div>
+      )}
+
+      {claimableSlots.length > 0 && (
+        <section className="mt-8">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-emerald-400">
+            Pending claims · {claimableSlots.length}
+          </p>
+          <p className="mt-1 text-[11px] text-zinc-500">
+            Trip admins added you to these but the slot hasn&apos;t been linked to your account yet. Claim it to make changes.
+          </p>
+          <div className="mt-3 space-y-2">
+            {claimableSlots.map((s) => (
+              <form
+                key={s.tripMemberId}
+                action={claimTripMember}
+                className="flex items-center gap-3 rounded-sm border border-emerald-700/40 bg-emerald-950/20 p-3"
+              >
+                <input type="hidden" name="tripMemberId" value={s.tripMemberId} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-zinc-100">
+                    {s.tripName}
+                  </p>
+                  <p className="truncate font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+                    as {s.nickname}
+                  </p>
+                </div>
+                <button
+                  type="submit"
+                  className="shrink-0 rounded-sm border border-emerald-500/60 bg-emerald-500/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-300 hover:bg-emerald-500/20"
+                >
+                  Claim
+                </button>
+              </form>
+            ))}
+          </div>
+        </section>
       )}
 
       <section className="mt-10">

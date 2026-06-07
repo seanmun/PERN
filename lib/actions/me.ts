@@ -40,6 +40,7 @@ export async function updateMyUserProfile(formData: FormData): Promise<void> {
   const fullName = trim(formData.get('fullName'));
   const ghinNumber = trim(formData.get('ghinNumber'));
   const handicap = parseHandicap(formData.get('handicap'));
+  const avatarUrl = trim(formData.get('avatarUrl'));
 
   await db
     .update(users)
@@ -47,6 +48,7 @@ export async function updateMyUserProfile(formData: FormData): Promise<void> {
       fullName,
       ghinNumber,
       handicap,
+      avatarUrl,
       updatedAt: new Date(),
     })
     .where(eq(users.id, ctx.user.id));

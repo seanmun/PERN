@@ -62,7 +62,7 @@ export default async function EditPlayerPage({
         avatarUrl: users.avatarUrl,
       })
       .from(users)
-      .where(sql`lower(${users.email}) = ${player.email.toLowerCase()}`)
+      .where(sql`lower(${users.email}) = ${player.email!.toLowerCase()}`)
       .limit(1);
     portraitUser = u ?? null;
   }
@@ -103,12 +103,14 @@ export default async function EditPlayerPage({
           />
         </Field>
 
-        <Field label="Email" required hint="Used for lazy-claim — they sign in with this email to claim their slot.">
+        <Field
+          label="Email"
+          hint="Leave blank for a shell player. Set the email so they can lazy-claim this slot on sign-in."
+        >
           <input
             type="email"
             name="email"
-            required
-            defaultValue={player.email}
+            defaultValue={player.email ?? ''}
             className={inputCls}
           />
         </Field>

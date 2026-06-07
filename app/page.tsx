@@ -240,6 +240,41 @@ const PORTRAITS = [
   { name: 'KYLE', team: 'Hacks', color: GREEN, src: '/homepage/kyle.png' },
 ] as const;
 
+type ShowcasePlayer = {
+  nickname: string;
+  teamName: string;
+  teamColor: string;
+  handicap: string | null;
+  src: string;
+};
+
+/**
+ * Hand-picked Pinehurst-style mock for the marketing showcase. Kept static
+ * (no DB) so the home page renders fast for signed-out visitors. The four
+ * images live in /public/homepage/arcade-*.png — drop `arcade-sean.png` or
+ * `arcade-munley.png` in to swap Munley over.
+ */
+const SHOWCASE_PLAYERS: ShowcasePlayer[] = [
+  { nickname: 'Ian',    teamName: 'Hacks',    teamColor: GREEN, handicap: '11', src: '/homepage/arcade-ian.png' },
+  { nickname: 'Kyle',   teamName: 'Chunkers', teamColor: GOLD,  handicap: '15', src: '/homepage/arcade-kyle.png' },
+  { nickname: 'Dan',    teamName: 'Chunkers', teamColor: GOLD,  handicap: '11', src: '/homepage/arcade-dan.png' },
+  { nickname: 'Sean',   teamName: 'Hacks',    teamColor: GREEN, handicap: '25', src: '/homepage/arcade-sean.png' },
+];
+
+/** Same tier mapping used on the live matchup card. */
+function handicapToRating(handicap: string | null): number {
+  if (handicap == null) return 0;
+  const h = parseFloat(handicap);
+  if (!Number.isFinite(h)) return 0;
+  if (h < 5) return 100;
+  if (h < 10) return 90;
+  if (h < 15) return 80;
+  if (h < 20) return 70;
+  if (h < 25) return 60;
+  if (h < 30) return 50;
+  return 20;
+}
+
 export default async function Home() {
   const ctx = await getAuthContext();
   if (ctx) redirect('/me');
@@ -440,18 +475,18 @@ export default async function Home() {
               kicker="Feature · Arcade portraits"
               headingId="feature-portraits"
               heading="NBA Jam-style player portraits."
-              body="Upload a photo. The AI turns it into a 16-bit Sega arcade portrait — the same look as the one and only NBA Jam. Used in matchup reveals, leaderboards, and the closing ceremony."
+              body="Upload your photo. The AI hands back a 1994-NBA-Jam-digitizer version of you — pixelated, transparent background, ready to drop on a team-color matchup card. Used on every face-to-face matchup screen."
               bullets={[
-                'One portrait per player, locked once approved',
-                'Animated “He’s on fire” treatment on win streaks',
-                'Coming with the matchup reveal cinematic',
+                'Faithful to the source — same face, same hair, same hat',
+                'Transparent PNG — composites cleanly over any team color',
+                'Gold-frame roster cards with rating bars per player',
               ]}
               icon={Users}
             />
           </Reveal>
 
           <Reveal delay={0.15} className="order-2">
-            <PortraitGridMock />
+            <PortraitGridMock players={SHOWCASE_PLAYERS} />
           </Reveal>
         </div>
       </FeatureSection>
@@ -902,70 +937,250 @@ function ScoreSplit({
   );
 }
 
-function PortraitGridMock() {
+function PortraitGridMock({ players }: { players: ShowcasePlayer[] }) {
+  // Group the 4 players into two sides by team color. Two greens become the
+  // left team, two golds become the right team. Keeps the showcase honest
+  // even if a player swaps teams later — we just walk the live data.
+  const byTeam = new Map<string, ShowcasePlayer[]>();
+  for (const p of players) {
+    const list = byTeam.get(p.teamColor) ?? [];
+    list.push(p);
+    byTeam.set(p.teamColor, list);
+  }
+  const sides = Array.from(byTeam.values()).slice(0, 2);
+  if (sides.length < 2) return null;
+  const [left, right] = sides;
+
   return (
     <div
       role="img"
-      aria-label="Grid of four arcade-style player portraits in team colors"
-      className="grid grid-cols-2 gap-3"
+      aria-label="NBA-Jam-style matchup card with both teams from the live Pinehurst trip"
     >
-      {PORTRAITS.map((p) => (
-        <div
-          key={p.name}
-          className="relative aspect-square overflow-hidden rounded-sm border border-zinc-800"
-          style={{
-            background: `linear-gradient(180deg, ${p.color}40 0%, ${p.color}10 45%, #000 100%)`,
-            boxShadow: `0 0 24px ${p.color}55, inset 0 0 0 1px ${p.color}33`,
-          }}
+      <MatchupCardMock left={left} right={right} />
+    </div>
+  );
+}
+
+/**
+ * Single matchup card showcase — mirrors the live MatchupShowdown from
+ * /trips/[slug]/matches/[id]. Both teams in one gold-framed container,
+ * portraits on top sharing a VS chip, names and handicap-rating bars in
+ * the wood stat panel below.
+ */
+function MatchupCardMock({
+  left,
+  right,
+}: {
+  left: ShowcasePlayer[];
+  right: ShowcasePlayer[];
+}) {
+  const leftColor = left[0]?.teamColor ?? GREEN;
+  const rightColor = right[0]?.teamColor ?? GOLD;
+  const leftTeam = left[0]?.teamName ?? 'Hacks';
+  const rightTeam = right[0]?.teamName ?? 'Chunkers';
+
+  return (
+    <div
+      className="overflow-hidden rounded-sm"
+      style={{
+        boxShadow:
+          '0 0 0 3px #eab308, 0 0 0 5px #18181b, 0 0 24px rgba(202,138,4,0.25)',
+      }}
+    >
+      {/* Team-name strip */}
+      <div
+        className="grid grid-cols-[1fr_auto_1fr] gap-2 px-3 py-1.5"
+        style={{
+          background:
+            'linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%)',
+        }}
+      >
+        <p
+          className="truncate text-center font-mono text-[10px] font-bold uppercase tracking-[0.25em]"
+          style={{ color: leftColor, textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
         >
-          <Image
-            src={p.src}
-            alt={`${p.name} arcade portrait`}
-            fill
-            sizes="(min-width: 768px) 240px, 45vw"
-            className="object-cover"
-            priority={false}
-          />
-          {/* Team color wash */}
+          {leftTeam}
+        </p>
+        <span aria-hidden className="w-12" />
+        <p
+          className="truncate text-center font-mono text-[10px] font-bold uppercase tracking-[0.25em]"
+          style={{ color: rightColor, textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
+        >
+          {rightTeam}
+        </p>
+      </div>
+
+      {/* TOP — portraits + center banner */}
+      <div
+        className="grid grid-cols-[1fr_auto_1fr] items-stretch border-t border-white/5"
+        style={{
+          background:
+            'linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%)',
+        }}
+      >
+        <ShowcaseSide players={left} color={leftColor} align="left" />
+        <div className="flex items-center justify-center px-2">
           <div
-            className="pointer-events-none absolute inset-0 mix-blend-color opacity-25"
-            style={{ background: p.color }}
-            aria-hidden="true"
-          />
-          {/* CRT scanlines */}
-          <div
-            className="pointer-events-none absolute inset-0 opacity-30 mix-blend-overlay"
+            className="flex h-12 w-14 items-center justify-center rounded-sm border-2 border-yellow-600"
             style={{
-              backgroundImage:
-                'repeating-linear-gradient(0deg, rgba(0,0,0,0.55) 0px, rgba(0,0,0,0.55) 1px, transparent 1px, transparent 3px)',
+              background: 'linear-gradient(180deg, #ca8a04 0%, #a16207 100%)',
+              boxShadow:
+                'inset 0 1px 0 rgba(255,255,255,0.3), 0 0 8px rgba(0,0,0,0.6)',
             }}
-            aria-hidden="true"
-          />
-          {/* Bottom gradient so text stays legible over photo */}
-          <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2"
-            style={{
-              background:
-                'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.7) 60%, rgba(0,0,0,0.95) 100%)',
-            }}
-            aria-hidden="true"
-          />
-          <div className="absolute inset-0 flex flex-col justify-end p-3">
-            <p
-              className="font-mono text-[9px] font-semibold uppercase tracking-[0.3em]"
-              style={{ color: p.color }}
+          >
+            <span
+              className="font-mono text-base font-extrabold text-black"
+              style={{ textShadow: '0 1px 0 rgba(255,255,255,0.3)' }}
             >
-              {p.team}
-            </p>
-            <p
-              className="mt-1 font-mono text-xl font-extrabold tracking-tight text-zinc-100"
-              style={{ textShadow: `0 0 12px ${p.color}aa, 0 2px 0 rgba(0,0,0,0.6)` }}
-            >
-              {p.name}
-            </p>
+              VS
+            </span>
           </div>
         </div>
+        <ShowcaseSide players={right} color={rightColor} align="right" />
+      </div>
+
+      {/* BOTTOM — wood stat panel with names + rating bars */}
+      <div
+        className="grid grid-cols-[1fr_auto_1fr] gap-3 border-t-2 border-yellow-600 px-3 py-3"
+        style={{
+          background:
+            'linear-gradient(180deg, #44322a 0%, #2a1f1a 60%, #1a120e 100%)',
+        }}
+      >
+        <ShowcaseStats players={left} color={leftColor} align="left" />
+        <div className="flex items-center px-1">
+          <p
+            className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-yellow-400"
+            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+          >
+            Rating
+          </p>
+        </div>
+        <ShowcaseStats players={right} color={rightColor} align="right" />
+      </div>
+    </div>
+  );
+}
+
+function ShowcaseSide({
+  players,
+  color,
+  align,
+}: {
+  players: ShowcasePlayer[];
+  color: string;
+  align: 'left' | 'right';
+}) {
+  return (
+    <div
+      className="grid items-stretch gap-1 px-2 pt-3 pb-2"
+      style={{
+        gridTemplateColumns: `repeat(${players.length}, minmax(0, 1fr))`,
+        background: `linear-gradient(${align === 'left' ? '90deg' : '270deg'}, ${color}55 0%, transparent 100%)`,
+      }}
+    >
+      {players.map((p) => (
+        <ShowcasePortrait key={p.nickname} player={p} color={color} />
       ))}
     </div>
   );
 }
+
+function ShowcasePortrait({
+  player,
+  color,
+}: {
+  player: ShowcasePlayer;
+  color: string;
+}) {
+  // Every slot is the EXACT same square box (aspect-square w-full).
+  // For arcade transparent PNGs, use object-cover with bottom anchoring so
+  // each subject fills its box and stands on the same baseline — looks even
+  // even when the AI generates one subject taller-in-frame than another.
+  // Legacy opaque sean.png also uses cover so all four match.
+  return (
+    <div className="relative aspect-square w-full min-w-0 overflow-hidden">
+      <Image
+        src={player.src}
+        alt={`${player.nickname} arcade portrait`}
+        fill
+        sizes="(min-width: 768px) 120px, 40vw"
+        className="object-cover object-bottom"
+        style={{ filter: `drop-shadow(0 0 6px ${color}88)` }}
+      />
+      {/* CRT scanlines */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-25 mix-blend-overlay"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(0deg, rgba(0,0,0,0.55) 0px, rgba(0,0,0,0.55) 1px, transparent 1px, transparent 3px)',
+        }}
+        aria-hidden="true"
+      />
+    </div>
+  );
+}
+
+function ShowcaseStats({
+  players,
+  color,
+  align,
+}: {
+  players: ShowcasePlayer[];
+  color: string;
+  align: 'left' | 'right';
+}) {
+  return (
+    <div
+      className={`flex flex-col gap-2 ${align === 'right' ? 'text-right' : 'text-left'}`}
+    >
+      {players.map((p) => (
+        <ShowcaseStatRow key={p.nickname} player={p} color={color} align={align} />
+      ))}
+    </div>
+  );
+}
+
+function ShowcaseStatRow({
+  player,
+  color,
+  align,
+}: {
+  player: ShowcasePlayer;
+  color: string;
+  align: 'left' | 'right';
+}) {
+  const pct = handicapToRating(player.handicap);
+  return (
+    <div>
+      <p
+        className="truncate font-mono text-[11px] font-bold uppercase tracking-widest text-yellow-300"
+        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+      >
+        {player.nickname.toUpperCase()}
+        {player.handicap && (
+          <span className="ml-1.5 font-mono text-[9px] tabular-nums text-yellow-300/60">
+            {player.handicap}
+          </span>
+        )}
+      </p>
+      <div
+        className="mt-1 h-2.5 overflow-hidden rounded-[1px] bg-black/60"
+        style={{
+          direction: align === 'right' ? 'rtl' : 'ltr',
+          boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.8)',
+        }}
+      >
+        <div
+          className="h-full"
+          style={{
+            width: `${pct}%`,
+            background: `linear-gradient(90deg, ${color} 0%, ${color}cc 100%)`,
+            boxShadow: `0 0 6px ${color}88`,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+

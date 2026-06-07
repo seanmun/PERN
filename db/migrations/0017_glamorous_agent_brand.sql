@@ -1,0 +1,1 @@
+ALTER TABLE "trip_members" ALTER COLUMN "email" DROP NOT NULL;

@@ -167,11 +167,52 @@ export async function generateArcadePortrait(
     };
   }
 
-  // 3. Upload the generated PNG to Vercel Blob.
-  const pngBuffer = Buffer.from(b64, 'base64');
+  // 3. Trim transparent padding so every portrait fills its canvas
+  // consistently, then re-pad to a square. gpt-image-1 places the subject
+  // somewhere inside the 1024×1024 canvas with transparent surroundings —
+  // the bounding box of the subject varies per generation. CSS can't fix
+  // that, so we normalize on the server: trim alpha edges, then extend
+  // back to a square with a transparent border. After this every portrait
+  // has its subject tight against the canvas edges, so 2v2 matchup cards
+  // render with all four players at the same visual scale.
+  const rawBuffer = Buffer.from(b64, 'base64');
+  let normalizedBuffer: Buffer;
+  try {
+    const trimmed = await sharp(rawBuffer)
+      .trim({
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+        threshold: 10,
+      })
+      .toBuffer();
+    const meta = await sharp(trimmed).metadata();
+    if (!meta.width || !meta.height) {
+      normalizedBuffer = rawBuffer;
+    } else {
+      const size = Math.max(meta.width, meta.height);
+      const padH = size - meta.width;
+      const padV = size - meta.height;
+      normalizedBuffer = await sharp(trimmed)
+        .extend({
+          top: Math.floor(padV / 2),
+          bottom: Math.ceil(padV / 2),
+          left: Math.floor(padH / 2),
+          right: Math.ceil(padH / 2),
+          background: { r: 0, g: 0, b: 0, alpha: 0 },
+        })
+        .png()
+        .toBuffer();
+    }
+  } catch (err) {
+    // If sharp chokes for any reason, fall back to the raw output rather
+    // than failing the whole generation.
+    console.warn('[portrait] post-trim failed, using untrimmed PNG', err);
+    normalizedBuffer = rawBuffer;
+  }
+
+  // 4. Upload the trimmed PNG to Vercel Blob.
   const filename = `portraits/arcade-${Date.now()}-${Math.floor(Math.random() * 1e6)}.png`;
   try {
-    const blob = await put(filename, pngBuffer, {
+    const blob = await put(filename, normalizedBuffer, {
       access: 'public',
       contentType: 'image/png',
       addRandomSuffix: false,

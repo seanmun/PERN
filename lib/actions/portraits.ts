@@ -159,6 +159,15 @@ async function ensurePortraitUser(tripMemberId: string): Promise<string> {
 
   if (member.userId) return member.userId;
 
+  // Shell players (no email) can't be linked to a users row — users.email is
+  // NOT NULL and unique. Admin needs to set the email first so we have a
+  // stable key for the user row + lazy-claim later.
+  if (!member.email) {
+    throw new Error(
+      "This player is a shell — set their email first so the portrait can attach to their (future) account.",
+    );
+  }
+
   const email = member.email.toLowerCase();
 
   let [user] = await db

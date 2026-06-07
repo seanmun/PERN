@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { tripMembers, teams, matchParticipants, matches, rounds } from '@/db/schema';
+import { tripMembers, teams, matchParticipants, matches, rounds, users } from '@/db/schema';
 import { getAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
@@ -43,24 +43,47 @@ export async function createPlayer(formData: FormData): Promise<void> {
   const nickname = String(formData.get('nickname') ?? '').trim();
   if (!nickname) throw new Error('Nickname is required');
 
-  const email = String(formData.get('email') ?? '').trim().toLowerCase();
-  if (!email) throw new Error('Email is required');
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new Error('Email looks invalid');
+  // Email is optional. Blank → "shell" tripMember that won't lazy-claim
+  // until an admin (or the user, via a future claim flow) fills the email in.
+  const rawEmail = String(formData.get('email') ?? '').trim().toLowerCase();
+  const email = rawEmail || null;
+  if (email) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new Error('Email looks invalid');
+    }
+    const [duplicate] = await db
+      .select({ id: tripMembers.id })
+      .from(tripMembers)
+      .where(
+        and(
+          eq(tripMembers.tripId, tripId),
+          sql`lower(${tripMembers.email}) = ${email}`,
+        ),
+      )
+      .limit(1);
+    if (duplicate) {
+      throw new Error(`${email} is already on this trip.`);
+    }
   }
 
-  const [duplicate] = await db
-    .select({ id: tripMembers.id })
-    .from(tripMembers)
-    .where(
-      and(
-        eq(tripMembers.tripId, tripId),
-        sql`lower(${tripMembers.email}) = ${email}`,
-      ),
-    )
-    .limit(1);
-  if (duplicate) {
-    throw new Error(`${email} is already on this trip.`);
+  // Linking an existing platform user directly (from the search picker on
+  // the admin's new-player form). When set, we attach the userId immediately
+  // and inherit the user's avatar/handicap so the row looks claimed from
+  // the moment it's created.
+  const linkedUserId = trimOrNull(formData.get('linkedUserId'));
+  let avatarUrl: string | null = null;
+  let tripHandicap = parseHandicap(formData.get('tripHandicap'));
+  if (linkedUserId) {
+    const [linkedUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, linkedUserId))
+      .limit(1);
+    if (!linkedUser) throw new Error('Selected user not found');
+    avatarUrl = linkedUser.avatarUrl;
+    if (tripHandicap == null && linkedUser.handicap) {
+      tripHandicap = linkedUser.handicap;
+    }
   }
 
   const teamId = trimOrNull(formData.get('teamId'));
@@ -78,11 +101,13 @@ export async function createPlayer(formData: FormData): Promise<void> {
   await db.insert(tripMembers).values({
     tripId,
     email,
+    userId: linkedUserId,
     nickname,
+    avatarUrl,
     teamId: teamId ?? null,
     role: 'player',
     isCaptain: false,
-    tripHandicap: parseHandicap(formData.get('tripHandicap')),
+    tripHandicap,
   });
 
   const tripSlug = await getTripSlugById(tripId);
@@ -113,8 +138,12 @@ export async function updatePlayer(formData: FormData): Promise<void> {
   const nickname = String(formData.get('nickname') ?? '').trim();
   if (!nickname) throw new Error('Nickname is required');
 
-  const email = String(formData.get('email') ?? '').trim().toLowerCase();
-  if (!email) throw new Error('Email is required');
+  // Email is now optional — blank means shell player. If set, basic format check.
+  const rawEmail = String(formData.get('email') ?? '').trim().toLowerCase();
+  const email: string | null = rawEmail || null;
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error('Email looks invalid');
+  }
 
   const teamId = trimOrNull(formData.get('teamId'));
   // Validate teamId belongs to this trip if set

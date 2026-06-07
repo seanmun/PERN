@@ -58,19 +58,25 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     }
   }
 
-  let [tripMember] = await db
+  // Claim every unclaimed tripMember row matching this email — a user might
+  // be on multiple trips by the time they sign in for the first time. The
+  // single-row stitch only claimed one and silently left the rest dangling.
+  await db
+    .update(tripMembers)
+    .set({ userId: user.id, email })
+    .where(
+      sql`lower(${tripMembers.email}) = ${email} AND ${tripMembers.userId} IS NULL`,
+    );
+
+  // Now fetch a tripMember for the current auth context. With multiple
+  // memberships, pick any — callers that need a specific trip use
+  // getTripAuthContext(tripId) instead. The "first by id" is arbitrary but
+  // stable across requests.
+  const [tripMember] = await db
     .select()
     .from(tripMembers)
     .where(sql`lower(${tripMembers.email}) = ${email}`)
     .limit(1);
-
-  if (tripMember && !tripMember.userId) {
-    [tripMember] = await db
-      .update(tripMembers)
-      .set({ userId: user.id, email })
-      .where(eq(tripMembers.id, tripMember.id))
-      .returning();
-  }
 
   const adminEmails = (process.env.PLATFORM_ADMIN_EMAILS ?? '')
     .split(',')

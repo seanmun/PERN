@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { getAuthContext } from '@/lib/auth/current-user';
 import { updateMyUserProfile } from '@/lib/actions/me';
+import PhotoWithPortraitSection from '@/components/portraits/PhotoWithPortraitSection';
 
 export default async function GlobalMeEditPage() {
   const ctx = await getAuthContext();
@@ -27,7 +28,14 @@ export default async function GlobalMeEditPage() {
         this one.
       </p>
 
-      <form action={updateMyUserProfile} className="mt-8 space-y-5">
+      <form action={updateMyUserProfile} className="mt-8 space-y-6">
+        <PhotoWithPortraitSection
+          photoName="avatarUrl"
+          photoDefaultValue={user.avatarUrl ?? null}
+          portraitUrl={user.arcadePortraitUrl ?? null}
+          redirectTo="/me/edit"
+        />
+
         <Field label="Email">
           <input
             type="email"

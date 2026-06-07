@@ -94,7 +94,10 @@ export const tripMembers = pgTable('trip_members', {
   id: uuid('id').primaryKey().defaultRandom(),
   tripId: uuid('trip_id').references(() => trips.id, { onDelete: 'cascade' }).notNull(),
   userId: uuid('user_id').references(() => users.id),
-  email: text('email').notNull(),
+  // Nullable so admins can add "shell" players who haven't been invited yet
+  // (or who refused to join). When NULL, lazy-claim can't link this row
+  // to a user on sign-in — it stays unclaimed until an admin sets the email.
+  email: text('email'),
   teamId: uuid('team_id').references(() => teams.id),
   nickname: text('nickname').notNull(),
   avatarUrl: text('avatar_url'),                                 // trip-scoped photo (admin can set before claim)
