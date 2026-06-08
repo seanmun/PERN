@@ -3,11 +3,22 @@
  *
  * Pure functions. No DB. Inputs come in, results come out — no side effects.
  *
- * Handles 1v1 singles and 2v2 best-ball (where a team's hole score is the
- * lowest net among its players for that hole). USGA stroke allocation: lowest
- * handicap in the match plays as scratch; others receive strokes on hardest-
- * rated holes first, distributing extras at handicap ≥ 18.
+ * Handles the player-input match-play formats:
+ *   - 1v1 singles               (each side = 1 player, team net = that player's net)
+ *   - 2v2 best ball (Four-Ball) (each side = 2 players, team net = LOWEST player net)
+ *   - 2-man aggregate           (each side = 2 players, team net = SUM of player nets)
+ *
+ * Team-input formats (scramble, alternate shot) use a different engine because
+ * the underlying data shape is "one team score per hole" rather than "one score
+ * per player per hole." That lives in a sibling function.
+ *
+ * USGA stroke allocation: lowest handicap in the match plays as scratch; others
+ * receive strokes on hardest-rated holes first, distributing extras at
+ * handicap ≥ 18. For aggregate the calculation is identical (each player gets
+ * their own stroke allocation; sums happen at net-comparison time, not earlier).
  */
+
+export type PlayerInputFormat = 'best_ball' | 'singles' | 'two_man_aggregate';
 
 export type EnginePlayer = {
   id: string;
@@ -90,8 +101,10 @@ export function computeMatch(input: {
   players: EnginePlayer[];
   holes: EngineHole[];
   scores: EngineScore[];
+  format?: PlayerInputFormat;
 }): ComputedMatch {
   const { players, holes } = input;
+  const format = input.format ?? 'best_ball';
   const totalHoles = holes.length;
   const strokesByPlayer = computeStrokes(players, holes);
 
@@ -108,15 +121,33 @@ export function computeMatch(input: {
 
   const sortedHoles = [...holes].sort((a, b) => a.number - b.number);
 
-  function bestNetOnSide(side: EnginePlayer[], holeNumber: number): number | null {
+  /**
+   * Reduce one side's per-player nets on a hole down to a single number we can
+   * compare against the other side. Best Ball / Singles → min; Aggregate → sum.
+   * Returns null when no player on that side has a score yet (best ball/agg
+   * both need at least one score; aggregate strictly speaking needs BOTH but
+   * we still show running totals once any player scores).
+   *
+   * For aggregate, a missing partner score causes the hole to be uncountable —
+   * comparing a partial sum to the other side's full sum would lie. We only
+   * count the hole once every player on the side has scored.
+   */
+  function sideNetOnHole(side: EnginePlayer[], holeNumber: number): number | null {
     const nets: number[] = [];
     for (const p of side) {
       const gross = scoreByPlayerHole.get(p.id)?.get(holeNumber);
-      if (gross == null) continue;
+      if (gross == null) {
+        if (format === 'two_man_aggregate') return null;
+        continue;
+      }
       const strokes = strokesByPlayer.get(p.id)?.get(holeNumber) ?? 0;
       nets.push(gross - strokes);
     }
-    return nets.length > 0 ? Math.min(...nets) : null;
+    if (nets.length === 0) return null;
+    if (format === 'two_man_aggregate') {
+      return nets.reduce((a, b) => a + b, 0);
+    }
+    return Math.min(...nets);
   }
 
   let upA = 0;
@@ -127,17 +158,17 @@ export function computeMatch(input: {
   const holeResults: HoleResult[] = [];
 
   for (const hole of sortedHoles) {
-    const aBest = bestNetOnSide(sideA, hole.number);
-    const bBest = bestNetOnSide(sideB, hole.number);
+    const aNet = sideNetOnHole(sideA, hole.number);
+    const bNet = sideNetOnHole(sideB, hole.number);
 
     let winner: HoleResult['winner'] = null;
     let countedThisHole = false;
 
-    if (!closed && aBest != null && bBest != null) {
-      if (aBest < bBest) {
+    if (!closed && aNet != null && bNet != null) {
+      if (aNet < bNet) {
         winner = 'A';
         upA += 1;
-      } else if (bBest < aBest) {
+      } else if (bNet < aNet) {
         winner = 'B';
         upB += 1;
       } else {
@@ -155,7 +186,7 @@ export function computeMatch(input: {
           remaining,
         };
       }
-    } else if (aBest != null && bBest != null && closed) {
+    } else if (aNet != null && bNet != null && closed) {
       // After closure: scores can still be entered for completeness but they
       // don't change the result. Mark the hole as having scores but no winner
       // (we don't count post-closure holes).
@@ -165,8 +196,8 @@ export function computeMatch(input: {
     holeResults.push({
       holeNumber: hole.number,
       par: hole.par,
-      aBestNet: aBest,
-      bBestNet: bBest,
+      aBestNet: aNet,
+      bBestNet: bNet,
       winner: countedThisHole ? winner : null,
       statusAfter: { upA, upB },
     });

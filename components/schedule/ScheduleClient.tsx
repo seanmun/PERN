@@ -40,7 +40,7 @@ export type ClientGolfItem = {
   groupNumber: number;
   roundOrder: number;
   roundLabel: string | null;
-  roundFormat: 'match_play_2v2' | 'singles' | 'scramble' | 'stroke';
+  roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate';
   courseName: string;
   courseLocation: string | null;
   matches: ClientMatch[];
@@ -63,7 +63,7 @@ export type ClientEmptyRoundItem = {
   roundId: string;
   roundOrder: number;
   roundLabel: string | null;
-  roundFormat: 'match_play_2v2' | 'singles' | 'scramble' | 'stroke';
+  roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate';
   courseName: string;
   courseLocation: string | null;
 };
@@ -383,10 +383,11 @@ function EmptyRoundRow({
   const editHref = `/trips/${tripSlug}/admin/rounds/${item.roundId}/edit`;
   const formatLabel = (fmt: ClientEmptyRoundItem['roundFormat']): string => {
     switch (fmt) {
-      case 'match_play_2v2': return '2v2 Match';
+      case 'best_ball': return 'Best Ball';
       case 'singles': return 'Singles';
       case 'scramble': return 'Scramble';
       case 'stroke': return 'Stroke';
+      case 'two_man_aggregate': return 'Aggregate';
     }
   };
   return (
@@ -432,10 +433,11 @@ function mapsUrl(query: string): string {
 
 function formatLabel(fmt: ClientGolfItem['roundFormat']): string {
   switch (fmt) {
-    case 'match_play_2v2': return '2v2 · Match Play';
-    case 'singles':        return 'Singles · 1v1';
-    case 'scramble':       return 'Scramble';
-    case 'stroke':         return 'Stroke Play';
+    case 'best_ball':         return 'Best Ball · 2v2';
+    case 'singles':           return 'Singles · 1v1';
+    case 'scramble':          return 'Scramble';
+    case 'stroke':            return 'Stroke Play';
+    case 'two_man_aggregate': return 'Two-Man Aggregate';
   }
 }
 

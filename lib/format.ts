@@ -29,10 +29,11 @@ export function eventTypeLabel(t: string): string {
 
 export function roundFormatLabel(fmt: string): string {
   switch (fmt) {
-    case 'match_play_2v2': return '2v2 · Match Play';
-    case 'singles':        return 'Singles · 1v1';
-    case 'scramble':       return 'Scramble';
-    case 'stroke':         return 'Stroke Play';
-    default:               return fmt;
+    case 'best_ball':         return 'Best Ball · 2v2';
+    case 'singles':           return 'Singles · 1v1';
+    case 'scramble':          return 'Scramble';
+    case 'stroke':            return 'Stroke Play';
+    case 'two_man_aggregate': return 'Two-Man Aggregate';
+    default:                  return fmt;
   }
 }

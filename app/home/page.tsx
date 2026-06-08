@@ -85,7 +85,12 @@ export default async function GlobalMePage() {
             Signed in
           </p>
           <h1 className="mt-1 truncate text-xl font-bold">{displayName}</h1>
-          <p className="truncate text-xs text-zinc-500">{user.email}</p>
+          {user.username && (
+            <p className="truncate font-mono text-[11px] text-zinc-500">
+              @{user.username}
+            </p>
+          )}
+          <p className="truncate text-xs text-zinc-600">{user.email}</p>
         </div>
         <Link
           href="/me"
@@ -109,15 +114,10 @@ export default async function GlobalMePage() {
         </div>
       )}
 
-      {(user.username || user.clubName || user.city || user.state) && (
+      {(user.clubName || user.city || user.state) && (
         <div className="mt-3 rounded-sm border border-zinc-800 bg-zinc-950/40 px-3 py-3 text-sm text-zinc-300">
-          {user.username && (
-            <p className="font-mono text-xs tabular-nums text-yellow-400">
-              @{user.username}
-            </p>
-          )}
           {user.clubName && (
-            <p className="mt-1">
+            <p>
               <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500">
                 Club
               </span>{' '}

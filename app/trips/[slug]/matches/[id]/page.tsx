@@ -23,7 +23,13 @@ import {
   roundFormatLabel,
 } from '@/lib/format';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
-import { computeMatch, formatStatus } from '@/lib/scoring/engine';
+import { computeMatch, formatStatus, type PlayerInputFormat } from '@/lib/scoring/engine';
+
+const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
+  'best_ball',
+  'singles',
+  'two_man_aggregate',
+]);
 
 export default async function MatchDetailPage({
   params,
@@ -123,6 +129,9 @@ export default async function MatchDetailPage({
         players: scoringData.enginePlayers,
         holes: scoringData.engineHoles,
         scores: scoringData.engineScores,
+        format: PLAYER_INPUT_FORMATS.has(scoringData.round.format)
+          ? (scoringData.round.format as PlayerInputFormat)
+          : 'best_ball',
       })
     : null;
   const liveStatusText = liveMatch ? formatStatus(liveMatch.status) : null;

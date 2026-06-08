@@ -14,12 +14,13 @@ import {
 import { getTripSlugById } from '@/lib/auth/trip-context';
 import type { AuthContext } from '@/lib/auth/current-user';
 
-type RoundFormat = 'match_play_2v2' | 'singles' | 'scramble' | 'stroke';
+type RoundFormat = 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate';
 const VALID_FORMATS: ReadonlySet<RoundFormat> = new Set([
-  'match_play_2v2',
+  'best_ball',
   'singles',
   'scramble',
   'stroke',
+  'two_man_aggregate',
 ]);
 
 const TRIP_TZ_OFFSET = '-04:00';

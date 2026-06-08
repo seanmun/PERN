@@ -79,8 +79,9 @@ export default async function NewRoundPage({
         </Field>
 
         <Field label="Format" required>
-          <select name="format" required className={inputCls} defaultValue="match_play_2v2">
-            <option value="match_play_2v2">2v2 — Match play (cart vs cart)</option>
+          <select name="format" required className={inputCls} defaultValue="best_ball">
+            <option value="best_ball">Best Ball — 2v2 (lowest net per side)</option>
+            <option value="two_man_aggregate">Two-Man Aggregate — 2v2 (sum of nets)</option>
             <option value="singles">Singles — 1v1 match play</option>
             <option value="scramble">Scramble</option>
             <option value="stroke">Stroke play</option>

@@ -5,6 +5,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { tripMembers, users } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
+import { deriveUniqueUsername } from '@/lib/auth/username';
 import {
   AuthorizationError,
   isPlatformAdmin,
@@ -177,10 +178,12 @@ async function ensurePortraitUser(tripMemberId: string): Promise<string> {
     .limit(1);
 
   if (!user) {
+    const username = await deriveUniqueUsername(email);
     [user] = await db
       .insert(users)
       .values({
         email,
+        username,
         fullName: member.nickname,
         avatarUrl: member.avatarUrl,
       })

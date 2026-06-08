@@ -210,7 +210,8 @@ export default async function EditRoundPage({
             defaultValue={round.format}
             className={inputCls}
           >
-            <option value="match_play_2v2">2v2 — Match play</option>
+            <option value="best_ball">Best Ball — 2v2 (lowest net per side)</option>
+            <option value="two_man_aggregate">Two-Man Aggregate — 2v2 (sum of nets)</option>
             <option value="singles">Singles — 1v1 match play</option>
             <option value="scramble">Scramble</option>
             <option value="stroke">Stroke play</option>

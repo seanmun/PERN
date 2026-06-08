@@ -59,22 +59,6 @@ export default async function MyProfilePage() {
         </Field>
 
         <Field
-          label="Username"
-          hint="3–20 characters, lowercase. Will be your @handle when friends/social ships."
-        >
-          <input
-            type="text"
-            name="username"
-            defaultValue={user.username ?? ''}
-            placeholder="seanmun"
-            autoCapitalize="none"
-            autoComplete="off"
-            spellCheck={false}
-            className={inputCls}
-          />
-        </Field>
-
-        <Field
           label="Handicap"
           hint="One decimal, e.g. 12.3. This is your default across every trip you join. Trip admins can override per trip."
         >
@@ -137,6 +121,39 @@ export default async function MyProfilePage() {
             </Field>
           </div>
         </div>
+
+        <details className="rounded-sm border border-zinc-900 bg-zinc-950/30">
+          <summary className="cursor-pointer select-none px-3 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500 hover:text-zinc-300">
+            Public handle
+            {user.username && (
+              <span className="ml-2 normal-case tracking-normal text-yellow-400">
+                @{user.username}
+              </span>
+            )}
+          </summary>
+          <div className="border-t border-zinc-900 px-3 pt-3 pb-4">
+            <p className="text-[11px] text-zinc-500">
+              Your @-handle. Auto-set from your email when you signed up. Will be used for mentions and your profile URL when social ships — you can claim a better one now if you want.
+            </p>
+            <div className="mt-2 flex items-stretch overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 focus-within:border-yellow-500">
+              <span className="flex items-center px-3 font-mono text-base text-zinc-500">@</span>
+              <input
+                type="text"
+                name="username"
+                defaultValue={user.username ?? ''}
+                placeholder="seanmun"
+                autoCapitalize="none"
+                autoComplete="off"
+                spellCheck={false}
+                maxLength={20}
+                className="flex-1 bg-transparent px-1 py-2 font-mono text-base text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+              />
+            </div>
+            <p className="mt-1.5 text-[11px] text-zinc-500">
+              3–20 chars, lowercase letters, numbers, hyphens, underscores.
+            </p>
+          </div>
+        </details>
 
         <div className="flex items-center gap-3 pt-4">
           <button

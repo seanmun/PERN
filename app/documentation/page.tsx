@@ -137,7 +137,7 @@ export default async function DocumentationPage() {
             ['trips', 'Top-level container', 'slug (unique), name, startDate, endDate, description, imageUrl, createdBy'],
             ['teams', 'Two teams per trip', 'tripId, name, color (hex), captainUserId'],
             ['tripMembers', 'Roster — central to permissions', 'tripId, userId (nullable until claimed), email (nullable since 0017), teamId, nickname, avatarUrl, role (trip_admin|player), isCaptain, tripHandicap, scoutingReport (flight columns retained but unused after flights page removal)'],
-            ['rounds', 'Golf outings (5–6 per trip)', 'tripId, courseId, courseTeeId, date, format (match_play_2v2|singles|scramble|stroke), order, label, countsTowardCup, isHidden'],
+            ['rounds', 'Golf outings (5–6 per trip)', 'tripId, courseId, courseTeeId, date, format (best_ball|singles|scramble|stroke), order, label, countsTowardCup, isHidden'],
             ['teeTimes', 'Groups within a round', 'roundId, time, groupNumber'],
             ['matches', 'One match per tee time', 'roundId, teeTimeId, status (scheduled|in_progress|completed), resultText, winningTeamId, isHalved'],
             ['matchParticipants', 'M:N players↔match', 'PK (matchId, tripMemberId), teamId'],

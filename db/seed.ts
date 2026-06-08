@@ -118,9 +118,9 @@ async function seed() {
   const insertedRounds = await db
     .insert(rounds)
     .values([
-      { tripId: trip.id, courseId: pineNeedles.id, date: new Date('2026-08-19T00:00:00-04:00'), format: 'match_play_2v2', order: 1, label: 'Wed PM — Pine Needles',                       countsTowardCup: true  },
-      { tripId: trip.id, courseId: tobaccoRoad.id, date: new Date('2026-08-20T00:00:00-04:00'), format: 'match_play_2v2', order: 2, label: 'Thu AM — Tobacco Road',                       countsTowardCup: true  },
-      { tripId: trip.id, courseId: pinehurst2.id,  date: new Date('2026-08-21T00:00:00-04:00'), format: 'match_play_2v2', order: 3, label: 'Fri AM — Pinehurst No. 2',                    countsTowardCup: true  },
+      { tripId: trip.id, courseId: pineNeedles.id, date: new Date('2026-08-19T00:00:00-04:00'), format: 'best_ball', order: 1, label: 'Wed PM — Pine Needles',                       countsTowardCup: true  },
+      { tripId: trip.id, courseId: tobaccoRoad.id, date: new Date('2026-08-20T00:00:00-04:00'), format: 'best_ball', order: 2, label: 'Thu AM — Tobacco Road',                       countsTowardCup: true  },
+      { tripId: trip.id, courseId: pinehurst2.id,  date: new Date('2026-08-21T00:00:00-04:00'), format: 'best_ball', order: 3, label: 'Fri AM — Pinehurst No. 2',                    countsTowardCup: true  },
       { tripId: trip.id, courseId: pinehurst10.id, date: new Date('2026-08-22T00:00:00-04:00'), format: 'singles',        order: 4, label: 'Sat AM — Pinehurst No. 10 (Singles)',         countsTowardCup: true  },
       { tripId: trip.id, courseId: pinehurst4.id,  date: new Date('2026-08-22T00:00:00-04:00'), format: 'singles',        order: 5, label: 'Sat PM — Pinehurst No. 4 (captains pick)',    countsTowardCup: true  },
       { tripId: trip.id, courseId: pinehurst4.id,  date: new Date('2026-08-22T00:00:00-04:00'), format: 'scramble',       order: 6, label: 'Sat — Fun Scramble (Pinehurst No. 4)',        countsTowardCup: false },

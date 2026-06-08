@@ -15,10 +15,11 @@ import {
 export const tripRoleEnum = pgEnum('trip_role', ['trip_admin', 'player']);
 
 export const roundFormatEnum = pgEnum('round_format', [
-  'match_play_2v2',
+  'best_ball',
   'singles',
   'scramble',
   'stroke',
+  'two_man_aggregate',
 ]);
 
 export const matchStatusEnum = pgEnum('match_status', [

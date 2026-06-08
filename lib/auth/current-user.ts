@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { users, tripMembers } from '@/db/schema';
+import { deriveUniqueUsername } from './username';
 
 export type AuthContext = {
   user: typeof users.$inferSelect;
@@ -46,16 +47,32 @@ export async function getGlobalAuthContext(): Promise<AuthContext | null> {
         .where(eq(users.id, existingByEmail.id))
         .returning();
     } else {
+      // Auto-pick a username from the email's local part. Future @mentions /
+      // social features assume every user has one; deriving up-front avoids
+      // a null state. User can change it on /me whenever.
+      const username = await deriveUniqueUsername(email);
       [user] = await db
         .insert(users)
         .values({
           clerkId: clerkUserId,
           email,
+          username,
           fullName: clerkUser.fullName ?? null,
           avatarUrl: clerkUser.imageUrl ?? null,
         })
         .returning();
     }
+  }
+
+  // Backfill: if an existing user row predates the auto-username (or somehow
+  // landed without one), assign one quietly on this sign-in.
+  if (!user.username) {
+    const username = await deriveUniqueUsername(email);
+    [user] = await db
+      .update(users)
+      .set({ username, updatedAt: new Date() })
+      .where(eq(users.id, user.id))
+      .returning();
   }
 
   // Claim every unclaimed tripMember row matching this email — a user might

@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   matches,
@@ -18,21 +18,35 @@ import {
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
-import { computeMatch, formatStatus } from '@/lib/scoring/engine';
+import { computeMatch, formatStatus, type PlayerInputFormat } from '@/lib/scoring/engine';
 
 /**
  * Recompute the match's status / winning team / result text from its current
  * hole_scores. Called after every score upsert so the scoreboard reflects the
  * truth without a separate "finalize match" step.
  */
+// Forward player-input formats straight through; everything else (scramble,
+// stroke — team-input or non-match-play formats) maps to the best-ball
+// engine for now and will get its own engine path in phase 2.
+const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
+  'best_ball',
+  'singles',
+  'two_man_aggregate',
+]);
+
 async function recomputeMatchStatus(matchId: string): Promise<void> {
   const data = await getMatchScoringData(matchId);
   if (!data) return;
+
+  const fmt = PLAYER_INPUT_FORMATS.has(data.round.format)
+    ? (data.round.format as PlayerInputFormat)
+    : 'best_ball';
 
   const computed = computeMatch({
     players: data.enginePlayers,
     holes: data.engineHoles,
     scores: data.engineScores,
+    format: fmt,
   });
 
   // Map A/B back to the actual team IDs. data.participants carries the side.
@@ -125,49 +139,79 @@ export async function upsertHoleScore(formData: FormData): Promise<void> {
 
   const gross = parseGross(formData.get('gross'));
 
+  // Stacked matches: a single tee time can have multiple matches (e.g. a 2v2
+  // best ball PLUS a 1v1 singles within the same group). The player plays
+  // one ball per round, so one entered score must fan out to every match in
+  // the same tee time this player participates in. We deliberately scope by
+  // tee time (not round) — two groups in the same round are physically
+  // separate balls; they should never share a score.
+  const teeTimeId = target.match.teeTimeId;
+  let participatingMatchIds: string[] = [matchId];
+  if (teeTimeId) {
+    const fanout = await db
+      .select({ id: matches.id })
+      .from(matches)
+      .innerJoin(
+        matchParticipants,
+        eq(matchParticipants.matchId, matches.id)
+      )
+      .where(
+        and(
+          eq(matches.teeTimeId, teeTimeId),
+          eq(matchParticipants.tripMemberId, tripMemberId)
+        )
+      );
+    participatingMatchIds = fanout.map((m) => m.id);
+  }
+
   if (gross == null) {
-    // Empty input: delete the score row (player cleared their entry)
+    // Empty input: delete the score row from every fan-out match.
     await db
       .delete(holeScores)
       .where(
         and(
-          eq(holeScores.matchId, matchId),
+          inArray(holeScores.matchId, participatingMatchIds),
           eq(holeScores.tripMemberId, tripMemberId),
           eq(holeScores.holeNumber, holeNumber)
         )
       );
   } else {
-    await db
-      .insert(holeScores)
-      .values({
-        matchId,
-        tripMemberId,
-        holeNumber,
-        gross,
-        enteredBy: ctx.user.id,
-        enteredAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: [
-          holeScores.matchId,
-          holeScores.tripMemberId,
-          holeScores.holeNumber,
-        ],
-        set: {
+    for (const mid of participatingMatchIds) {
+      await db
+        .insert(holeScores)
+        .values({
+          matchId: mid,
+          tripMemberId,
+          holeNumber,
           gross,
           enteredBy: ctx.user.id,
           enteredAt: new Date(),
-        },
-      });
+        })
+        .onConflictDoUpdate({
+          target: [
+            holeScores.matchId,
+            holeScores.tripMemberId,
+            holeScores.holeNumber,
+          ],
+          set: {
+            gross,
+            enteredBy: ctx.user.id,
+            enteredAt: new Date(),
+          },
+        });
+    }
   }
 
-  // Recompute the match status from the new score set so the scoreboard,
-  // feed, and match-detail pages reflect closeouts/halves immediately.
-  await recomputeMatchStatus(matchId);
+  // Recompute status for every match that received the score.
+  for (const mid of participatingMatchIds) {
+    await recomputeMatchStatus(mid);
+  }
 
   const tripSlug = await getTripSlugById(target.round.tripId);
-  revalidatePath(`/trips/${tripSlug}/matches/${matchId}`);
-  revalidatePath(`/trips/${tripSlug}/matches/${matchId}/score`);
+  for (const mid of participatingMatchIds) {
+    revalidatePath(`/trips/${tripSlug}/matches/${mid}`);
+    revalidatePath(`/trips/${tripSlug}/matches/${mid}/score`);
+  }
   revalidatePath(`/trips/${tripSlug}/scoreboard`);
   revalidatePath(`/trips/${tripSlug}/feed`);
   revalidatePath(`/trips/${tripSlug}/schedule`);
