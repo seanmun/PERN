@@ -159,13 +159,24 @@ async function OutingLiveBoard({
           No matches set up yet. Add them from the admin page.
         </p>
       ) : (
-        <div className="mt-8 space-y-6">
+        <div className="mt-8 space-y-3">
           {Array.from(byTeeTime.entries()).map(([key, { teeTime, rows }]) => (
-            <section key={key}>
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500">
-                Group {teeTime?.groupNumber ?? '—'}
-              </p>
-              <div className="mt-2 space-y-2">
+            <div
+              key={key}
+              className="rounded-sm border border-zinc-800 bg-zinc-950/40"
+            >
+              {/* Tee-time header — shown once per group */}
+              <div className="flex items-baseline justify-between gap-3 border-b border-zinc-900 px-3 py-2.5">
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-500">
+                  Group {teeTime?.groupNumber ?? '—'}
+                </p>
+                <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-600">
+                  {rows.length} match{rows.length === 1 ? '' : 'es'}
+                </p>
+              </div>
+
+              {/* Match sub-rows */}
+              <div className="divide-y divide-zinc-900">
                 {rows.map((row) => {
                   const parts = partsByMatch.get(row.match.id) ?? [];
                   const byTeam = new Map<
@@ -197,7 +208,7 @@ async function OutingLiveBoard({
                   );
                 })}
               </div>
-            </section>
+            </div>
           ))}
         </div>
       )}
@@ -253,10 +264,10 @@ function MatchLiveRow({
   return (
     <Link
       href={`/trips/${slug}/matches/${matchId}`}
-      className="block rounded-sm border border-zinc-800 bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-900/40"
+      className="block px-3 py-2.5 hover:bg-zinc-900/40"
     >
       <div className="flex items-center justify-between gap-3">
-        <FormatBadge format={format} />
+        <FormatBadge format={format} size="xs" />
         <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
           {holesPlayed === 0
             ? 'Not started'
