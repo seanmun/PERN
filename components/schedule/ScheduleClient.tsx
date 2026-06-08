@@ -492,46 +492,55 @@ function GolfRow({
     );
   }
 
-  // One clickable card per match. Layout shifts between compact (list) and expanded (day).
+  // One card per TEE TIME (foursome). Matches inside the same tee time are
+  // sub-rows of that card — so a Best Ball + Singles stack reads as "one
+  // group, two scoring games" instead of two unrelated cards.
   return (
-    <div className="space-y-2">
-      {item.matches.map((m) => (
-        <Link
-          key={m.id}
-          href={`/trips/${tripSlug}/matches/${m.id}`}
-          className="block rounded-sm border border-zinc-800 bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-900/40"
-        >
-          <div className="flex items-start gap-3">
-            <div className="w-16 shrink-0">
-              <p className="font-mono text-xs font-bold tabular-nums text-yellow-400">
-                {time}
-              </p>
-              <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-600">
-                Group {item.groupNumber}
-              </p>
-            </div>
+    <div className="rounded-sm border border-zinc-800 bg-zinc-950/40">
+      {/* Tee-time header — shown once for the whole group */}
+      <div className="flex items-start gap-3 border-b border-zinc-900 p-3">
+        <div className="w-16 shrink-0">
+          <p className="font-mono text-xs font-bold tabular-nums text-yellow-400">
+            {time}
+          </p>
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-600">
+            Group {item.groupNumber}
+          </p>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <Trophy size={14} className="text-yellow-500" />
+            <p className="truncate font-semibold">{item.courseName}</p>
+          </div>
+          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+            R{item.roundOrder}
+            {item.matches.length > 1 && (
+              <span className="ml-1.5 text-zinc-600">
+                · {item.matches.length} matches
+              </span>
+            )}
+          </p>
+        </div>
+      </div>
 
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <Trophy size={14} className="text-yellow-500" />
-                <p className="truncate font-semibold">{item.courseName}</p>
-              </div>
-              <div className="mt-0.5 flex items-center gap-1.5">
-                <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-                  R{item.roundOrder}
-                </p>
-                <FormatBadge format={m.format} size="xs" />
-              </div>
-
-              <div className="mt-3">
+      {/* Match sub-rows — each clickable, format-badged. */}
+      <div className="divide-y divide-zinc-900">
+        {item.matches.map((m) => (
+          <Link
+            key={m.id}
+            href={`/trips/${tripSlug}/matches/${m.id}`}
+            className="block px-3 py-2.5 hover:bg-zinc-900/40"
+          >
+            <div className="flex items-start gap-3">
+              <FormatBadge format={m.format} size="xs" />
+              <div className="min-w-0 flex-1">
                 {compact ? <MatchupLine match={m} /> : <MatchupStacked match={m} />}
               </div>
+              <ChevronRight size={14} className="mt-0.5 shrink-0 text-zinc-700" />
             </div>
-
-            <ChevronRight size={14} className="mt-1 shrink-0 text-zinc-700" />
-          </div>
-        </Link>
-      ))}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
