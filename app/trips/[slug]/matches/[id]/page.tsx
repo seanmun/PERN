@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { eq, asc, and } from 'drizzle-orm';
-import { ArrowLeft, MapPin, Pencil, PenLine, Trophy } from 'lucide-react';
+import { ArrowLeft, Calendar, Pencil, PenLine, Trophy } from 'lucide-react';
 import { db } from '@/db/client';
 import {
   matches,
@@ -19,7 +19,6 @@ import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import {
   formatTripTime,
   formatTripDayLong,
-  mapsUrl,
   roundFormatLabel,
 } from '@/lib/format';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
@@ -141,10 +140,6 @@ export default async function MatchDetailPage({
     (p) => p.member.id === selfTripMemberId
   );
   const canEnterScores = canEdit || selfIsParticipant;
-
-  const mapQuery = [match.course.name, match.course.location]
-    .filter(Boolean)
-    .join(', ');
 
   return (
     <div className="pb-24">
@@ -268,16 +263,20 @@ export default async function MatchDetailPage({
         </Link>
       )}
 
-      {mapQuery && (
-        <a
-          href={mapsUrl(mapQuery)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-8 flex w-full items-center justify-center gap-2 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+      <div className="mt-8 grid grid-cols-2 gap-2">
+        <Link
+          href={`/trips/${slug}/schedule`}
+          className="flex items-center justify-center gap-2 rounded-sm border border-zinc-700 px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
         >
-          <MapPin size={14} /> Open in Maps
-        </a>
-      )}
+          <Calendar size={12} /> Schedule
+        </Link>
+        <Link
+          href={`/trips/${slug}/scoreboard`}
+          className="flex items-center justify-center gap-2 rounded-sm border border-zinc-700 px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
+        >
+          <Trophy size={12} /> Cup
+        </Link>
+      </div>
       </div>
     </div>
   );
