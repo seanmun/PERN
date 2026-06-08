@@ -203,7 +203,11 @@ export default async function EditRoundPage({
           )}
         </Field>
 
-        <Field label="Format" required>
+        <Field
+          label="Default format for new matches"
+          hint="Each match in this round can override its own format independently (Best Ball + Singles side-bet stacks etc.)."
+          required
+        >
           <select
             name="format"
             required

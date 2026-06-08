@@ -92,6 +92,26 @@ export default async function NewMatchPage({
       <form action={createMatch} className="mt-8 space-y-6">
         <input type="hidden" name="teeTimeId" value={teeTime.teeTime.id} />
 
+        <label className="block">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+            Format
+          </span>
+          <select
+            name="format"
+            defaultValue={teeTime.round.format}
+            className="mt-2 block w-full rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
+          >
+            <option value="best_ball">Best Ball — 2v2 (lowest net per side)</option>
+            <option value="two_man_aggregate">Two-Man Aggregate — 2v2 (sum of nets)</option>
+            <option value="singles">Singles — 1v1 match play</option>
+            <option value="scramble">Scramble</option>
+            <option value="stroke">Stroke play</option>
+          </select>
+          <p className="mt-1.5 text-[11px] text-zinc-500">
+            How this match is scored. Defaults to the round&apos;s format; stack a different format here for a side match.
+          </p>
+        </label>
+
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
           Players
         </p>

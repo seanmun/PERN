@@ -95,6 +95,7 @@ async function main() {
       .values({
         roundId: round.id,
         teeTimeId: teeTime.id,
+        format: round.format,
         status: 'scheduled',
       })
       .returning();

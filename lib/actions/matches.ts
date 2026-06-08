@@ -27,6 +27,25 @@ function requireMatchAdmin(ctx: AuthContext, tripId: string): void {
   throw new AuthorizationError('Trip admin required to edit matches');
 }
 
+type RoundFormat = 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate';
+const VALID_FORMATS: ReadonlySet<RoundFormat> = new Set<RoundFormat>([
+  'best_ball',
+  'singles',
+  'scramble',
+  'stroke',
+  'two_man_aggregate',
+]);
+
+function parseFormat(v: FormDataEntryValue | null): RoundFormat | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (!VALID_FORMATS.has(s as RoundFormat)) {
+    throw new Error(`Invalid match format "${s}"`);
+  }
+  return s as RoundFormat;
+}
+
 export async function updateMatchParticipants(formData: FormData): Promise<void> {
   const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
@@ -47,6 +66,25 @@ export async function updateMatchParticipants(formData: FormData): Promise<void>
   const selectedMemberIds = formData.getAll('participants').map((v) => String(v));
   if (!selectedMemberIds.length) {
     throw new Error('Pick at least one player');
+  }
+
+  // Format change: if the edit form submitted a value and it differs, update.
+  // Bumping the format wipes the match status/result so it recomputes against
+  // the new format on the next score entry — otherwise old result text would
+  // leak across formats (e.g. a closed best-ball result hanging on an
+  // aggregate match).
+  const newFormat = parseFormat(formData.get('format'));
+  if (newFormat && newFormat !== match.match.format) {
+    await db
+      .update(matches)
+      .set({
+        format: newFormat,
+        status: 'scheduled',
+        resultText: null,
+        winningTeamId: null,
+        isHalved: false,
+      })
+      .where(eq(matches.id, matchId));
   }
 
   // Resolve each member's team via tripMembers (source of truth)
@@ -105,11 +143,15 @@ export async function createMatch(formData: FormData): Promise<void> {
     .from(tripMembers)
     .where(inArray(tripMembers.id, selectedMemberIds));
 
+  // Format: form input wins; otherwise fall back to the round's default.
+  const format = parseFormat(formData.get('format')) ?? teeTime.round.format;
+
   const [match] = await db
     .insert(matches)
     .values({
       roundId: teeTime.round.id,
       teeTimeId: teeTime.teeTime.id,
+      format,
       status: 'scheduled',
     })
     .returning();

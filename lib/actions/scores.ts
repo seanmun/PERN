@@ -38,8 +38,8 @@ async function recomputeMatchStatus(matchId: string): Promise<void> {
   const data = await getMatchScoringData(matchId);
   if (!data) return;
 
-  const fmt = PLAYER_INPUT_FORMATS.has(data.round.format)
-    ? (data.round.format as PlayerInputFormat)
+  const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
+    ? (data.match.format as PlayerInputFormat)
     : 'best_ball';
 
   const computed = computeMatch({

@@ -202,6 +202,7 @@ async function seed() {
       matchDefs.map((md) => ({
         roundId: md.round.id,
         teeTimeId: teeTimeMap.get(`${md.round.id}:${md.group}`)!.id,
+        format: md.round.format,
         status: 'scheduled' as const,
       }))
     )

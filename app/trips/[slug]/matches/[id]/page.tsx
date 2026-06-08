@@ -129,8 +129,8 @@ export default async function MatchDetailPage({
         players: scoringData.enginePlayers,
         holes: scoringData.engineHoles,
         scores: scoringData.engineScores,
-        format: PLAYER_INPUT_FORMATS.has(scoringData.round.format)
-          ? (scoringData.round.format as PlayerInputFormat)
+        format: PLAYER_INPUT_FORMATS.has(scoringData.match.format)
+          ? (scoringData.match.format as PlayerInputFormat)
           : 'best_ball',
       })
     : null;

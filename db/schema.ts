@@ -209,6 +209,11 @@ export const matches = pgTable('matches', {
   id: uuid('id').primaryKey().defaultRandom(),
   roundId: uuid('round_id').references(() => rounds.id, { onDelete: 'cascade' }).notNull(),
   teeTimeId: uuid('tee_time_id').references(() => teeTimes.id),
+  // Format lives on the match (not the round) so a single tee time can stack
+  // matches of different formats — e.g. a 2v2 Best Ball plus a 1v1 Singles
+  // side bet in the same foursome. Defaults to the round's format when a new
+  // match is created.
+  format: roundFormatEnum('format').notNull(),
   status: matchStatusEnum('status').default('scheduled').notNull(),
   resultText: text('result_text'),
   winningTeamId: uuid('winning_team_id').references(() => teams.id),

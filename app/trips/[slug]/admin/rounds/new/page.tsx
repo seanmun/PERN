@@ -78,7 +78,11 @@ export default async function NewRoundPage({
           </Link>
         </Field>
 
-        <Field label="Format" required>
+        <Field
+          label="Default format"
+          hint="Used when you add matches to this round. You can pick a different format per-match."
+          required
+        >
           <select name="format" required className={inputCls} defaultValue="best_ball">
             <option value="best_ball">Best Ball — 2v2 (lowest net per side)</option>
             <option value="two_man_aggregate">Two-Man Aggregate — 2v2 (sum of nets)</option>
