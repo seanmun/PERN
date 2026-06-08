@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Pencil, Plus, Trophy } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus } from 'lucide-react';
 import { asc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
@@ -23,6 +23,7 @@ import {
 } from '@/lib/format';
 import DeleteRoundButton from '@/components/admin/DeleteRoundButton';
 import DeleteTeeTimeButton from '@/components/admin/DeleteTeeTimeButton';
+import FormatBadge from '@/components/FormatBadge';
 
 export default async function EditRoundPage({
   params,
@@ -323,10 +324,7 @@ export default async function EditRoundPage({
                             href={`/trips/${slug}/matches/${m.id}/edit`}
                             className="flex items-center justify-between gap-2 rounded-sm border border-zinc-800 bg-black/40 px-2 py-1.5 hover:border-yellow-500/40"
                           >
-                            <Trophy
-                              size={11}
-                              className="shrink-0 text-yellow-500"
-                            />
+                            <FormatBadge format={m.format} size="xs" />
                             <p className="min-w-0 flex-1 truncate text-xs">
                               {sides.length === 2 ? (
                                 <>

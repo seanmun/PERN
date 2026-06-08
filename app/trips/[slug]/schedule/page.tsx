@@ -38,6 +38,7 @@ export default async function TripSchedulePage({
           courseLocation: item.course.location,
           matches: item.matches.map((m) => ({
             id: m.id,
+            format: m.format,
             resultText: m.resultText,
             participants: m.participants.map((p) => ({
               tripMemberId: p.tripMemberId,

@@ -17,6 +17,7 @@ import {
   Plus,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import FormatBadge from '@/components/FormatBadge';
 
 export type ClientParticipant = {
   tripMemberId: string;
@@ -29,6 +30,7 @@ export type ClientParticipant = {
 
 export type ClientMatch = {
   id: string;
+  format: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate';
   resultText: string | null;
   participants: ClientParticipant[];
 };
@@ -514,9 +516,12 @@ function GolfRow({
                 <Trophy size={14} className="text-yellow-500" />
                 <p className="truncate font-semibold">{item.courseName}</p>
               </div>
-              <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-                R{item.roundOrder} · {formatLabel(item.roundFormat)}
-              </p>
+              <div className="mt-0.5 flex items-center gap-1.5">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+                  R{item.roundOrder}
+                </p>
+                <FormatBadge format={m.format} size="xs" />
+              </div>
 
               <div className="mt-3">
                 {compact ? <MatchupLine match={m} /> : <MatchupStacked match={m} />}
