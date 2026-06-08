@@ -320,3 +320,50 @@ export async function reextractScorecard(formData: FormData): Promise<void> {
   revalidatePath(`/trips/${tripSlug}/admin/courses`);
   revalidatePath(`/trips/${tripSlug}/admin/courses/${courseId}/edit`);
 }
+
+/**
+ * Manually correct a single hole's par / handicap index / yardage. The
+ * scorecard OCR isn't always right — this is the patch-up surface so an
+ * admin can fix bad holes during a round without re-running the whole
+ * extraction. Stats downstream (match-play stroke allocation, leaderboard
+ * vs-par) all read from courseHoles so this is enough to repair them.
+ */
+export async function updateCourseHole(formData: FormData): Promise<void> {
+  const tripId = await ensureCourseAdmin(formData);
+
+  const id = String(formData.get('id') ?? '').trim();
+  if (!id) throw new Error('id required');
+
+  const par = intOrNull(formData.get('par'));
+  const handicapIndex = intOrNull(formData.get('handicapIndex'));
+  const yardage = intOrNull(formData.get('yardage'));
+
+  if (par == null || par < 3 || par > 6) {
+    throw new Error('Par must be between 3 and 6.');
+  }
+  if (handicapIndex == null || handicapIndex < 1 || handicapIndex > 18) {
+    throw new Error('Handicap index must be between 1 and 18.');
+  }
+  if (yardage != null && (yardage < 50 || yardage > 800)) {
+    throw new Error('Yardage looks off (50–800 yds).');
+  }
+
+  const [hole] = await db
+    .select({ id: courseHoles.id, courseId: courseHoles.courseId })
+    .from(courseHoles)
+    .where(eq(courseHoles.id, id))
+    .limit(1);
+  if (!hole) throw new Error('Hole not found');
+
+  await db
+    .update(courseHoles)
+    .set({ par, handicapIndex, yardage })
+    .where(eq(courseHoles.id, id));
+
+  const tripSlug = await getTripSlugById(tripId);
+  revalidatePath(`/trips/${tripSlug}/admin/courses/${hole.courseId}/edit`);
+  // Score-entry pages embed courseHoles snapshot data; bump the schedule and
+  // any in-progress match pages so they re-render with the corrected par.
+  revalidatePath(`/trips/${tripSlug}/schedule`, 'layout');
+  revalidatePath(`/trips/${tripSlug}/scoreboard`);
+}

@@ -161,13 +161,27 @@ export default async function EditRoundPage({
               </option>
             ))}
           </select>
+          <Link
+            href={`/trips/${slug}/admin/courses/${round.courseId}/edit`}
+            className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-400 hover:text-yellow-300"
+          >
+            Edit course holes →
+          </Link>
         </Field>
 
-        {teesForCourse.length > 1 && (
-          <Field
-            label="Tee"
-            hint="Which tee the round plays from. Leave blank to use the course default."
-          >
+        <Field
+          label="Tee"
+          hint={
+            teesForCourse.length === 0
+              ? 'This course has no tees defined yet. Add them under Admin → Courses.'
+              : 'Which tee the round plays from. Leave blank to use the course default.'
+          }
+        >
+          {teesForCourse.length === 0 ? (
+            <p className={`${inputCls} cursor-not-allowed opacity-60`}>
+              No tees on this course
+            </p>
+          ) : (
             <select
               name="courseTeeId"
               defaultValue={round.courseTeeId ?? ''}
@@ -186,8 +200,8 @@ export default async function EditRoundPage({
                 </option>
               ))}
             </select>
-          </Field>
-        )}
+          )}
+        </Field>
 
         <Field label="Format" required>
           <select

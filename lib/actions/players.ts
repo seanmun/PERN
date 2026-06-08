@@ -164,6 +164,26 @@ export async function updatePlayer(formData: FormData): Promise<void> {
 
   const isCaptain = formData.get('isCaptain') === 'on';
 
+  // If admin changes the email AND the row is currently linked to a user
+  // whose email no longer matches, drop the link. Otherwise the next
+  // sign-in by the new email would create a new user row but the slot
+  // would stay attached to the old (stub) user — exactly the Gerry bug
+  // (admin used a placeholder email, then updated it; tripMember stayed
+  // linked to the stub). Setting userId to null lets the lazy-claim flow
+  // re-attach correctly on next sign-in.
+  let userIdUpdate: string | null | undefined = undefined;
+  if (existing.userId && email !== existing.email) {
+    const [linkedUser] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, existing.userId))
+      .limit(1);
+    const linkedEmailLower = linkedUser?.email?.toLowerCase() ?? null;
+    if (!email || linkedEmailLower !== email) {
+      userIdUpdate = null;
+    }
+  }
+
   await db
     .update(tripMembers)
     .set({
@@ -175,8 +195,25 @@ export async function updatePlayer(formData: FormData): Promise<void> {
       tripHandicap: parseHandicap(formData.get('tripHandicap')),
       avatarUrl: trimOrNull(formData.get('avatarUrl')),
       scoutingReport: trimOrNull(formData.get('scoutingReport')),
+      ...(userIdUpdate !== undefined ? { userId: userIdUpdate } : {}),
     })
     .where(eq(tripMembers.id, id));
+
+  // If the email points at a real user that ALREADY exists (already signed
+  // in), do an immediate claim instead of waiting for next sign-in.
+  if (userIdUpdate === null && email) {
+    const [matchingUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(sql`lower(${users.email}) = ${email}`)
+      .limit(1);
+    if (matchingUser) {
+      await db
+        .update(tripMembers)
+        .set({ userId: matchingUser.id })
+        .where(eq(tripMembers.id, id));
+    }
+  }
 
   // Re-sync the team assignment onto every uncompleted match this player is
   // in for this trip. Completed matches keep their original snapshot so

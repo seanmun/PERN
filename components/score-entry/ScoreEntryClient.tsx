@@ -375,9 +375,33 @@ function PlayerHoleRow({
       >
         −
       </button>
-      <p className="w-10 text-center font-mono text-3xl font-bold leading-none tabular-nums text-zinc-100">
-        {score ?? '—'}
-      </p>
+      <button
+        type="button"
+        onClick={() => {
+          if (disabled) return;
+          onScoreChange(hole.par);
+        }}
+        disabled={disabled}
+        className={`flex h-11 w-14 shrink-0 flex-col items-center justify-center rounded-sm border text-center hover:bg-zinc-900 disabled:opacity-40 ${
+          score === hole.par
+            ? 'border-yellow-500/60 bg-yellow-500/10'
+            : 'border-zinc-700'
+        }`}
+        aria-label={`Set ${player.nickname}'s score to par (${hole.par})`}
+      >
+        <span
+          className={`font-mono text-3xl font-bold leading-none tabular-nums ${
+            score == null ? 'text-zinc-500' : 'text-zinc-100'
+          }`}
+        >
+          {score ?? hole.par}
+        </span>
+        {score == null && (
+          <span className="mt-0.5 font-mono text-[8px] font-semibold uppercase tracking-widest text-zinc-500">
+            Par
+          </span>
+        )}
+      </button>
       <button
         type="button"
         onClick={() => setRel(1)}

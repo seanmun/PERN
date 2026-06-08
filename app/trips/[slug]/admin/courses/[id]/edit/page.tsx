@@ -13,6 +13,7 @@ import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { setDefaultTee, updateCourse } from '@/lib/actions/courses';
 import ImagePickerInput from '@/components/ImagePickerInput';
+import CourseHolesEditor from '@/components/admin/CourseHolesEditor';
 import ExtractScorecardButton from '@/components/admin/ExtractScorecardButton';
 
 export default async function EditCoursePage({
@@ -192,29 +193,16 @@ export default async function EditCoursePage({
         )}
 
         {holes.length > 0 && (
-          <div className="mt-6 overflow-hidden rounded-sm border border-zinc-800">
-            <div className="grid grid-cols-[32px_1fr_1fr_1fr] gap-2 border-b border-zinc-800 bg-zinc-950 px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-              <span>#</span>
-              <span className="text-right">Par</span>
-              <span className="text-right">Yards</span>
-              <span className="text-right">SI</span>
-            </div>
-            {holes.map((h) => (
-              <div
-                key={h.id}
-                className="grid grid-cols-[32px_1fr_1fr_1fr] gap-2 border-b border-zinc-900 px-3 py-1.5 font-mono text-xs tabular-nums last:border-b-0"
-              >
-                <span className="text-yellow-400">{h.holeNumber}</span>
-                <span className="text-right text-zinc-200">{h.par}</span>
-                <span className="text-right text-zinc-500">
-                  {h.yardage ?? '—'}
-                </span>
-                <span className="text-right text-zinc-500">
-                  {h.handicapIndex}
-                </span>
-              </div>
-            ))}
-          </div>
+          <CourseHolesEditor
+            tripId={trip.id}
+            holes={holes.map((h) => ({
+              id: h.id,
+              holeNumber: h.holeNumber,
+              par: h.par,
+              yardage: h.yardage,
+              handicapIndex: h.handicapIndex,
+            }))}
+          />
         )}
       </section>
 

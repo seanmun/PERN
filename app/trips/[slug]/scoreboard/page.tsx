@@ -134,10 +134,17 @@ function PlayerRow({ player, rank, slug }: { player: PlayerTotal; rank: number; 
       <p className="w-12 shrink-0 text-right font-mono text-[10px] uppercase tracking-widest text-zinc-500">
         {player.tripHandicap ? `${player.tripHandicap} hcp` : 'no hcp'}
       </p>
-      <div className="w-16 shrink-0 text-right">
-        <p className={`font-mono text-lg font-bold tabular-nums ${scoreColor}`}>
-          {scoreLabel}
-        </p>
+      <div className="w-20 shrink-0 text-right">
+        <div className="flex items-baseline justify-end gap-1.5">
+          <p className={`font-mono text-lg font-bold tabular-nums ${scoreColor}`}>
+            {scoreLabel}
+          </p>
+          {player.holesScored > 0 && (
+            <p className="font-mono text-xs tabular-nums text-zinc-600">
+              {player.gross}
+            </p>
+          )}
+        </div>
         {player.holesScored > 0 && (
           <p className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
             thru {player.holesScored}
