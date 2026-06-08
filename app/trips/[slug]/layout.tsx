@@ -25,6 +25,11 @@ export default async function TripLayout({
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-400">
             {trip.name}
           </p>
+          {trip.kind !== 'trip' && (
+            <span className="ml-1 rounded-sm border border-zinc-800 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+              {trip.kind}
+            </span>
+          )}
         </div>
       </div>
       {children}

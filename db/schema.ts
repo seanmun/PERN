@@ -14,6 +14,15 @@ import {
 
 export const tripRoleEnum = pgEnum('trip_role', ['trip_admin', 'player']);
 
+/**
+ * Kind of golf event. Drives the UI shape and the Cup-tab behavior.
+ *   - trip    : multi-day, multi-round (Pinehurst). Schedule items, team Cup,
+ *               cumulative leaderboard.
+ *   - outing  : single day, multiple groups, one course. Live-status board.
+ *   - match   : single group, 2–4 players, one round. Cup tab is the match.
+ */
+export const tripKindEnum = pgEnum('trip_kind', ['trip', 'outing', 'match']);
+
 export const roundFormatEnum = pgEnum('round_format', [
   'best_ball',
   'singles',
@@ -84,6 +93,7 @@ export const trips = pgTable('trips', {
   id: uuid('id').primaryKey().defaultRandom(),
   slug: text('slug').notNull().unique(),
   name: text('name').notNull(),
+  kind: tripKindEnum('kind').default('trip').notNull(),           // trip | outing | match — drives UI defaults and Cup-tab shape
   startDate: timestamp('start_date', { withTimezone: true }),
   endDate: timestamp('end_date', { withTimezone: true }),
   description: text('description'),

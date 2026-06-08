@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { asc, eq, isNotNull } from 'drizzle-orm';
-import { ChevronRight, Plus, User as UserIcon } from 'lucide-react';
+import { CalendarDays, ChevronRight, Plus, Sun, User as UserIcon, Users } from 'lucide-react';
 import MemberAvatar from '@/components/avatar/MemberAvatar';
 import { db } from '@/db/client';
 import { trips, tripMembers } from '@/db/schema';
@@ -179,21 +179,29 @@ export default async function GlobalMePage() {
         </p>
 
         <div className="mt-3 space-y-2">
-          <Link
-            href="/trips/new"
-            className="flex items-center gap-3 rounded-sm border border-dashed border-yellow-500/40 bg-zinc-950/40 p-4 transition-colors hover:border-yellow-500/70 hover:bg-yellow-500/5"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-yellow-500/10 text-yellow-500">
-              <Plus size={18} strokeWidth={2.5} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-yellow-400">Create new trip</p>
-              <p className="truncate font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-                You&apos;ll be the trip admin
-              </p>
-            </div>
-            <ChevronRight size={14} className="shrink-0 text-yellow-500/60" />
-          </Link>
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-600">
+            Start something new
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            <NewKindButton
+              href="/trips/new?kind=trip"
+              icon={<CalendarDays size={18} strokeWidth={2} />}
+              label="Trip"
+              hint="Multi-day"
+            />
+            <NewKindButton
+              href="/trips/new?kind=outing"
+              icon={<Sun size={18} strokeWidth={2} />}
+              label="Outing"
+              hint="1 day · groups"
+            />
+            <NewKindButton
+              href="/trips/new?kind=match"
+              icon={<Users size={18} strokeWidth={2} />}
+              label="Match"
+              hint="2–4 players"
+            />
+          </div>
 
           {currentMemberships.length === 0 ? (
             <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-6 text-center">
@@ -284,6 +292,33 @@ export default async function GlobalMePage() {
         <SignOutLink />
       </div>
     </div>
+  );
+}
+
+function NewKindButton({
+  href,
+  icon,
+  label,
+  hint,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex flex-col items-center justify-center gap-1 rounded-sm border border-dashed border-yellow-500/40 bg-zinc-950/40 p-3 text-center transition-colors hover:border-yellow-500/70 hover:bg-yellow-500/5"
+    >
+      <span className="text-yellow-500">{icon}</span>
+      <p className="font-mono text-[11px] font-bold uppercase tracking-widest text-yellow-400">
+        {label}
+      </p>
+      <p className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">
+        {hint}
+      </p>
+    </Link>
   );
 }
 

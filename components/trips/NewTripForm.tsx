@@ -13,11 +13,34 @@ const labelCls =
 
 const hintCls = 'mt-1 text-[11px] text-zinc-500';
 
-export default function NewTripForm() {
+type Kind = 'trip' | 'outing' | 'match';
+
+const KIND_COPY: Record<Kind, { nameLabel: string; namePlaceholder: string; submit: string }> = {
+  trip: {
+    nameLabel: 'Trip name',
+    namePlaceholder: 'Pinehurst Cup 2026',
+    submit: 'Create trip',
+  },
+  outing: {
+    nameLabel: 'Outing name',
+    namePlaceholder: 'Sunday at Pine Hills',
+    submit: 'Create outing',
+  },
+  match: {
+    nameLabel: 'Match name',
+    namePlaceholder: 'Sat foursome',
+    submit: 'Create match',
+  },
+};
+
+export default function NewTripForm({ kind = 'trip' }: { kind?: Kind }) {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [slugTouched, setSlugTouched] = useState(false);
   const slugInputRef = useRef<HTMLInputElement>(null);
+  const copy = KIND_COPY[kind];
+  // Single-day kinds: collapse end date — server defaults endDate to startDate.
+  const singleDay = kind === 'outing' || kind === 'match';
 
   useEffect(() => {
     if (!slugTouched) {
@@ -27,11 +50,12 @@ export default function NewTripForm() {
 
   return (
     <form action={createTrip} className="mt-8 space-y-6">
+      <input type="hidden" name="kind" value={kind} />
       {/* Trip basics */}
       <section className="space-y-5">
         <div>
           <label htmlFor="trip-name" className={labelCls}>
-            Trip name <span className="text-yellow-500">*</span>
+            {copy.nameLabel} <span className="text-yellow-500">*</span>
           </label>
           <input
             id="trip-name"
@@ -39,7 +63,7 @@ export default function NewTripForm() {
             name="name"
             required
             maxLength={120}
-            placeholder="Pinehurst Cup 2026"
+            placeholder={copy.namePlaceholder}
             value={name}
             onChange={(e) => setName(e.target.value)}
             className={`mt-1.5 ${inputCls}`}
@@ -77,10 +101,10 @@ export default function NewTripForm() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        {singleDay ? (
           <div>
             <label htmlFor="trip-start" className={labelCls}>
-              Start date
+              Date
             </label>
             <input
               id="trip-start"
@@ -88,19 +112,38 @@ export default function NewTripForm() {
               name="startDate"
               className={`mt-1.5 ${inputCls}`}
             />
+            <p className={hintCls}>
+              {kind === 'match'
+                ? 'When the foursome plays.'
+                : 'When everyone tees off.'}
+            </p>
           </div>
-          <div>
-            <label htmlFor="trip-end" className={labelCls}>
-              End date
-            </label>
-            <input
-              id="trip-end"
-              type="date"
-              name="endDate"
-              className={`mt-1.5 ${inputCls}`}
-            />
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="trip-start" className={labelCls}>
+                Start date
+              </label>
+              <input
+                id="trip-start"
+                type="date"
+                name="startDate"
+                className={`mt-1.5 ${inputCls}`}
+              />
+            </div>
+            <div>
+              <label htmlFor="trip-end" className={labelCls}>
+                End date
+              </label>
+              <input
+                id="trip-end"
+                type="date"
+                name="endDate"
+                className={`mt-1.5 ${inputCls}`}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
           <label htmlFor="trip-description" className={labelCls}>
@@ -157,7 +200,7 @@ export default function NewTripForm() {
           type="submit"
           className="rounded-sm bg-yellow-500 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.4)] transition-colors hover:bg-yellow-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
         >
-          Create trip
+          {copy.submit}
         </button>
         <a
           href="/home"

@@ -58,6 +58,10 @@ export async function createTrip(formData: FormData): Promise<void> {
   const name = trim(formData.get('name'));
   if (!name) throw new Error('Trip name is required');
 
+  const kindRaw = trim(formData.get('kind'));
+  const kind: 'trip' | 'outing' | 'match' =
+    kindRaw === 'outing' || kindRaw === 'match' ? kindRaw : 'trip';
+
   const slugInput = trim(formData.get('slug')) ?? name;
   const slug = slugifyTripName(slugInput);
   if (!slug) throw new Error('Slug is required');
@@ -75,7 +79,11 @@ export async function createTrip(formData: FormData): Promise<void> {
   }
 
   const startDate = parseDate(formData.get('startDate'));
-  const endDate = parseDate(formData.get('endDate'));
+  // Single-day kinds: the form only shows one date input. End date defaults to
+  // the start so all our existing date-range queries (current/past trips,
+  // schedule day grouping) keep working without special-casing on kind.
+  const singleDay = kind === 'outing' || kind === 'match';
+  const endDate = singleDay ? startDate : parseDate(formData.get('endDate'));
   if (startDate && endDate && endDate < startDate) {
     throw new Error('End date must be on or after the start date.');
   }
@@ -92,6 +100,7 @@ export async function createTrip(formData: FormData): Promise<void> {
     .values({
       slug,
       name,
+      kind,
       startDate,
       endDate,
       description,
