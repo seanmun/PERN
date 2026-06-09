@@ -72,21 +72,53 @@ export default async function ScoreboardPage({
         {board.matchesContested} of {board.matchesTotal} matches in the books · {board.pointsAvailable} pts left
       </p>
 
-      <section className="mt-10">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
-          Individual leaderboard
-        </p>
-        <div className="mt-3 overflow-hidden rounded-sm border border-zinc-800">
-          {board.playerTotals.map((p, i) => (
-            <PlayerRow key={p.tripMemberId} player={p} rank={i + 1} slug={slug} />
-          ))}
-        </div>
-      </section>
+      <TripIndividualLeaderboard board={board} slug={slug} />
     </div>
   );
 }
 
 // ───────────────────────── OUTING LIVE BOARD ─────────────────────────
+
+const LEADERBOARD_VISIBLE = 12;
+
+function TripIndividualLeaderboard({
+  board,
+  slug,
+}: {
+  board: Awaited<ReturnType<typeof getLeaderboard>>;
+  slug: string;
+}) {
+  if (board.playerTotals.length === 0) return null;
+  const visible = board.playerTotals.slice(0, LEADERBOARD_VISIBLE);
+  const overflow = Math.max(0, board.playerTotals.length - LEADERBOARD_VISIBLE);
+  return (
+    <section className="mt-10">
+      <div className="flex items-baseline justify-between">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
+          Individual leaderboard
+        </p>
+        {overflow > 0 && (
+          <Link
+            href={`/trips/${slug}/scoreboard/leaderboard`}
+            className="font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-400 hover:text-yellow-300"
+          >
+            View all {board.playerTotals.length} →
+          </Link>
+        )}
+      </div>
+      <div className="mt-3 overflow-hidden rounded-sm border border-zinc-800">
+        {visible.map((p, i) => (
+          <PlayerRow key={p.tripMemberId} player={p} rank={i + 1} slug={slug} />
+        ))}
+      </div>
+      {overflow > 0 && (
+        <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-zinc-600">
+          +{overflow} more
+        </p>
+      )}
+    </section>
+  );
+}
 
 async function OutingLiveBoard({
   tripId,
@@ -97,6 +129,14 @@ async function OutingLiveBoard({
   tripName: string;
   slug: string;
 }) {
+  // Individual leaderboard alongside the live matches — same vs-par totals
+  // we show on multi-day Trip cup tabs, scoped to this outing.
+  const board = await getLeaderboard(tripId);
+  const lbVisible = board.playerTotals.slice(0, LEADERBOARD_VISIBLE);
+  const lbOverflow = Math.max(
+    0,
+    board.playerTotals.length - LEADERBOARD_VISIBLE,
+  );
   // Fetch every match in this trip, joined with its tee time + round, plus
   // participants & their teams. Group by tee time so we can render side-by-side.
   const allMatches = await db
@@ -211,6 +251,34 @@ async function OutingLiveBoard({
             </div>
           ))}
         </div>
+      )}
+
+      {board.playerTotals.length > 0 && (
+        <section className="mt-10">
+          <div className="flex items-baseline justify-between">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
+              Individual leaderboard
+            </p>
+            {lbOverflow > 0 && (
+              <Link
+                href={`/trips/${slug}/scoreboard/leaderboard`}
+                className="font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-400 hover:text-yellow-300"
+              >
+                View all {board.playerTotals.length} →
+              </Link>
+            )}
+          </div>
+          <div className="mt-3 overflow-hidden rounded-sm border border-zinc-800">
+            {lbVisible.map((p, i) => (
+              <PlayerRow key={p.tripMemberId} player={p} rank={i + 1} slug={slug} />
+            ))}
+          </div>
+          {lbOverflow > 0 && (
+            <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-zinc-600">
+              +{lbOverflow} more
+            </p>
+          )}
+        </section>
       )}
     </div>
   );
