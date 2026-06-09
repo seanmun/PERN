@@ -6,6 +6,7 @@ import { db } from '@/db/client';
 import { tripMembers, teams, users } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import MemberAvatar from '@/components/avatar/MemberAvatar';
+import PlayerInviteButton from '@/components/admin/PlayerInviteButton';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 
 export default async function AdminPlayersPage({
@@ -81,42 +82,58 @@ export default async function AdminPlayersPage({
           const team = p.teamId ? teamById.get(p.teamId) ?? null : null;
           const color = team?.color ?? '#3f3f46';
           return (
-            <Link
+            <div
               key={p.id}
-              href={`/trips/${slug}/admin/players/${p.id}/edit`}
-              className="flex items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-900/40"
+              className="flex items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-3 hover:border-yellow-500/40"
               style={{ borderLeft: `3px solid ${color}` }}
             >
-              <MemberAvatar
-                nickname={p.nickname}
-                arcadePortraitUrl={p.arcadePortraitUrl}
-                avatarUrl={p.avatarUrl}
-                teamColor={color}
-                size={48}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
-                  <p className="truncate font-semibold">{p.nickname}</p>
-                  {p.isCaptain && (
-                    <span
-                      className="font-mono text-[9px] font-semibold uppercase tracking-widest"
-                      style={{ color }}
-                    >
-                      Captain
-                    </span>
-                  )}
-                  {p.role === 'trip_admin' && (
-                    <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-yellow-400">
-                      Admin
-                    </span>
-                  )}
+              <Link
+                href={`/trips/${slug}/admin/players/${p.id}/edit`}
+                className="flex min-w-0 flex-1 items-center gap-3 hover:opacity-90"
+              >
+                <MemberAvatar
+                  nickname={p.nickname}
+                  arcadePortraitUrl={p.arcadePortraitUrl}
+                  avatarUrl={p.avatarUrl}
+                  teamColor={color}
+                  size={48}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <p className="truncate font-semibold">{p.nickname}</p>
+                    {p.isCaptain && (
+                      <span
+                        className="font-mono text-[9px] font-semibold uppercase tracking-widest"
+                        style={{ color }}
+                      >
+                        Captain
+                      </span>
+                    )}
+                    {p.role === 'trip_admin' && (
+                      <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-yellow-400">
+                        Admin
+                      </span>
+                    )}
+                  </div>
+                  <p className="truncate text-xs text-zinc-500">
+                    {team?.name ?? 'No team'} · {p.tripHandicap ?? '—'} hcp · {p.email ?? 'no email'}
+                  </p>
                 </div>
-                <p className="truncate text-xs text-zinc-500">
-                  {team?.name ?? 'No team'} · {p.tripHandicap ?? '—'} hcp · {p.email}
-                </p>
+              </Link>
+              <div className="flex shrink-0 items-center gap-2">
+                <PlayerInviteButton
+                  tripMemberId={p.id}
+                  hasEmail={Boolean(p.email)}
+                />
+                <Link
+                  href={`/trips/${slug}/admin/players/${p.id}/edit`}
+                  aria-label="Edit player"
+                  className="rounded-sm border border-zinc-800 p-1.5 text-zinc-400 hover:border-yellow-500/40 hover:text-yellow-400"
+                >
+                  <Pencil size={12} />
+                </Link>
               </div>
-              <Pencil size={14} className="shrink-0 text-zinc-500" />
-            </Link>
+            </div>
           );
         })}
       </div>
