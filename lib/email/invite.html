@@ -79,20 +79,20 @@
     }
 
     .kinetic { display: none !important; }
-
-    #Kinetic:checked ~* .interactive { display: table-row !important; }
+    .interactive { display: none  }
+    #Kinetic:checked ~* .interactive { display: block !important; }
     #Kinetic:checked ~* .fallback { display: none !important; }
 
-    #Kinetic:checked ~* .& .fallback { display: table-row !important; }
+    #Kinetic:checked ~* .& .fallback { display: block !important; }
     #Kinetic:checked ~* .& .interactive { display: none !important; }
 
-    .interactive { display: none !important; }
+
     .fallback { display: table-row !important; }
+
+
   </style>
 
   <style data-ignore-inlining>
-    #Kinetic:checked ~* .interactive { display: table-row !important; }
-    #Kinetic:checked ~* .fallback { display: none !important; }
 
     /* Tab default states — tab1 active by default */
     #tab1:checked ~* .tab-content-1 { display: block !important; }
@@ -148,7 +148,7 @@
       <!-- HEADER -->
       <tr>
         <td style="background-color: #0a0a0a; padding: 24px 32px; text-align: center;" bgcolor="#0a0a0a">
-          <img src="https://buddycup.golf/branding/BuddyCup-Logo-eyebrow.png"
+          <img src="https://buddycup.golf/email/header-logo.png"
                width="280" height="68" alt="BuddyCup"
                style="display: block; margin: 0 auto; width: 280px; height: auto; max-width: 100%;">
         </td>
@@ -156,10 +156,8 @@
 
       <!-- HERO -->
       <tr>
-        <td style="background-color: #0a0a0a; padding: 48px 32px 40px 32px; text-align: center;" bgcolor="#0a0a0a">
-          <img src="https://buddycup.golf/branding/BuddyCup-icon.png"
-               width="80" height="80" alt="BuddyCup icon"
-               style="display: block; margin: 0 auto 24px auto; width: 80px; height: 80px;">
+        <td style="background-color: #0a0a0a; padding: 18px 32px 40px 32px; text-align: center;" bgcolor="#0a0a0a">
+
           <h1 class="hero-headline" style="font-family: 'Geist', Arial, sans-serif; font-size: 42px; font-weight: 800; color: #eab308; margin: 0 0 20px 0; line-height: 1.1; letter-spacing: -1px;">You're in the game.</h1>
           <p style="font-family: 'Geist', Arial, sans-serif; font-size: 16px; color: #f4f4f5; line-height: 1.6; margin: 0 0 32px 0; max-width: 480px; margin-left: auto; margin-right: auto;">
             {{inviterName}} just added you to {{eventName}}. This is your shared scoreboard for the trip — where the trash talk lives, the scores are real, and someone's getting crowned champion.
@@ -185,13 +183,13 @@
           <table width="100%" cellspacing="0" cellpadding="0" border="0" role="none" style="border-collapse: collapse; margin-bottom: 0;">
             <tr>
               <td width="33%" style="padding: 0;">
-                <label for="tab1" class="tab-label-1" style="display: block; padding: 12px 8px; background-color: #e5e7eb; color: #6b7280; font-family: 'Geist', Arial, sans-serif; font-size: 13px; font-weight: 700; text-align: center; cursor: pointer; border-radius: 4px 4px 0 0; letter-spacing: 0.2px; line-height: 1.3;">🗓️ Plan the Trip</label>
+                <label for="tab1" class="tab-label-1" style="display: block; padding: 12px 8px; background-color: #e5e7eb; color: #6b7280; font-family: 'Geist', Arial, sans-serif; font-size: 13px; font-weight: 700; text-align: center; cursor: pointer; border-radius: 4px 4px 0 0; letter-spacing: 0.2px; line-height: 1.3;">Plan the<br>Trip</label>
               </td>
               <td width="33%" style="padding: 0 2px;">
-                <label for="tab2" class="tab-label-2" style="display: block; padding: 12px 8px; background-color: #e5e7eb; color: #6b7280; font-family: 'Geist', Arial, sans-serif; font-size: 13px; font-weight: 700; text-align: center; cursor: pointer; border-radius: 4px 4px 0 0; letter-spacing: 0.2px; line-height: 1.3;">⛳ Score the Round</label>
+                <label for="tab2" class="tab-label-2" style="display: block; padding: 12px 8px; background-color: #e5e7eb; color: #6b7280; font-family: 'Geist', Arial, sans-serif; font-size: 13px; font-weight: 700; text-align: center; cursor: pointer; border-radius: 4px 4px 0 0; letter-spacing: 0.2px; line-height: 1.3;">Score the<br>Round</label>
               </td>
               <td width="34%" style="padding: 0;">
-                <label for="tab3" class="tab-label-3" style="display: block; padding: 12px 8px; background-color: #e5e7eb; color: #6b7280; font-family: 'Geist', Arial, sans-serif; font-size: 13px; font-weight: 700; text-align: center; cursor: pointer; border-radius: 4px 4px 0 0; letter-spacing: 0.2px; line-height: 1.3;">🏆 Crown the Champ</label>
+                <label for="tab3" class="tab-label-3" style="display: block; padding: 12px 8px; background-color: #e5e7eb; color: #6b7280; font-family: 'Geist', Arial, sans-serif; font-size: 13px; font-weight: 700; text-align: center; cursor: pointer; border-radius: 4px 4px 0 0; letter-spacing: 0.2px; line-height: 1.3;">Crown the<br>Champ</label>
               </td>
             </tr>
           </table>
@@ -254,7 +252,7 @@
       <!--<![endif]-->
 
       <!-- FALLBACK: STACKED FEATURE CARDS -->
-      <tr class="fallback">
+      <tr class="fallback" style="display: table-row;">
         <td style="background-color: #ffffff; padding: 24px 32px 48px 32px;" bgcolor="#ffffff">
 
           <!-- Feature 1 -->
@@ -308,7 +306,7 @@
       <!-- FOOTER -->
       <tr>
         <td style="background-color: #0a0a0a; padding: 32px; border-top: 1px solid #1f2937; text-align: center;" bgcolor="#0a0a0a">
-          <img src="https://buddycup.golf/branding/BuddyCup-Logo.png"
+          <img src="https://buddycup.golf/email/footer-logo.png"
                width="120" height="80" alt="BuddyCup"
                style="display: block; margin: 0 auto 20px auto; width: 120px; height: auto; opacity: 0.7;">
           <p style="font-family: 'Geist', Arial, sans-serif; font-size: 13px; color: #9ca3af; line-height: 1.6; margin: 0 0 8px 0; font-weight: 600;">BuddyCup — Run your trip. Crown your champion.</p>
