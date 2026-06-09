@@ -495,35 +495,39 @@ function GolfRow({
   // One card per TEE TIME (foursome). Matches inside the same tee time are
   // sub-rows of that card — so a Best Ball + Singles stack reads as "one
   // group, two scoring games" instead of two unrelated cards.
+  //
+  // Match sub-row layout: format badge on top, opponents on a horizontal
+  // line beneath (left + right with a "vs" pivot). No left-padding for a
+  // badge column, so the matchup gets the full width.
+  void compact;
   return (
-    <div className="rounded-sm border border-zinc-800 bg-zinc-950/40">
+    <div className="overflow-hidden rounded-md border border-yellow-600/20 bg-zinc-950/70 shadow-[0_0_0_1px_rgba(0,0,0,0.4)]">
       {/* Tee-time header — shown once for the whole group */}
-      <div className="flex items-start gap-3 border-b border-zinc-900 p-3">
-        <div className="w-16 shrink-0">
+      <div className="flex items-baseline justify-between gap-3 border-b border-yellow-600/10 bg-black/30 px-3 py-2">
+        <div className="flex items-baseline gap-2">
           <p className="font-mono text-xs font-bold tabular-nums text-yellow-400">
             {time}
           </p>
-          <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-600">
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
             Group {item.groupNumber}
           </p>
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <Trophy size={14} className="text-yellow-500" />
-            <p className="truncate font-semibold">{item.courseName}</p>
-          </div>
-          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-            R{item.roundOrder}
-            {item.matches.length > 1 && (
-              <span className="ml-1.5 text-zinc-600">
-                · {item.matches.length} matches
-              </span>
-            )}
-          </p>
-        </div>
+        <p className="truncate font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+          R{item.roundOrder}
+          {item.matches.length > 1 && (
+            <span className="ml-1.5 text-zinc-600">
+              · {item.matches.length} matches
+            </span>
+          )}
+        </p>
       </div>
 
-      {/* Match sub-rows — each clickable, format-badged. */}
+      <div className="flex items-center gap-2 border-b border-zinc-900 px-3 py-1.5">
+        <Trophy size={11} className="shrink-0 text-yellow-500/70" />
+        <p className="truncate text-xs text-zinc-300">{item.courseName}</p>
+      </div>
+
+      {/* Match sub-rows — format on top, horizontal opponents underneath. */}
       <div className="divide-y divide-zinc-900">
         {item.matches.map((m) => (
           <Link
@@ -531,16 +535,87 @@ function GolfRow({
             href={`/trips/${tripSlug}/matches/${m.id}`}
             className="block px-3 py-2.5 hover:bg-zinc-900/40"
           >
-            <div className="flex items-start gap-3">
+            <div className="flex items-center justify-between gap-2">
               <FormatBadge format={m.format} size="xs" />
-              <div className="min-w-0 flex-1">
-                {compact ? <MatchupLine match={m} /> : <MatchupStacked match={m} />}
-              </div>
-              <ChevronRight size={14} className="mt-0.5 shrink-0 text-zinc-700" />
+              <ChevronRight size={12} className="shrink-0 text-zinc-700" />
+            </div>
+            <div className="mt-1.5">
+              <MatchupRow match={m} />
             </div>
           </Link>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Horizontal matchup: Team A on the left, "vs" pivot, Team B on the right.
+ * Saves vertical space and lets the format badge sit above it, freeing up
+ * the left-padding column that used to hold the badge.
+ *
+ * Each side shows team name + nickname(s) (with handicap inline). Multiple
+ * players (2v2) are joined with "&" so a four-player matchup still reads on
+ * one line at typical mobile widths.
+ */
+function MatchupRow({ match }: { match: ClientMatch }) {
+  const byTeam = new Map<string, ClientParticipant[]>();
+  for (const p of match.participants) {
+    const list = byTeam.get(p.teamId) ?? [];
+    list.push(p);
+    byTeam.set(p.teamId, list);
+  }
+  const teamGroups = Array.from(byTeam.values());
+
+  if (teamGroups.length !== 2) {
+    return (
+      <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-600">
+        No participants
+      </p>
+    );
+  }
+  const [a, b] = teamGroups;
+  return (
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+      <TeamSideCell players={a} align="left" />
+      <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-600">
+        vs
+      </span>
+      <TeamSideCell players={b} align="right" />
+    </div>
+  );
+}
+
+function TeamSideCell({
+  players,
+  align,
+}: {
+  players: ClientParticipant[];
+  align: 'left' | 'right';
+}) {
+  const color = players[0]?.teamColor ?? '#71717a';
+  const teamName = players[0]?.teamName ?? '';
+  return (
+    <div className={`min-w-0 ${align === 'right' ? 'text-right' : 'text-left'}`}>
+      <p
+        className="truncate font-mono text-[9px] font-semibold uppercase tracking-widest"
+        style={{ color }}
+      >
+        {teamName}
+      </p>
+      <p className="truncate text-sm font-semibold text-zinc-100">
+        {players.map((p, i) => (
+          <span key={p.tripMemberId}>
+            {i > 0 && ' & '}
+            {p.nickname}
+            {p.tripHandicap && (
+              <span className="ml-1 font-mono text-[10px] tabular-nums text-zinc-500">
+                {p.tripHandicap}
+              </span>
+            )}
+          </span>
+        ))}
+      </p>
     </div>
   );
 }
