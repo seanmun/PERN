@@ -35,13 +35,13 @@ export default function RootLayout({
         <body className="min-h-full flex flex-col">
           <header className="border-b border-green-900/40 bg-black/80 backdrop-blur">
             <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-              <Link href="/" className="group flex items-baseline gap-2">
-                <span className="font-mono text-xs font-bold uppercase tracking-[0.35em] text-yellow-500 group-hover:text-yellow-400">
-                  Buddy
-                </span>
-                <span className="font-mono text-xs font-bold uppercase tracking-[0.35em] text-zinc-100 group-hover:text-white">
-                  Cup
-                </span>
+              <Link href="/" className="group flex items-center" aria-label="BuddyCup home">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/branding/BuddyCup-Logo-eyebrow.png"
+                  alt="BuddyCup"
+                  className="h-7 w-auto transition-opacity group-hover:opacity-90 sm:h-8"
+                />
               </Link>
               <div className="flex items-center gap-3">
                 <HeaderAvatar />

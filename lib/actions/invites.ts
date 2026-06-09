@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
+import { clerkClient } from '@clerk/nextjs/server';
 import { Resend } from 'resend';
 import { db } from '@/db/client';
 import { tripMembers, trips } from '@/db/schema';
@@ -14,17 +15,25 @@ import {
 import InviteEmail from '@/lib/email/InviteEmail';
 
 /**
- * Send a player-invite email. Trip-admin (or platform-admin) only. The
- * recipient row must have an email set — shell players can't be invited
- * until the admin assigns them an email first.
+ * Player invite — single email, single click.
  *
- * Recipient flow: clicks the "Claim your spot" CTA → /sign-in with a
- * redirect to /trips/[slug] → Clerk magic-link → getGlobalAuthContext
- * runs the lazy-claim → tripMember.userId is stitched on first load.
+ * Flow:
+ *   1. Resolve the player + trip and check trip-admin auth.
+ *   2. Ask Clerk for a one-click magic link for the player's email:
+ *      - If the email already has a Clerk account → a sign-in token URL
+ *        (lands them straight in, signed in).
+ *      - If not → a Clerk Invitation with notify=false (Clerk creates the
+ *        account on click, redirects to the trip).
+ *      Either way, ONE URL that handles both new and returning users.
+ *   3. Embed that URL as the "Claim your spot" button in our branded Resend
+ *      email. We do not let Clerk send its own invite email.
  *
- * We don't mark anything in the DB on send — Resend's dashboard is the
- * audit log for who got what. If we ever need delivery tracking inside
- * the app we'll add an invites table; for MVP that's overkill.
+ * Edge cases:
+ *   - Pending Clerk invitation already exists (admin re-invites): reuse the
+ *     existing invitation URL instead of creating a duplicate.
+ *
+ * No DB writes for invites — Resend's dashboard is the audit log. If we need
+ * delivery tracking later we'll add an invites table.
  */
 export async function sendPlayerInvite(formData: FormData): Promise<void> {
   const ctx = await getGlobalAuthContext();
@@ -33,13 +42,8 @@ export async function sendPlayerInvite(formData: FormData): Promise<void> {
   const tripMemberId = String(formData.get('tripMemberId') ?? '').trim();
   if (!tripMemberId) throw new Error('tripMemberId required');
 
-  // Pull the player + trip in one round-trip so we can validate, scope auth
-  // and feed copy into the email all from one row.
   const [row] = await db
-    .select({
-      member: tripMembers,
-      trip: trips,
-    })
+    .select({ member: tripMembers, trip: trips })
     .from(tripMembers)
     .innerJoin(trips, eq(tripMembers.tripId, trips.id))
     .where(eq(tripMembers.id, tripMemberId))
@@ -55,47 +59,45 @@ export async function sendPlayerInvite(formData: FormData): Promise<void> {
       "This player has no email yet — set one before sending an invite.",
     );
   }
+  const recipientEmail = row.member.email.toLowerCase();
 
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      'RESEND_API_KEY is not configured. Set it in your environment.',
-    );
-  }
+  // Env wiring. Each is its own assertion so the admin sees exactly what's
+  // missing if they forgot to set one in Vercel.
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!resendKey) throw new Error('RESEND_API_KEY is not configured.');
   const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!fromEmail) throw new Error('RESEND_FROM_EMAIL is not configured.');
   const fromName = process.env.RESEND_FROM_NAME ?? 'BuddyCup';
-  if (!fromEmail) {
-    throw new Error(
-      'RESEND_FROM_EMAIL is not configured. Set it in your environment.',
-    );
-  }
 
-  // App origin for the invite link. NEXT_PUBLIC_APP_URL is the canonical
-  // domain — fall back to the Vercel-assigned URL in non-prod so preview
-  // deploys at least produce a working (preview) link.
   const origin =
     process.env.NEXT_PUBLIC_APP_URL ??
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
-  const tripPath = `/trips/${row.trip.slug}`;
-  const signInUrl = `${origin}/sign-in?redirect_url=${encodeURIComponent(tripPath)}`;
+  // Where Clerk sends them after the magic link is processed. Schedule is
+  // the natural first view of an event — they see rounds, course, matchups.
+  const tripPath = `/trips/${row.trip.slug}/schedule`;
+  const redirectUrl = `${origin}${tripPath}`;
 
-  // Inviter name: prefer the admin's full name, otherwise the email local
-  // part. Avoids "undefined added you to ..." when the user hasn't filled
-  // their profile yet.
+  const inviteUrl = await getOrCreateMagicLink({
+    email: recipientEmail,
+    redirectUrl,
+    tripMemberId,
+    tripId: row.member.tripId,
+    origin,
+  });
+
+  // Inviter name — prefer real name, fall back to email local part.
   const inviterName =
     ctx.user.fullName?.trim() ||
     ctx.user.displayName?.trim() ||
     ctx.user.email.split('@')[0];
 
-  // Date line — keep concise for the hero. Multi-day trips show a range;
-  // single-day events show one day.
   const dateLine = buildDateLine(row.trip.startDate, row.trip.endDate);
 
-  const resend = new Resend(apiKey);
+  const resend = new Resend(resendKey);
   const { error } = await resend.emails.send({
     from: `${fromName} <${fromEmail}>`,
-    to: row.member.email,
+    to: recipientEmail,
     subject: `${inviterName} added you to ${row.trip.name}`,
     react: InviteEmail({
       inviteeName: row.member.nickname,
@@ -103,17 +105,92 @@ export async function sendPlayerInvite(formData: FormData): Promise<void> {
       eventName: row.trip.name,
       eventKind: row.trip.kind,
       dateLine,
-      signInUrl,
+      signInUrl: inviteUrl,
     }),
   });
 
   if (error) {
-    // Resend surfaces a structured error — re-throw with the message so the
-    // admin UI shows what went wrong (bad address, domain not verified, etc.).
     throw new Error(`Email failed: ${error.message}`);
   }
 
   revalidatePath(`/trips/${row.trip.slug}/admin/players`);
+}
+
+/**
+ * Ask Clerk for a one-click URL that will sign the recipient in (existing
+ * user) or sign them up (new user). Returns the URL we put in the email.
+ *
+ * Existing users: sign-in token → URL goes through our /sign-in page which
+ * activates Clerk's ticket and bounces to redirect_url.
+ *
+ * New users: invitation with notify=false → Clerk returns a hosted URL that
+ * creates the account on click and redirects.
+ *
+ * If a pending invitation already exists for this email (admin re-invites),
+ * reuse its URL — Clerk rejects duplicate-create otherwise.
+ */
+async function getOrCreateMagicLink({
+  email,
+  redirectUrl,
+  tripMemberId,
+  tripId,
+  origin,
+}: {
+  email: string;
+  redirectUrl: string;
+  tripMemberId: string;
+  tripId: string;
+  origin: string;
+}): Promise<string> {
+  const client = await clerkClient();
+
+  // 1) Existing Clerk user with this email?
+  const userList = await client.users.getUserList({ emailAddress: [email] });
+  if (userList.data.length > 0) {
+    const user = userList.data[0];
+    const signInToken = await client.signInTokens.createSignInToken({
+      userId: user.id,
+      expiresInSeconds: 60 * 60 * 24 * 7, // 7 days
+    });
+    // Wire through our own /sign-in so the redirect_url honors our routing.
+    const params = new URLSearchParams({
+      __clerk_ticket: signInToken.token,
+      redirect_url: redirectUrl,
+    });
+    return `${origin}/sign-in?${params.toString()}`;
+  }
+
+  // 2) No existing user — issue an Invitation.
+  try {
+    const invitation = await client.invitations.createInvitation({
+      emailAddress: email,
+      redirectUrl,
+      notify: false,
+      publicMetadata: { tripMemberId, tripId },
+    });
+    return invitation.url ?? `${origin}/sign-up`;
+  } catch (err) {
+    // Duplicate-record error → there's already a pending invitation. Reuse it.
+    if (isClerkDuplicate(err)) {
+      const list = await client.invitations.getInvitationList({
+        status: 'pending',
+      });
+      const existing = list.data.find(
+        (inv) => inv.emailAddress.toLowerCase() === email,
+      );
+      if (existing) return existing.url ?? `${origin}/sign-up`;
+    }
+    throw err;
+  }
+}
+
+function isClerkDuplicate(err: unknown): boolean {
+  // Clerk SDK errors carry an `errors` array with `code` fields. Duplicate
+  // invitations typically use "duplicate_record" or HTTP 422.
+  if (typeof err !== 'object' || err === null) return false;
+  const e = err as { status?: number; errors?: { code?: string }[] };
+  if (e.status === 422) return true;
+  return Boolean(e.errors?.some((x) => x.code === 'duplicate_record'));
 }
 
 function buildDateLine(start: Date | null, end: Date | null): string | null {

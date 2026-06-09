@@ -9,15 +9,15 @@ export default function Footer() {
         <div className="flex flex-col items-center gap-6 md:flex-row md:items-center md:justify-between">
           <Link
             href="/"
-            className="group inline-flex items-baseline gap-2"
+            className="group inline-flex items-center"
             aria-label="BuddyCup home"
           >
-            <span className="font-mono text-xs font-bold uppercase tracking-[0.35em] text-yellow-500 group-hover:text-yellow-400">
-              Buddy
-            </span>
-            <span className="font-mono text-xs font-bold uppercase tracking-[0.35em] text-zinc-100 group-hover:text-white">
-              Cup
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/branding/BuddyCup-Logo.png"
+              alt="BuddyCup"
+              className="h-10 w-auto transition-opacity group-hover:opacity-90"
+            />
           </Link>
 
           <nav aria-label="Footer">
