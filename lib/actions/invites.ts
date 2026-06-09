@@ -1,5 +1,7 @@
 'use server';
 
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
 import { clerkClient } from '@clerk/nextjs/server';
@@ -12,7 +14,6 @@ import {
   isPlatformAdmin,
   isTripAdminOf,
 } from '@/lib/auth/permissions';
-import InviteEmail from '@/lib/email/InviteEmail';
 
 /**
  * Player invite — single email, single click.
@@ -94,19 +95,21 @@ export async function sendPlayerInvite(formData: FormData): Promise<void> {
 
   const dateLine = buildDateLine(row.trip.startDate, row.trip.endDate);
 
+  const html = await renderInviteHtml({
+    inviteeName: row.member.nickname,
+    inviterName,
+    eventName: row.trip.name,
+    eventKind: row.trip.kind,
+    dateLine,
+    signInUrl: inviteUrl,
+  });
+
   const resend = new Resend(resendKey);
   const { error } = await resend.emails.send({
     from: `${fromName} <${fromEmail}>`,
     to: recipientEmail,
     subject: `${inviterName} added you to ${row.trip.name}`,
-    react: InviteEmail({
-      inviteeName: row.member.nickname,
-      inviterName,
-      eventName: row.trip.name,
-      eventKind: row.trip.kind,
-      dateLine,
-      signInUrl: inviteUrl,
-    }),
+    html,
   });
 
   if (error) {
@@ -191,6 +194,68 @@ function isClerkDuplicate(err: unknown): boolean {
   const e = err as { status?: number; errors?: { code?: string }[] };
   if (e.status === 422) return true;
   return Boolean(e.errors?.some((x) => x.code === 'duplicate_record'));
+}
+
+/**
+ * Load the HTML invite template from disk and substitute tokens.
+ *
+ * Why file-based: the template is hand-authored externally (designed in a
+ * separate tool, includes Kinetic-style interactive tabs + an MSO fallback).
+ * Re-rendering it as JSX would be lossy. Loading once per send and doing
+ * simple {{token}} substitution keeps the design pristine.
+ *
+ * All caller-supplied values are HTML-escaped so a player nickname like
+ * "Gerry <script>" can't break out of an attribute or inject markup.
+ * signInUrl is the lone exception — Clerk's URL is trusted, and escaping
+ * it would mangle the query params.
+ */
+async function renderInviteHtml(vars: {
+  inviteeName: string;
+  inviterName: string;
+  eventName: string;
+  eventKind: 'trip' | 'outing' | 'match';
+  dateLine: string | null;
+  signInUrl: string;
+}): Promise<string> {
+  const templatePath = path.join(
+    process.cwd(),
+    'lib',
+    'email',
+    'invite.html',
+  );
+  const template = await fs.readFile(templatePath, 'utf-8');
+
+  const eventKindNoun =
+    vars.eventKind === 'trip'
+      ? 'trip'
+      : vars.eventKind === 'outing'
+        ? 'outing'
+        : 'match';
+
+  const subs: Record<string, string> = {
+    inviteeName: escapeHtml(vars.inviteeName),
+    inviterName: escapeHtml(vars.inviterName),
+    eventName: escapeHtml(vars.eventName),
+    eventKind: vars.eventKind,
+    eventKindNoun,
+    dateLine: vars.dateLine ? escapeHtml(vars.dateLine) : '',
+    // URLs aren't escaped — Clerk's ticket URLs include query params that
+    // HTML-escape would garble. They come straight from Clerk's SDK.
+    signInUrl: vars.signInUrl,
+  };
+
+  return template.replace(/\{\{([a-zA-Z_]+)\}\}/g, (_match, name: string) => {
+    return Object.prototype.hasOwnProperty.call(subs, name) ? subs[name] : '';
+  });
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function buildDateLine(start: Date | null, end: Date | null): string | null {
