@@ -7,7 +7,12 @@ import { matches, matchParticipants, rounds, teeTimes, teams, tripMembers } from
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { getLeaderboard, type PlayerTotal, type TeamTotal } from '@/lib/data/leaderboard';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
-import { computeMatch, formatStatus, type PlayerInputFormat } from '@/lib/scoring/engine';
+import {
+  computeMatch,
+  computeTeamMatch,
+  formatStatus,
+  type PlayerInputFormat,
+} from '@/lib/scoring/engine';
 import FormatBadge, { type MatchFormat } from '@/components/FormatBadge';
 
 const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
@@ -287,15 +292,28 @@ async function OutingLiveBoard({
 async function computeLive(matchId: string) {
   const data = await getMatchScoringData(matchId);
   if (!data) return null;
-  const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
-    ? (data.match.format as PlayerInputFormat)
-    : 'best_ball';
-  const computed = computeMatch({
-    players: data.enginePlayers,
-    holes: data.engineHoles,
-    scores: data.engineScores,
-    format: fmt,
-  });
+  let computed;
+  if (
+    data.inputMode === 'team' &&
+    data.engineTeams &&
+    data.engineTeams.length === 2
+  ) {
+    computed = computeTeamMatch({
+      teams: [data.engineTeams[0], data.engineTeams[1]],
+      holes: data.engineHoles,
+      scores: data.engineTeamScores ?? [],
+    });
+  } else {
+    const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
+      ? (data.match.format as PlayerInputFormat)
+      : 'best_ball';
+    computed = computeMatch({
+      players: data.enginePlayers,
+      holes: data.engineHoles,
+      scores: data.engineScores,
+      format: fmt,
+    });
+  }
   return {
     upA: computed.upA,
     upB: computed.upB,

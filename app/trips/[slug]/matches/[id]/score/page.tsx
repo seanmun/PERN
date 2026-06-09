@@ -7,12 +7,31 @@ import {
   isTripAdminOf,
 } from '@/lib/auth/permissions';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
-import { computeStrokes } from '@/lib/scoring/engine';
+import { computeStrokes, computeTeamMatch } from '@/lib/scoring/engine';
 import ScoreEntryClient, {
   type ScoreClientPlayer,
   type ScoreClientHole,
   type ScoreClientScore,
+  type ScoreClientTeam,
+  type ScoreClientTeamScore,
 } from '@/components/score-entry/ScoreEntryClient';
+
+/**
+ * Team-input formats need exactly 2 players per side. If the admin saved a
+ * scramble match with a 1v2 or 4v0 lineup, the team-handicap formula breaks
+ * and the engine can't score correctly. We block the score-entry UI in that
+ * case so the bad state can't compound — admin has to fix the matchup first.
+ */
+function validTeamSetup(data: {
+  participants: { team: { id: string } }[];
+}): boolean {
+  const byTeam = new Map<string, number>();
+  for (const p of data.participants) {
+    byTeam.set(p.team.id, (byTeam.get(p.team.id) ?? 0) + 1);
+  }
+  if (byTeam.size !== 2) return false;
+  return Array.from(byTeam.values()).every((n) => n === 2);
+}
 
 export default async function ScoreEntryPage({
   params,
@@ -73,6 +92,55 @@ export default async function ScoreEntryPage({
     gross: s.gross,
   }));
 
+  // Team-input formats (scramble, alt shot): collapse the 4 participants into
+  // 2 team rows. Team handicap + per-hole stroke allocation come from the
+  // team engine; the UI just renders them.
+  let teamsForClient: ScoreClientTeam[] = [];
+  let initialTeamScores: ScoreClientTeamScore[] = [];
+  if (
+    data.inputMode === 'team' &&
+    data.engineTeams &&
+    data.engineTeams.length === 2
+  ) {
+    const teamComputed = computeTeamMatch({
+      teams: [data.engineTeams[0], data.engineTeams[1]],
+      holes: data.engineHoles,
+      scores: data.engineTeamScores ?? [],
+    });
+    teamsForClient = data.engineTeams.map((et) => {
+      const teammates = data.participants.filter(
+        (p) => p.team.id === et.id,
+      );
+      const team = teammates[0]?.team;
+      const memberLine = teammates
+        .map((p) => p.participant.nickname)
+        .join(' & ');
+      const isSelfOnTeam = teammates.some(
+        (p) => p.participant.id === selfTripMemberId,
+      );
+      const strokesByHole: Record<number, number> = {};
+      const strokes = teamComputed.strokesByPlayer.get(et.id);
+      if (strokes) {
+        for (const [holeNum, n] of strokes) strokesByHole[holeNum] = n;
+      }
+      return {
+        teamId: et.id,
+        name: team?.name ?? 'Team',
+        color: team?.color ?? null,
+        memberLine,
+        teamHandicap: et.handicap,
+        isSelfOnTeam,
+        strokesByHole,
+      };
+    });
+    initialTeamScores =
+      data.engineTeamScores?.map((s) => ({
+        teamId: s.teamId,
+        holeNumber: s.holeNumber,
+        gross: s.gross,
+      })) ?? [];
+  }
+
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-4">
       <Link
@@ -121,6 +189,24 @@ export default async function ScoreEntryPage({
             </Link>
           )}
         </div>
+      ) : data.inputMode === 'team' && !validTeamSetup(data) ? (
+        <div className="mt-8 rounded-sm border border-yellow-600/30 bg-yellow-500/5 p-6">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.25em] text-yellow-400">
+            Roster doesn&apos;t match this format
+          </p>
+          <p className="mt-2 text-sm text-zinc-300">
+            {data.match.format === 'scramble' ? 'Scramble' : 'Alternate shot'} requires
+            exactly 2 players per team. Edit the matchup so each side has 2 participants.
+          </p>
+          {isAdmin && (
+            <Link
+              href={`/trips/${slug}/matches/${id}/edit`}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-sm border border-yellow-500/50 bg-yellow-500/10 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+            >
+              Edit matchup
+            </Link>
+          )}
+        </div>
       ) : (
         <ScoreEntryClient
           matchId={id}
@@ -129,6 +215,9 @@ export default async function ScoreEntryPage({
           initialScores={initialScores}
           canEdit={isAdmin || selfIsParticipant}
           selfTripMemberId={selfTripMemberId}
+          mode={data.inputMode}
+          teams={teamsForClient}
+          initialTeamScores={initialTeamScores}
         />
       )}
     </div>

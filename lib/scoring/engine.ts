@@ -298,3 +298,178 @@ export function winnerSide(s: MatchStatus): 'A' | 'B' | 'halved' | null {
   if (s.kind === 'halved') return 'halved';
   return null;
 }
+
+// ───────────────────────── TEAM-INPUT FORMATS ─────────────────────────
+//
+// Scramble and Alternate Shot: one ball per team, one gross per hole per team
+// (not per player). The engine input shape collapses to two virtual "players"
+// — one per team — each with a computed team handicap and a per-hole gross.
+
+export type TeamInputFormat = 'scramble' | 'alternate_shot';
+
+/**
+ * USGA team-handicap calculations.
+ *
+ *  - **Scramble (2-man)**: 35% of low handicap + 15% of high handicap.
+ *    Heavily favors the better player; the worse player's handicap barely
+ *    matters because in a scramble the team picks the best shot.
+ *
+ *  - **Alternate Shot (2-man Foursomes)**: 50% of (A + B) combined. Each
+ *    player only hits roughly half the shots, so the team handicap is the
+ *    average of the two full handicaps.
+ *
+ * Both round to one decimal at the end. Caller is expected to pass exactly
+ * two handicaps — anything else is a misconfigured match.
+ */
+export function computeTeamHandicap(
+  playerHandicaps: number[],
+  format: TeamInputFormat,
+): number {
+  if (playerHandicaps.length !== 2) {
+    throw new Error(
+      `${format} team handicap requires exactly 2 players (got ${playerHandicaps.length}).`,
+    );
+  }
+  const [a, b] = playerHandicaps;
+  if (format === 'scramble') {
+    const low = Math.min(a, b);
+    const high = Math.max(a, b);
+    return Math.round((0.35 * low + 0.15 * high) * 10) / 10;
+  }
+  // alternate_shot
+  return Math.round((0.5 * (a + b)) * 10) / 10;
+}
+
+export type EngineTeam = {
+  id: string;          // team-side id (typically the team.id from the DB)
+  side: 'A' | 'B';
+  handicap: number;    // already computed via computeTeamHandicap
+};
+
+export type EngineTeamScore = {
+  teamId: string;      // matches an EngineTeam.id
+  holeNumber: number;
+  gross: number;
+};
+
+/**
+ * Compute a team-vs-team match. Mirrors computeMatch's shape so the caller
+ * code (recompute / status display) treats both engines uniformly. The
+ * difference is that strokes are allocated team-to-team (high handicap team
+ * vs low handicap team) instead of player-to-player.
+ *
+ * Status / closure / dormie logic is identical to player-input matches.
+ */
+export function computeTeamMatch(input: {
+  teams: [EngineTeam, EngineTeam];
+  holes: EngineHole[];
+  scores: EngineTeamScore[];
+}): ComputedMatch {
+  const { teams, holes } = input;
+  const totalHoles = holes.length;
+
+  const sideA = teams.find((t) => t.side === 'A');
+  const sideB = teams.find((t) => t.side === 'B');
+  if (!sideA || !sideB) {
+    throw new Error('Team match needs one team per side (A and B).');
+  }
+
+  // Strokes go to the higher-handicap team. Diff is rounded so the math
+  // matches the player-input path (computeStrokes uses Math.round too).
+  const diff = Math.round(Math.abs(sideA.handicap - sideB.handicap));
+  const higherSide = sideA.handicap > sideB.handicap ? 'A' : 'B';
+
+  function strokesForSide(side: 'A' | 'B', holeIdx: number): number {
+    if (side !== higherSide) return 0;
+    const base = Math.floor(diff / 18);
+    const extra = diff % 18 >= holeIdx ? 1 : 0;
+    return base + extra;
+  }
+
+  // Index team scores: teamId -> holeNumber -> gross
+  const scoreByTeamHole = new Map<string, Map<number, number>>();
+  for (const s of input.scores) {
+    const inner = scoreByTeamHole.get(s.teamId) ?? new Map<number, number>();
+    inner.set(s.holeNumber, s.gross);
+    scoreByTeamHole.set(s.teamId, inner);
+  }
+
+  function teamNetOnHole(team: EngineTeam, hole: EngineHole): number | null {
+    const gross = scoreByTeamHole.get(team.id)?.get(hole.number);
+    if (gross == null) return null;
+    return gross - strokesForSide(team.side, hole.handicapIndex);
+  }
+
+  // Reuse the strokesByPlayer shape so consumers don't care which engine
+  // produced the result. For team matches we expose strokes-per-team keyed
+  // by the team id (callers can label these as "team strokes" in the UI).
+  const strokesByPlayer = new Map<string, Map<number, number>>();
+  for (const team of teams) {
+    const per = new Map<number, number>();
+    for (const hole of holes) {
+      per.set(hole.number, strokesForSide(team.side, hole.handicapIndex));
+    }
+    strokesByPlayer.set(team.id, per);
+  }
+
+  const sortedHoles = [...holes].sort((a, b) => a.number - b.number);
+
+  let upA = 0;
+  let upB = 0;
+  let holesPlayed = 0;
+  let closed: { winner: 'A' | 'B'; up: number; remaining: number } | null = null;
+  const holeResults: HoleResult[] = [];
+
+  for (const hole of sortedHoles) {
+    const aNet = teamNetOnHole(sideA, hole);
+    const bNet = teamNetOnHole(sideB, hole);
+
+    let winner: HoleResult['winner'] = null;
+    let countedThisHole = false;
+
+    if (!closed && aNet != null && bNet != null) {
+      if (aNet < bNet) {
+        winner = 'A';
+        upA += 1;
+      } else if (bNet < aNet) {
+        winner = 'B';
+        upB += 1;
+      } else {
+        winner = 'halved';
+      }
+      holesPlayed += 1;
+      countedThisHole = true;
+
+      const lead = upA - upB;
+      const remaining = totalHoles - holesPlayed;
+      if (Math.abs(lead) > remaining) {
+        closed = {
+          winner: lead > 0 ? 'A' : 'B',
+          up: Math.abs(lead),
+          remaining,
+        };
+      }
+    }
+
+    holeResults.push({
+      holeNumber: hole.number,
+      par: hole.par,
+      aBestNet: aNet,
+      bBestNet: bNet,
+      winner: countedThisHole ? winner : null,
+      statusAfter: { upA, upB },
+    });
+  }
+
+  const status = buildStatus({ closed, upA, upB, holesPlayed, totalHoles });
+
+  return {
+    status,
+    holesPlayed,
+    totalHoles,
+    upA,
+    upB,
+    holeResults,
+    strokesByPlayer,
+  };
+}

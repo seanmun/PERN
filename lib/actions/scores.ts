@@ -14,11 +14,18 @@ import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
   canEnterScoreFor,
+  isPlatformAdmin,
+  isTripAdminOf,
   requireAuth,
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
-import { computeMatch, formatStatus, type PlayerInputFormat } from '@/lib/scoring/engine';
+import {
+  computeMatch,
+  computeTeamMatch,
+  formatStatus,
+  type PlayerInputFormat,
+} from '@/lib/scoring/engine';
 
 /**
  * Recompute the match's status / winning team / result text from its current
@@ -38,16 +45,31 @@ async function recomputeMatchStatus(matchId: string): Promise<void> {
   const data = await getMatchScoringData(matchId);
   if (!data) return;
 
-  const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
-    ? (data.match.format as PlayerInputFormat)
-    : 'best_ball';
-
-  const computed = computeMatch({
-    players: data.enginePlayers,
-    holes: data.engineHoles,
-    scores: data.engineScores,
-    format: fmt,
-  });
+  // Team-input formats run a different engine that compares one team gross
+  // per hole. Player-input formats (best_ball, singles, aggregate, plus
+  // anything unrecognized) fall back to the player engine.
+  let computed;
+  if (
+    data.inputMode === 'team' &&
+    data.engineTeams &&
+    data.engineTeams.length === 2
+  ) {
+    computed = computeTeamMatch({
+      teams: [data.engineTeams[0], data.engineTeams[1]],
+      holes: data.engineHoles,
+      scores: data.engineTeamScores ?? [],
+    });
+  } else {
+    const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
+      ? (data.match.format as PlayerInputFormat)
+      : 'best_ball';
+    computed = computeMatch({
+      players: data.enginePlayers,
+      holes: data.engineHoles,
+      scores: data.engineScores,
+      format: fmt,
+    });
+  }
 
   // Map A/B back to the actual team IDs. data.participants carries the side.
   const teamIdByside = new Map<'A' | 'B', string>();
@@ -208,6 +230,144 @@ export async function upsertHoleScore(formData: FormData): Promise<void> {
   }
 
   const tripSlug = await getTripSlugById(target.round.tripId);
+  for (const mid of participatingMatchIds) {
+    revalidatePath(`/trips/${tripSlug}/matches/${mid}`);
+    revalidatePath(`/trips/${tripSlug}/matches/${mid}/score`);
+  }
+  revalidatePath(`/trips/${tripSlug}/scoreboard`);
+  revalidatePath(`/trips/${tripSlug}/feed`);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+}
+
+/**
+ * Team-input score upsert — for Scramble and Alternate Shot. One gross per
+ * team per hole; the action writes it to every teammate's holeScores row
+ * (the storage layer stays per-player, so any consumer not aware of team
+ * formats still computes a coherent score). The team engine reads any one
+ * teammate's row since they're identical.
+ *
+ * Auth: any current member of the team can submit on its behalf, plus the
+ * usual platform/trip admin overrides. (We don't have a "team captain"
+ * concept that limits score entry to the captain; any teammate can record.)
+ */
+export async function upsertTeamHoleScore(formData: FormData): Promise<void> {
+  const ctx = await getGlobalAuthContext();
+  requireAuth(ctx);
+
+  const matchId = String(formData.get('matchId') ?? '').trim();
+  const teamId = String(formData.get('teamId') ?? '').trim();
+  const holeNumberRaw = String(formData.get('holeNumber') ?? '').trim();
+  if (!matchId || !teamId || !holeNumberRaw) {
+    throw new Error('matchId, teamId, holeNumber required');
+  }
+  const holeNumber = Number(holeNumberRaw);
+  if (!Number.isFinite(holeNumber) || holeNumber < 1 || holeNumber > 18) {
+    throw new Error('Invalid hole number');
+  }
+
+  // Pull the match's round (for the trip context) plus every participant
+  // on this team. Validates that the team belongs to the match in one go.
+  const teamParticipants = await db
+    .select({
+      member: tripMembers,
+      round: rounds,
+      match: matches,
+    })
+    .from(matchParticipants)
+    .innerJoin(matches, eq(matchParticipants.matchId, matches.id))
+    .innerJoin(rounds, eq(matches.roundId, rounds.id))
+    .innerJoin(tripMembers, eq(matchParticipants.tripMemberId, tripMembers.id))
+    .where(
+      and(
+        eq(matchParticipants.matchId, matchId),
+        eq(matchParticipants.teamId, teamId),
+      ),
+    );
+
+  if (teamParticipants.length === 0) {
+    throw new Error("That team isn't on this match.");
+  }
+
+  // Authorization: admin OR a member of this team
+  const isAdmin = isPlatformAdmin(ctx) || isTripAdminOf(ctx, teamParticipants[0].round.tripId);
+  const isTeammate = teamParticipants.some(
+    (p) => ctx.tripMember?.id === p.member.id,
+  );
+  if (!isAdmin && !isTeammate) {
+    throw new AuthorizationError(
+      'Not authorized to enter scores for this team',
+    );
+  }
+
+  const gross = parseGross(formData.get('gross'));
+  const tripMemberIds = teamParticipants.map((p) => p.member.id);
+
+  // Fan-out to stacked matches: the team plays one ball even if the foursome
+  // is also doing a side match in a different format. Same tee-time gating
+  // as the player-input action — different groups never share scores.
+  const teeTimeId = teamParticipants[0].match.teeTimeId;
+  let participatingMatchIds: string[] = [matchId];
+  if (teeTimeId) {
+    const fanout = await db
+      .select({ id: matches.id })
+      .from(matches)
+      .innerJoin(
+        matchParticipants,
+        eq(matchParticipants.matchId, matches.id),
+      )
+      .where(
+        and(
+          eq(matches.teeTimeId, teeTimeId),
+          inArray(matchParticipants.tripMemberId, tripMemberIds),
+        ),
+      );
+    participatingMatchIds = Array.from(new Set(fanout.map((m) => m.id)));
+  }
+
+  if (gross == null) {
+    await db
+      .delete(holeScores)
+      .where(
+        and(
+          inArray(holeScores.matchId, participatingMatchIds),
+          inArray(holeScores.tripMemberId, tripMemberIds),
+          eq(holeScores.holeNumber, holeNumber),
+        ),
+      );
+  } else {
+    for (const mid of participatingMatchIds) {
+      for (const tmId of tripMemberIds) {
+        await db
+          .insert(holeScores)
+          .values({
+            matchId: mid,
+            tripMemberId: tmId,
+            holeNumber,
+            gross,
+            enteredBy: ctx.user.id,
+            enteredAt: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: [
+              holeScores.matchId,
+              holeScores.tripMemberId,
+              holeScores.holeNumber,
+            ],
+            set: {
+              gross,
+              enteredBy: ctx.user.id,
+              enteredAt: new Date(),
+            },
+          });
+      }
+    }
+  }
+
+  for (const mid of participatingMatchIds) {
+    await recomputeMatchStatus(mid);
+  }
+
+  const tripSlug = await getTripSlugById(teamParticipants[0].round.tripId);
   for (const mid of participatingMatchIds) {
     revalidatePath(`/trips/${tripSlug}/matches/${mid}`);
     revalidatePath(`/trips/${tripSlug}/matches/${mid}/score`);

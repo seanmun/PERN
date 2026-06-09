@@ -13,7 +13,20 @@ import {
   teams,
   holeScores,
 } from '@/db/schema';
-import type { EngineHole, EnginePlayer, EngineScore } from '@/lib/scoring/engine';
+import {
+  computeTeamHandicap,
+  type EngineHole,
+  type EnginePlayer,
+  type EngineScore,
+  type EngineTeam,
+  type EngineTeamScore,
+  type TeamInputFormat,
+} from '@/lib/scoring/engine';
+
+const TEAM_INPUT_FORMATS: ReadonlySet<string> = new Set<TeamInputFormat>([
+  'scramble',
+  'alternate_shot',
+]);
 
 type Match = typeof matches.$inferSelect;
 type Round = typeof rounds.$inferSelect;
@@ -39,9 +52,16 @@ export type MatchScoringData = {
   courseHoles: CourseHole[];
   participants: { participant: TripMember; team: Team; side: 'A' | 'B' }[];
   scores: HoleScore[];
+  // Whether this format is scored player-by-player (best_ball, singles,
+  // aggregate, stroke) or team-by-team (scramble, alt shot). The score-entry
+  // UI branches on this; the engine has separate functions per mode.
+  inputMode: 'player' | 'team';
   engineHoles: EngineHole[];
   enginePlayers: EnginePlayer[];
   engineScores: EngineScore[];
+  // Populated only when inputMode === 'team'. Length 2 (one per side).
+  engineTeams: EngineTeam[] | null;
+  engineTeamScores: EngineTeamScore[] | null;
 };
 
 export async function getMatchScoringData(
@@ -164,6 +184,58 @@ export async function getMatchScoringData(
       gross: s.gross!,
     }));
 
+  // Team-input formats: collapse participants into 2 virtual "team players"
+  // with a USGA-formula handicap and a single gross per hole (read from any
+  // one teammate — they're written identically by the team-score action).
+  const inputMode: 'player' | 'team' = TEAM_INPUT_FORMATS.has(row.match.format)
+    ? 'team'
+    : 'player';
+
+  let engineTeams: EngineTeam[] | null = null;
+  let engineTeamScores: EngineTeamScore[] | null = null;
+
+  if (inputMode === 'team') {
+    const fmt = row.match.format as TeamInputFormat;
+    engineTeams = distinctTeams
+      .map((team): EngineTeam | null => {
+        const side = sideByTeam.get(team.id);
+        if (!side) return null;
+        const teammates = participants.filter((p) => p.team.id === team.id);
+        // Defensive: team formats require exactly 2 per side. If misconfigured,
+        // fall back so the engine can still produce SOMETHING instead of
+        // throwing — the score-entry UI also blocks this state up-front.
+        const handicaps = teammates.map((p) =>
+          p.participant.tripHandicap ? Number(p.participant.tripHandicap) : 18,
+        );
+        const handicap =
+          handicaps.length === 2
+            ? computeTeamHandicap(handicaps, fmt)
+            : handicaps[0] ?? 18;
+        return { id: team.id, side, handicap };
+      })
+      .filter((t): t is EngineTeam => t !== null);
+
+    // The score-entry action writes the team's gross to all teammates' rows.
+    // We dedupe by (teamId, holeNumber) here so the engine gets exactly one
+    // gross per team per hole, even if a teammate's row is missing.
+    const teamScoreMap = new Map<string, EngineTeamScore>();
+    for (const s of scores) {
+      if (s.gross == null) continue;
+      const participant = participants.find(
+        (p) => p.participant.id === s.tripMemberId,
+      );
+      if (!participant) continue;
+      const key = `${participant.team.id}:${s.holeNumber}`;
+      if (teamScoreMap.has(key)) continue;
+      teamScoreMap.set(key, {
+        teamId: participant.team.id,
+        holeNumber: s.holeNumber,
+        gross: s.gross,
+      });
+    }
+    engineTeamScores = Array.from(teamScoreMap.values());
+  }
+
   return {
     match: row.match,
     round: row.round,
@@ -173,8 +245,11 @@ export async function getMatchScoringData(
     courseHoles: overriddenHoles,
     participants,
     scores,
+    inputMode,
     engineHoles,
     enginePlayers,
     engineScores,
+    engineTeams,
+    engineTeamScores,
   };
 }

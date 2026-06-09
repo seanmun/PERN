@@ -22,7 +22,12 @@ import {
   roundFormatLabel,
 } from '@/lib/format';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
-import { computeMatch, formatStatus, type PlayerInputFormat } from '@/lib/scoring/engine';
+import {
+  computeMatch,
+  computeTeamMatch,
+  formatStatus,
+  type PlayerInputFormat,
+} from '@/lib/scoring/engine';
 
 const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
   'best_ball',
@@ -121,18 +126,31 @@ export default async function MatchDetailPage({
   const canEdit =
     isPlatformAdmin(ctx) || isTripAdminOf(ctx, match.round.tripId);
 
-  // Live status from the scoring engine
+  // Live status from the scoring engine — branch on team vs player input.
   const scoringData = await getMatchScoringData(id);
-  const liveMatch = scoringData
-    ? computeMatch({
+  let liveMatch = null;
+  if (scoringData) {
+    if (
+      scoringData.inputMode === 'team' &&
+      scoringData.engineTeams &&
+      scoringData.engineTeams.length === 2
+    ) {
+      liveMatch = computeTeamMatch({
+        teams: [scoringData.engineTeams[0], scoringData.engineTeams[1]],
+        holes: scoringData.engineHoles,
+        scores: scoringData.engineTeamScores ?? [],
+      });
+    } else {
+      liveMatch = computeMatch({
         players: scoringData.enginePlayers,
         holes: scoringData.engineHoles,
         scores: scoringData.engineScores,
         format: PLAYER_INPUT_FORMATS.has(scoringData.match.format)
           ? (scoringData.match.format as PlayerInputFormat)
           : 'best_ball',
-      })
-    : null;
+      });
+    }
+  }
   const liveStatusText = liveMatch ? formatStatus(liveMatch.status) : null;
 
   const selfTripMemberId = ctx.tripMember?.id ?? null;
