@@ -30,9 +30,21 @@ export type ClientParticipant = {
 
 export type ClientMatch = {
   id: string;
-  format: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate';
+  format: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot';
   resultText: string | null;
   participants: ClientParticipant[];
+};
+
+// Stable display order so matches of the same format sit together in the
+// schedule. Order is "team-y formats first, then singles" — what a viewer
+// scanning a tee time usually wants to see.
+const MATCH_FORMAT_ORDER: Record<ClientMatch['format'], number> = {
+  best_ball: 0,
+  two_man_aggregate: 1,
+  scramble: 2,
+  alternate_shot: 3,
+  singles: 4,
+  stroke: 5,
 };
 
 export type ClientGolfItem = {
@@ -42,7 +54,7 @@ export type ClientGolfItem = {
   groupNumber: number;
   roundOrder: number;
   roundLabel: string | null;
-  roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate';
+  roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot';
   courseName: string;
   courseLocation: string | null;
   matches: ClientMatch[];
@@ -65,7 +77,7 @@ export type ClientEmptyRoundItem = {
   roundId: string;
   roundOrder: number;
   roundLabel: string | null;
-  roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate';
+  roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot';
   courseName: string;
   courseLocation: string | null;
 };
@@ -390,6 +402,7 @@ function EmptyRoundRow({
       case 'scramble': return 'Scramble';
       case 'stroke': return 'Stroke';
       case 'two_man_aggregate': return 'Aggregate';
+      case 'alternate_shot': return 'Alt Shot';
     }
   };
   return (
@@ -440,6 +453,7 @@ function formatLabel(fmt: ClientGolfItem['roundFormat']): string {
     case 'scramble':          return 'Scramble';
     case 'stroke':            return 'Stroke Play';
     case 'two_man_aggregate': return 'Two-Man Aggregate';
+    case 'alternate_shot':    return 'Alternate Shot';
   }
 }
 
@@ -527,9 +541,11 @@ function GolfRow({
         <p className="truncate text-xs text-zinc-300">{item.courseName}</p>
       </div>
 
-      {/* Match sub-rows — format on top, horizontal opponents underneath. */}
+      {/* Match sub-rows — format on top, horizontal opponents underneath.
+          Sorted so identical formats sit next to each other (e.g. two
+          singles side-by-side, not split by a best ball in the middle). */}
       <div className="divide-y divide-zinc-900">
-        {item.matches.map((m) => (
+        {[...item.matches].sort((x, y) => MATCH_FORMAT_ORDER[x.format] - MATCH_FORMAT_ORDER[y.format]).map((m) => (
           <Link
             key={m.id}
             href={`/trips/${tripSlug}/matches/${m.id}`}
@@ -595,27 +611,32 @@ function TeamSideCell({
 }) {
   const color = players[0]?.teamColor ?? '#71717a';
   const teamName = players[0]?.teamName ?? '';
+  const alignCls = align === 'right' ? 'text-right' : 'text-left';
   return (
-    <div className={`min-w-0 ${align === 'right' ? 'text-right' : 'text-left'}`}>
+    <div className={`min-w-0 ${alignCls}`}>
       <p
         className="truncate font-mono text-[9px] font-semibold uppercase tracking-widest"
         style={{ color }}
       >
         {teamName}
       </p>
-      <p className="truncate text-sm font-semibold text-zinc-100">
-        {players.map((p, i) => (
-          <span key={p.tripMemberId}>
-            {i > 0 && ' & '}
+      {/* Singles render as one line; pairs/foursomes stack teammates so
+          each name is readable on its own row. */}
+      <div className="mt-0.5 space-y-0.5">
+        {players.map((p) => (
+          <p
+            key={p.tripMemberId}
+            className="truncate text-sm font-semibold text-zinc-100"
+          >
             {p.nickname}
             {p.tripHandicap && (
               <span className="ml-1 font-mono text-[10px] tabular-nums text-zinc-500">
                 {p.tripHandicap}
               </span>
             )}
-          </span>
+          </p>
         ))}
-      </p>
+      </div>
     </div>
   );
 }

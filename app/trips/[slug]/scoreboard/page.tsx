@@ -21,6 +21,18 @@ const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
   'two_man_aggregate',
 ]);
 
+// Match the schedule's ordering so the Cup tab and the schedule put the
+// same matches in the same visual order (team-y formats first, singles
+// after). Unknown formats fall back to the end via the `?? 99` in callers.
+const MATCH_FORMAT_ORDER: Record<string, number> = {
+  best_ball: 0,
+  two_man_aggregate: 1,
+  scramble: 2,
+  alternate_shot: 3,
+  singles: 4,
+  stroke: 5,
+};
+
 export default async function ScoreboardPage({
   params,
 }: {
@@ -220,9 +232,16 @@ async function OutingLiveBoard({
                 </p>
               </div>
 
-              {/* Match sub-rows */}
+              {/* Match sub-rows — sorted by format so identical formats
+                  sit next to each other (mirrors the schedule layout). */}
               <div className="divide-y divide-zinc-900">
-                {rows.map((row) => {
+                {[...rows]
+                  .sort(
+                    (x, y) =>
+                      (MATCH_FORMAT_ORDER[x.match.format] ?? 99) -
+                      (MATCH_FORMAT_ORDER[y.match.format] ?? 99),
+                  )
+                  .map((row) => {
                   const parts = partsByMatch.get(row.match.id) ?? [];
                   const byTeam = new Map<
                     string,
