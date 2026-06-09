@@ -310,34 +310,48 @@ export type TeamInputFormat = 'scramble' | 'alternate_shot';
 /**
  * USGA team-handicap calculations.
  *
- *  - **Scramble (2-man)**: 35% of low handicap + 15% of high handicap.
+ *  - **Scramble (2-person)**: 35% of low + 15% of high handicap.
  *    Heavily favors the better player; the worse player's handicap barely
  *    matters because in a scramble the team picks the best shot.
  *
- *  - **Alternate Shot (2-man Foursomes)**: 50% of (A + B) combined. Each
- *    player only hits roughly half the shots, so the team handicap is the
- *    average of the two full handicaps.
+ *  - **Scramble (4-person)**: 25% A + 20% B + 15% C + 10% D, where A is the
+ *    lowest handicap and D is the highest. USGA standard for charity-outing
+ *    scrambles.
  *
- * Both round to one decimal at the end. Caller is expected to pass exactly
- * two handicaps — anything else is a misconfigured match.
+ *  - **Alternate Shot (Foursomes)**: 50% of (A + B) combined. Each player
+ *    only hits half the shots, so the team handicap is the average of the
+ *    two full handicaps. Always 2 players per side — there's no widely used
+ *    multi-player alt-shot format.
+ *
+ * Rounds to one decimal at the end. Scramble accepts 2 or 4 player teams;
+ * alternate_shot requires exactly 2. Anything else throws.
  */
 export function computeTeamHandicap(
   playerHandicaps: number[],
   format: TeamInputFormat,
 ): number {
-  if (playerHandicaps.length !== 2) {
-    throw new Error(
-      `${format} team handicap requires exactly 2 players (got ${playerHandicaps.length}).`,
-    );
+  if (format === 'alternate_shot') {
+    if (playerHandicaps.length !== 2) {
+      throw new Error(
+        `Alternate shot requires exactly 2 players (got ${playerHandicaps.length}).`,
+      );
+    }
+    const [a, b] = playerHandicaps;
+    return Math.round(0.5 * (a + b) * 10) / 10;
   }
-  const [a, b] = playerHandicaps;
-  if (format === 'scramble') {
-    const low = Math.min(a, b);
-    const high = Math.max(a, b);
-    return Math.round((0.35 * low + 0.15 * high) * 10) / 10;
+  // scramble
+  const sorted = [...playerHandicaps].sort((a, b) => a - b);
+  if (sorted.length === 2) {
+    return Math.round((0.35 * sorted[0] + 0.15 * sorted[1]) * 10) / 10;
   }
-  // alternate_shot
-  return Math.round((0.5 * (a + b)) * 10) / 10;
+  if (sorted.length === 4) {
+    return Math.round(
+      (0.25 * sorted[0] + 0.20 * sorted[1] + 0.15 * sorted[2] + 0.10 * sorted[3]) * 10,
+    ) / 10;
+  }
+  throw new Error(
+    `Scramble team handicap requires 2 or 4 players (got ${sorted.length}).`,
+  );
 }
 
 export type EngineTeam = {

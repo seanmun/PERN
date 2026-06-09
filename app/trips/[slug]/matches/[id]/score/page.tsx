@@ -17,12 +17,16 @@ import ScoreEntryClient, {
 } from '@/components/score-entry/ScoreEntryClient';
 
 /**
- * Team-input formats need exactly 2 players per side. If the admin saved a
- * scramble match with a 1v2 or 4v0 lineup, the team-handicap formula breaks
- * and the engine can't score correctly. We block the score-entry UI in that
- * case so the bad state can't compound — admin has to fix the matchup first.
+ * Team-input formats need a roster the team-handicap formula understands.
+ *
+ *  - Scramble: 2 or 4 players per team (USGA formulas exist for both).
+ *  - Alternate Shot: exactly 2 per team — one ball, two players alternating.
+ *
+ * Anything else blocks the score-entry UI so a bad lineup can't silently
+ * produce wrong handicaps.
  */
 function validTeamSetup(data: {
+  match: { format: string };
   participants: { team: { id: string } }[];
 }): boolean {
   const byTeam = new Map<string, number>();
@@ -30,7 +34,12 @@ function validTeamSetup(data: {
     byTeam.set(p.team.id, (byTeam.get(p.team.id) ?? 0) + 1);
   }
   if (byTeam.size !== 2) return false;
-  return Array.from(byTeam.values()).every((n) => n === 2);
+  const counts = Array.from(byTeam.values());
+  if (data.match.format === 'alternate_shot') {
+    return counts.every((n) => n === 2);
+  }
+  // scramble
+  return counts.every((n) => n === 2 || n === 4);
 }
 
 export default async function ScoreEntryPage({
@@ -133,6 +142,12 @@ export default async function ScoreEntryPage({
         strokesByHole,
       };
     });
+    // Non-admins only see their own team's row — keeps players from
+    // accidentally entering the opposing team's score. Admins still get
+    // both rows so they can fix mistakes or score on someone's behalf.
+    if (!isAdmin) {
+      teamsForClient = teamsForClient.filter((t) => t.isSelfOnTeam);
+    }
     initialTeamScores =
       data.engineTeamScores?.map((s) => ({
         teamId: s.teamId,
@@ -195,8 +210,10 @@ export default async function ScoreEntryPage({
             Roster doesn&apos;t match this format
           </p>
           <p className="mt-2 text-sm text-zinc-300">
-            {data.match.format === 'scramble' ? 'Scramble' : 'Alternate shot'} requires
-            exactly 2 players per team. Edit the matchup so each side has 2 participants.
+            {data.match.format === 'scramble'
+              ? 'Scramble needs 2 or 4 players per team (matching teams on both sides).'
+              : 'Alternate shot needs exactly 2 players per team.'}{' '}
+            Edit the matchup so each side has the right number of participants.
           </p>
           {isAdmin && (
             <Link
