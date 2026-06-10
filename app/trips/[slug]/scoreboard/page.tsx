@@ -409,7 +409,62 @@ function MatchLiveRow({
         </p>
         <SideName side={sideB} align="right" />
       </div>
+
+      <LeanBar
+        upA={upA}
+        upB={upB}
+        colorA={sideA?.color ?? null}
+        colorB={sideB?.color ?? null}
+      />
     </Link>
+  );
+}
+
+/**
+ * Horizontal lean indicator under a match row. Center pip = 0 (all square).
+ * Bar fills from center toward the leading side, one "increment" per hole
+ * up. Max meaningful lean is 10 holes — at that point one side has won
+ * outright (closeout math), so the bar reaches the edge of its half.
+ *
+ *   1 UP → 10% of the winning side's half filled
+ *   5 UP → half-full on that side
+ *  10 UP → fully filled (match closed)
+ */
+function LeanBar({
+  upA,
+  upB,
+  colorA,
+  colorB,
+}: {
+  upA: number;
+  upB: number;
+  colorA: string | null;
+  colorB: string | null;
+}) {
+  const lean = upA - upB;
+  const magnitude = Math.min(10, Math.abs(lean));
+  const pct = (magnitude / 10) * 50; // 0..50% of total bar = 0..100% of each half
+  const winnerColor = lean === 0 ? null : lean > 0 ? colorA : colorB;
+  return (
+    <div className="mt-2.5">
+      <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-zinc-900">
+        {lean !== 0 && winnerColor && (
+          <div
+            className="absolute top-0 h-full"
+            style={{
+              background: winnerColor,
+              width: `${pct}%`,
+              // Team A wins → fill grows leftward from center (toward Team A's
+              // name on the left). Team B wins → grows rightward.
+              left: lean > 0 ? `${50 - pct}%` : '50%',
+            }}
+          />
+        )}
+        {/* Center tick — always visible so even an empty bar reads as
+            "match is even" rather than "no data". */}
+        <div className="absolute left-1/2 top-0 h-full w-px bg-zinc-700" />
+      </div>
+    </div>
   );
 }
 
