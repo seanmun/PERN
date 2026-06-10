@@ -28,9 +28,12 @@ export type PlayerTotal = {
   tripHandicap: string | null;
   holesScored: number;
   gross: number;
-  net: number;          // gross - strokes received
-  par: number;          // par for the holes scored
-  scoreVsPar: number;   // net - par (negative is good)
+  // Tracked but not currently displayed. Reserved for a future Net
+  // Leaderboard view (stableford-style); the visible Cup leaderboard
+  // shows GROSS vs par, not net vs par.
+  net: number;
+  par: number;          // sum of par for the holes scored
+  scoreVsPar: number;   // gross - par (negative is good)
 };
 
 export type Leaderboard = {
@@ -253,16 +256,20 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     const hole = courseHolesMap.get(s.holeNumber);
     if (!hole) continue;
 
+    // Net is still tracked (per-player handicap strokes), kept around for
+    // a future "net leaderboard" tab if/when we want one. The DISPLAYED
+    // score-vs-par on the Cup tab is GROSS vs par — what the player
+    // actually shot, no handicap adjustment. Mirrors how PGA leaderboards
+    // work and matches a viewer's intuition ("Eric shot 3 on a par 4 → -1").
     const handicapNum = player.tripHandicap ? parseFloat(player.tripHandicap) : 0;
     const strokeMap = getStrokes(s.tripMemberId, s.courseId, handicapNum);
     const strokes = strokeMap.get(s.holeNumber) ?? 0;
 
-    const net = s.gross - strokes;
     player.holesScored += 1;
     player.gross += s.gross;
-    player.net += net;
+    player.net += s.gross - strokes;
     player.par += hole.par;
-    player.scoreVsPar = player.net - player.par;
+    player.scoreVsPar = player.gross - player.par;
   }
 
   const teamTotals = Array.from(teamTotalsMap.values()).sort(
