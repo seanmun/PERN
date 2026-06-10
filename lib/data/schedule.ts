@@ -9,6 +9,7 @@ import {
   tripMembers,
   teams,
   tripEvents,
+  users,
 } from '@/db/schema';
 
 type Round = typeof rounds.$inferSelect;
@@ -23,6 +24,11 @@ type TripEvent = typeof tripEvents.$inferSelect;
 export type ScheduleParticipant = MatchParticipant & {
   member: TripMember;
   team: Team;
+  // Portrait fields from the linked user (null when the slot is unclaimed).
+  // Used by the schedule's NBA-Jam matchup card with priority:
+  // arcadePortraitUrl > member.avatarUrl > userAvatarUrl > monogram.
+  arcadePortraitUrl: string | null;
+  userAvatarUrl: string | null;
 };
 
 export type ScheduleMatch = Match & {
@@ -122,17 +128,28 @@ export async function getScheduleByDay(tripId: string): Promise<ScheduleDay[]> {
           participant: matchParticipants,
           member: tripMembers,
           team: teams,
+          // leftJoin: unclaimed tripMembers have null userId, so this row
+          // can be null even though the participant exists.
+          arcadePortraitUrl: users.arcadePortraitUrl,
+          userAvatarUrl: users.avatarUrl,
         })
         .from(matchParticipants)
         .innerJoin(tripMembers, eq(matchParticipants.tripMemberId, tripMembers.id))
         .innerJoin(teams, eq(matchParticipants.teamId, teams.id))
+        .leftJoin(users, eq(tripMembers.userId, users.id))
         .where(inArray(matchParticipants.matchId, matchIds))
     : [];
 
   const participantsByMatch = new Map<string, ScheduleParticipant[]>();
   for (const p of participantsList) {
     const list = participantsByMatch.get(p.participant.matchId) ?? [];
-    list.push({ ...p.participant, member: p.member, team: p.team });
+    list.push({
+      ...p.participant,
+      member: p.member,
+      team: p.team,
+      arcadePortraitUrl: p.arcadePortraitUrl,
+      userAvatarUrl: p.userAvatarUrl,
+    });
     participantsByMatch.set(p.participant.matchId, list);
   }
 

@@ -19,6 +19,7 @@ export default async function TripSchedulePage({
   if (!ctx) redirect('/sign-in');
 
   const days = await getScheduleByDay(trip.id);
+  const canEdit = isPlatformAdmin(ctx) || isTripAdminOf(ctx, trip.id);
 
   const clientDays: ClientScheduleDay[] = days.map((d) => ({
     date: d.date,
@@ -26,6 +27,20 @@ export default async function TripSchedulePage({
     monthDay: d.monthDay,
     items: d.items.map((item) => {
       if (item.kind === 'golf') {
+        // The "enter scores" button per foursome routes to the WIDEST match
+        // (most participants). Best Ball includes all four players; Singles
+        // includes two. Picking the widest match means a single tap reveals
+        // every score row that needs filling for the group — fan-out then
+        // propagates each gross to every stacked match automatically.
+        const widestMatch = [...item.matches].sort(
+          (a, b) => b.participants.length - a.participants.length,
+        )[0];
+        const selfIsParticipant =
+          ctx.tripMember
+            ? item.matches.some((m) =>
+                m.participants.some((p) => p.tripMemberId === ctx.tripMember!.id),
+              )
+            : false;
         return {
           kind: 'golf',
           startTimeISO: item.startTime.toISOString(),
@@ -36,6 +51,8 @@ export default async function TripSchedulePage({
           roundFormat: item.round.format,
           courseName: item.course.name,
           courseLocation: item.course.location,
+          scoreMatchId: widestMatch?.id ?? null,
+          canEnterScores: canEdit || selfIsParticipant,
           matches: item.matches.map((m) => ({
             id: m.id,
             format: m.format,
@@ -47,6 +64,10 @@ export default async function TripSchedulePage({
               teamId: p.teamId,
               teamName: p.team.name,
               teamColor: p.team.color,
+              arcadePortraitUrl: p.arcadePortraitUrl,
+              // Display priority: trip-scoped avatar (admin can set per-trip)
+              // > global user avatar.
+              avatarUrl: p.member.avatarUrl ?? p.userAvatarUrl,
             })),
           })),
         };
@@ -75,8 +96,6 @@ export default async function TripSchedulePage({
       };
     }),
   }));
-
-  const canEdit = isPlatformAdmin(ctx) || isTripAdminOf(ctx, trip.id);
 
   return <ScheduleClient days={clientDays} canEdit={canEdit} tripSlug={slug} />;
 }

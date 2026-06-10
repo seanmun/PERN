@@ -26,6 +26,10 @@ export type ClientParticipant = {
   teamId: string;
   teamName: string;
   teamColor: string | null;
+  // Avatar priority for the NBA-Jam showdown card on the schedule:
+  //   arcadePortraitUrl > avatarUrl > monogram (first letter of nickname).
+  arcadePortraitUrl: string | null;
+  avatarUrl: string | null;
 };
 
 export type ClientMatch = {
@@ -57,6 +61,11 @@ export type ClientGolfItem = {
   roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot';
   courseName: string;
   courseLocation: string | null;
+  // One "Enter scores" button per foursome routes to the WIDEST match in
+  // the group (most participants) — scoring rows there cover all stacked
+  // matches via the upsert fan-out.
+  scoreMatchId: string | null;
+  canEnterScores: boolean;
   matches: ClientMatch[];
 };
 
@@ -541,38 +550,212 @@ function GolfRow({
         <p className="truncate text-xs text-zinc-300">{item.courseName}</p>
       </div>
 
-      {/* Match sub-rows — format on top, horizontal opponents underneath.
-          Sorted so identical formats sit next to each other (e.g. two
-          singles side-by-side, not split by a best ball in the middle). */}
+      {/* Match sub-rows — each renders a compact NBA-Jam showdown card.
+          Sorted so identical formats sit next to each other. */}
       <div className="divide-y divide-zinc-900">
-        {[...item.matches].sort((x, y) => MATCH_FORMAT_ORDER[x.format] - MATCH_FORMAT_ORDER[y.format]).map((m) => (
+        {[...item.matches]
+          .sort((x, y) => MATCH_FORMAT_ORDER[x.format] - MATCH_FORMAT_ORDER[y.format])
+          .map((m) => (
+            <Link
+              key={m.id}
+              href={`/trips/${tripSlug}/matches/${m.id}`}
+              className="block px-3 py-3 hover:bg-zinc-900/40"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <FormatBadge format={m.format} size="xs" />
+                <ChevronRight size={12} className="shrink-0 text-zinc-700" />
+              </div>
+              <div className="mt-2">
+                <MatchupShowdownCompact match={m} />
+              </div>
+            </Link>
+          ))}
+      </div>
+
+      {/* One "Enter scores" button per foursome — only for participants + admins. */}
+      {item.canEnterScores && item.scoreMatchId && (
+        <div className="border-t border-yellow-600/15 bg-black/30 p-3">
           <Link
-            key={m.id}
-            href={`/trips/${tripSlug}/matches/${m.id}`}
-            className="block px-3 py-2.5 hover:bg-zinc-900/40"
+            href={`/trips/${tripSlug}/matches/${item.scoreMatchId}/score`}
+            className="flex w-full items-center justify-center gap-2 rounded-sm bg-yellow-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400"
           >
-            <div className="flex items-center justify-between gap-2">
-              <FormatBadge format={m.format} size="xs" />
-              <ChevronRight size={12} className="shrink-0 text-zinc-700" />
-            </div>
-            <div className="mt-1.5">
-              <MatchupRow match={m} />
-            </div>
+            Enter scores
           </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Compact NBA-Jam-style matchup card for the schedule. Same gold-frame
+ * aesthetic as the full hero card on /matches/[id], but stripped down so
+ * 4+ of these can stack on a single mobile day. No rating bars, smaller
+ * portraits, names underneath each portrait.
+ */
+function MatchupShowdownCompact({ match }: { match: ClientMatch }) {
+  const byTeam = new Map<string, ClientParticipant[]>();
+  for (const p of match.participants) {
+    const list = byTeam.get(p.teamId) ?? [];
+    list.push(p);
+    byTeam.set(p.teamId, list);
+  }
+  const teamGroups = Array.from(byTeam.values());
+  if (teamGroups.length !== 2) {
+    return (
+      <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-600">
+        No participants
+      </p>
+    );
+  }
+  const [a, b] = teamGroups;
+  const aColor = a[0]?.teamColor ?? '#71717a';
+  const bColor = b[0]?.teamColor ?? '#71717a';
+  return (
+    <div
+      className="overflow-hidden rounded-sm"
+      style={{
+        boxShadow:
+          '0 0 0 2px #eab308, 0 0 0 3px #18181b, 0 0 12px rgba(202,138,4,0.2)',
+      }}
+    >
+      <div
+        className="grid grid-cols-[1fr_auto_1fr] items-stretch"
+        style={{
+          background:
+            'linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%)',
+        }}
+      >
+        <CompactPortraitsCell players={a} color={aColor} align="left" />
+        <CompactVsBanner />
+        <CompactPortraitsCell players={b} color={bColor} align="right" />
+      </div>
+    </div>
+  );
+}
+
+function CompactVsBanner() {
+  return (
+    <div className="flex items-center justify-center px-2">
+      <div
+        className="flex h-9 w-10 items-center justify-center rounded-sm border-2 border-yellow-600"
+        style={{
+          background: 'linear-gradient(180deg, #ca8a04 0%, #a16207 100%)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3), 0 0 6px rgba(0,0,0,0.6)',
+        }}
+      >
+        <span
+          className="font-mono text-xs font-extrabold text-black"
+          style={{ textShadow: '0 1px 0 rgba(255,255,255,0.3)' }}
+        >
+          VS
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function CompactPortraitsCell({
+  players,
+  color,
+  align,
+}: {
+  players: ClientParticipant[];
+  color: string;
+  align: 'left' | 'right';
+}) {
+  return (
+    <div
+      className="flex flex-col items-stretch p-2"
+      style={{
+        background: `linear-gradient(${
+          align === 'left' ? '90deg' : '270deg'
+        }, ${color}33 0%, transparent 100%)`,
+      }}
+    >
+      <p
+        className={`font-mono text-[9px] font-semibold uppercase tracking-widest ${
+          align === 'right' ? 'text-right' : 'text-left'
+        }`}
+        style={{ color }}
+      >
+        {players[0]?.teamName ?? ''}
+      </p>
+      <div
+        className={`mt-1 grid items-end gap-1 ${
+          align === 'right' ? 'justify-items-end' : 'justify-items-start'
+        }`}
+        style={{
+          gridTemplateColumns: `repeat(${players.length}, minmax(0, 1fr))`,
+        }}
+      >
+        {players.map((p) => (
+          <CompactPortraitSlot key={p.tripMemberId} player={p} color={color} />
         ))}
       </div>
     </div>
   );
 }
 
+function CompactPortraitSlot({
+  player,
+  color,
+}: {
+  player: ClientParticipant;
+  color: string;
+}) {
+  const portrait = player.arcadePortraitUrl;
+  const photo = player.avatarUrl;
+  return (
+    <div className="flex w-full min-w-0 flex-col items-center">
+      <div
+        className="relative flex aspect-square w-full min-w-0 items-end justify-center"
+        style={{ maxWidth: 56 }}
+      >
+        {portrait ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={portrait}
+            alt={player.nickname}
+            className="absolute inset-x-0 bottom-0 h-full w-full object-contain object-bottom"
+            style={{ filter: `drop-shadow(0 0 4px ${color}88)` }}
+          />
+        ) : photo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photo}
+            alt={player.nickname}
+            className="h-full w-full rounded-sm object-cover"
+            style={{ boxShadow: `0 0 0 1px ${color}66` }}
+          />
+        ) : (
+          <div
+            className="flex h-full w-full items-center justify-center rounded-sm bg-zinc-900 font-mono text-base font-bold text-zinc-300"
+            style={{ boxShadow: `0 0 0 1px ${color}66` }}
+          >
+            {player.nickname.slice(0, 1).toUpperCase()}
+          </div>
+        )}
+      </div>
+      <p
+        className="mt-1 truncate text-center text-[11px] font-semibold leading-tight text-zinc-100"
+        style={{ maxWidth: 72 }}
+      >
+        {player.nickname}
+      </p>
+      {player.tripHandicap && (
+        <p className="font-mono text-[9px] tabular-nums text-zinc-500">
+          {player.tripHandicap}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /**
- * Horizontal matchup: Team A on the left, "vs" pivot, Team B on the right.
- * Saves vertical space and lets the format badge sit above it, freeing up
- * the left-padding column that used to hold the badge.
- *
- * Each side shows team name + nickname(s) (with handicap inline). Multiple
- * players (2v2) are joined with "&" so a four-player matchup still reads on
- * one line at typical mobile widths.
+ * Horizontal text matchup — used in places that still want a plain row.
+ * The schedule itself uses the NBA-Jam showdown card above; this is kept
+ * for empty-rounds and the placeholder card.
  */
 function MatchupRow({ match }: { match: ClientMatch }) {
   const byTeam = new Map<string, ClientParticipant[]>();
