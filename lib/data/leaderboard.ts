@@ -9,6 +9,13 @@ import {
   holeScores,
   courseHoles,
 } from '@/db/schema';
+import { computeTeamHandicap, type TeamInputFormat } from '@/lib/scoring/engine';
+
+// Match-input formats that score one team gross per hole (one ball per team).
+const TEAM_INPUT_FORMATS: ReadonlySet<string> = new Set<TeamInputFormat>([
+  'scramble',
+  'alternate_shot',
+]);
 
 type Team = typeof teams.$inferSelect;
 
@@ -27,13 +34,14 @@ export type PlayerTotal = {
   teamColor: string | null;
   tripHandicap: string | null;
   holesScored: number;
+  // Raw gross strokes summed across deduped holes.
   gross: number;
-  // Tracked but not currently displayed. Reserved for a future Net
-  // Leaderboard view (stableford-style); the visible Cup leaderboard
-  // shows GROSS vs par, not net vs par.
+  // Net = gross - strokes received in the player's match for each hole.
+  // Match-relative — i.e. against the lowest handicap in the match field,
+  // not the absolute course-handicap allocation.
   net: number;
   par: number;          // sum of par for the holes scored
-  scoreVsPar: number;   // gross - par (negative is good)
+  scoreVsPar: number;   // net - par (negative is good)
 };
 
 export type Leaderboard = {
@@ -173,31 +181,128 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     holesByCourse.set(ch.courseId, inner);
   }
 
-  // Pre-allocate stroke maps per (player, course) since strokes only depend on
-  // the player's handicap and the course's stroke indices.
-  type StrokeKey = string; // `${playerId}::${courseId}`
-  const strokesByPlayerCourse = new Map<StrokeKey, Map<number, number>>();
+  // ───────── Match-relative strokes (the strokes you actually receive in each match) ─────────
+  //
+  // The leaderboard reports net vs par using the strokes a player gets IN THE
+  // MATCH, not the absolute course handicap allocation. A 9-hcp player in a
+  // match where someone else is the low (say a 22) plays as scratch for that
+  // match and receives 0 strokes — even on the hardest holes — because the
+  // match's "scratch" floats with the field.
+  //
+  // For player-input formats (best_ball / singles / two_man_aggregate):
+  //   diff = round(player.hcp - min(hcp in match))
+  //   strokes(hole) = floor(diff / 18) + (diff % 18 >= holeSI ? 1 : 0)
+  //
+  // For team-input formats (scramble / alternate_shot):
+  //   teamHcp = computeTeamHandicap(teammate hcps, fmt)
+  //   diff   = round(|teamA.hcp - teamB.hcp|)
+  //   higher = the team with the larger handicap; gets all the strokes
+  //   Each teammate of the higher team gets the team's stroke per hole.
+  //
+  // strokesByMatchPlayerHole[matchId][playerId][holeNumber] = strokes
+  const strokesByMatchPlayerHole = new Map<
+    string,
+    Map<string, Map<number, number>>
+  >();
+  const matchSizeById = new Map<string, number>();
 
-  function getStrokes(
-    playerId: string,
-    courseId: string,
-    handicap: number,
-  ): Map<number, number> {
-    const key: StrokeKey = `${playerId}::${courseId}`;
-    let m = strokesByPlayerCourse.get(key);
-    if (m) return m;
-    const courseHolesMap = holesByCourse.get(courseId);
-    if (!courseHolesMap) {
-      m = new Map();
+  // Group participants by match for the stroke-allocation pass.
+  const partsByMatchId = new Map<
+    string,
+    { tripMemberId: string; teamId: string; handicap: number }[]
+  >();
+  const memberById = new Map(membersList.map((m) => [m.id, m]));
+  for (const p of relevantParticipants) {
+    const member = memberById.get(p.tripMemberId);
+    if (!member) continue;
+    const handicap = member.tripHandicap
+      ? Number(member.tripHandicap)
+      : 18;
+    const list = partsByMatchId.get(p.matchId) ?? [];
+    list.push({ tripMemberId: p.tripMemberId, teamId: p.teamId, handicap });
+    partsByMatchId.set(p.matchId, list);
+  }
+  for (const [matchId, list] of partsByMatchId) {
+    matchSizeById.set(matchId, list.length);
+  }
+
+  for (const r of visibleMatches) {
+    const matchId = r.match.id;
+    const parts = partsByMatchId.get(matchId) ?? [];
+    if (parts.length === 0) continue;
+    const courseHolesMap = holesByCourse.get(r.round.courseId);
+    if (!courseHolesMap) continue;
+    const holesArr = Array.from(courseHolesMap.entries()).map(([n, v]) => ({
+      holeNumber: n,
+      handicapIndex: v.handicapIndex,
+    }));
+    const perPlayer = new Map<string, Map<number, number>>();
+
+    if (TEAM_INPUT_FORMATS.has(r.match.format)) {
+      // Team-input: team handicap per side, strokes go to higher-hcp team,
+      // apply to every teammate on that team.
+      const byTeam = new Map<string, typeof parts>();
+      for (const p of parts) {
+        const list = byTeam.get(p.teamId) ?? [];
+        list.push(p);
+        byTeam.set(p.teamId, list);
+      }
+      const teamsArr = Array.from(byTeam.entries());
+      if (teamsArr.length === 2) {
+        const teamHcps = teamsArr.map(([teamId, members]) => {
+          let h: number;
+          try {
+            h = computeTeamHandicap(
+              members.map((m) => m.handicap),
+              r.match.format as TeamInputFormat,
+            );
+          } catch {
+            // Misconfigured roster (wrong number of players for the format) —
+            // fall back to 0 strokes rather than skewing the leaderboard.
+            h = 0;
+          }
+          return { teamId, members, h };
+        });
+        const diff = Math.round(Math.abs(teamHcps[0].h - teamHcps[1].h));
+        const higher =
+          teamHcps[0].h > teamHcps[1].h ? teamHcps[0] : teamHcps[1];
+        for (const t of teamHcps) {
+          const isHigher = t.teamId === higher.teamId;
+          for (const member of t.members) {
+            const per = new Map<number, number>();
+            for (const hole of holesArr) {
+              if (!isHigher || diff === 0) {
+                per.set(hole.holeNumber, 0);
+                continue;
+              }
+              const base = Math.floor(diff / 18);
+              const extra =
+                diff % 18 >= hole.handicapIndex ? 1 : 0;
+              per.set(hole.holeNumber, base + extra);
+            }
+            perPlayer.set(member.tripMemberId, per);
+          }
+        }
+      }
     } else {
-      const holesArr = Array.from(courseHolesMap.entries()).map(([n, v]) => ({
-        holeNumber: n,
-        handicapIndex: v.handicapIndex,
-      }));
-      m = allocateStrokes(handicap, holesArr);
+      // Player-input: diff vs the LOW handicap in this match's field.
+      const minH = parts.reduce(
+        (acc, p) => Math.min(acc, p.handicap),
+        Infinity,
+      );
+      for (const p of parts) {
+        const diff = Math.max(0, Math.round(p.handicap - minH));
+        const per = new Map<number, number>();
+        for (const hole of holesArr) {
+          const base = Math.floor(diff / 18);
+          const extra = diff % 18 >= hole.handicapIndex ? 1 : 0;
+          per.set(hole.holeNumber, base + extra);
+        }
+        perPlayer.set(p.tripMemberId, per);
+      }
     }
-    strokesByPlayerCourse.set(key, m);
-    return m;
+
+    strokesByMatchPlayerHole.set(matchId, perPlayer);
   }
 
   // Initialise player totals
@@ -220,13 +325,15 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     });
   }
 
-  // Dedupe by (tripMemberId, roundId, holeNumber) — when a player is in
-  // multiple stacked matches in the same tee time, the upsert fan-out
-  // writes the same gross to N hole_scores rows. Summing all N inflates
-  // every individual leaderboard column by Nx. We keep the first row we
-  // see per (player, round, hole) and ignore subsequent duplicates.
+  // Dedupe by (tripMemberId, roundId, holeNumber). When a player is in
+  // multiple stacked matches at one tee time, the upsert fan-out writes
+  // the same gross to N rows. We keep ONE row per unique key — preferring
+  // the row from the WIDEST match (most participants). That's the "primary"
+  // match for the foursome (Best Ball over Singles when stacked) and its
+  // stroke allocation is the one we apply to the leaderboard.
   type DedupedScore = {
     tripMemberId: string;
+    matchId: string;
     courseId: string;
     holeNumber: number;
     gross: number;
@@ -238,9 +345,15 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     const courseId = courseIdByMatch.get(s.matchId);
     if (!roundId || !courseId) continue;
     const key = `${s.tripMemberId}::${roundId}::${s.holeNumber}`;
-    if (dedupedScores.has(key)) continue;
+    const existing = dedupedScores.get(key);
+    if (existing) {
+      const existingSize = matchSizeById.get(existing.matchId) ?? 0;
+      const candidateSize = matchSizeById.get(s.matchId) ?? 0;
+      if (existingSize >= candidateSize) continue;
+    }
     dedupedScores.set(key, {
       tripMemberId: s.tripMemberId,
+      matchId: s.matchId,
       courseId,
       holeNumber: s.holeNumber,
       gross: s.gross,
@@ -256,20 +369,22 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     const hole = courseHolesMap.get(s.holeNumber);
     if (!hole) continue;
 
-    // Net is still tracked (per-player handicap strokes), kept around for
-    // a future "net leaderboard" tab if/when we want one. The DISPLAYED
-    // score-vs-par on the Cup tab is GROSS vs par — what the player
-    // actually shot, no handicap adjustment. Mirrors how PGA leaderboards
-    // work and matches a viewer's intuition ("Eric shot 3 on a par 4 → -1").
-    const handicapNum = player.tripHandicap ? parseFloat(player.tripHandicap) : 0;
-    const strokeMap = getStrokes(s.tripMemberId, s.courseId, handicapNum);
-    const strokes = strokeMap.get(s.holeNumber) ?? 0;
+    // Strokes = the strokes this player would receive in THIS match (not
+    // their absolute course handicap allocation). For team-input formats
+    // the team's strokes are applied uniformly to every teammate's row.
+    const strokes =
+      strokesByMatchPlayerHole
+        .get(s.matchId)
+        ?.get(s.tripMemberId)
+        ?.get(s.holeNumber) ?? 0;
 
+    const net = s.gross - strokes;
     player.holesScored += 1;
     player.gross += s.gross;
-    player.net += s.gross - strokes;
+    player.net += net;
     player.par += hole.par;
-    player.scoreVsPar = player.gross - player.par;
+    // Display is NET vs par — gross minus the match-relative strokes received.
+    player.scoreVsPar = player.net - player.par;
   }
 
   const teamTotals = Array.from(teamTotalsMap.values()).sort(
