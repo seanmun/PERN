@@ -42,6 +42,11 @@ export type PlayerTotal = {
   net: number;
   par: number;          // sum of par for the holes scored
   scoreVsPar: number;   // net - par (negative is good)
+  // Total strokes the player has actually received across their played
+  // holes (match-relative). Displayed on the leaderboard in place of the
+  // raw trip handicap — "+3" reads as "you've gotten 3 strokes so far in
+  // the matches you're playing."
+  strokesGiven: number;
 };
 
 export type Leaderboard = {
@@ -322,6 +327,7 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
       net: 0,
       par: 0,
       scoreVsPar: 0,
+      strokesGiven: 0,
     });
   }
 
@@ -383,6 +389,7 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     player.gross += s.gross;
     player.net += net;
     player.par += hole.par;
+    player.strokesGiven += strokes;
     // Display is NET vs par — gross minus the match-relative strokes received.
     player.scoreVsPar = player.net - player.par;
   }

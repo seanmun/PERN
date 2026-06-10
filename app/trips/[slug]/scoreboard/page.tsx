@@ -581,8 +581,12 @@ function PlayerRow({ player, rank, slug }: { player: PlayerTotal; rank: number; 
           </p>
         )}
       </div>
-      <p className="w-12 shrink-0 text-right font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-        {player.tripHandicap ? `${player.tripHandicap} hcp` : 'no hcp'}
+      <p className="w-14 shrink-0 text-right font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+        {player.holesScored > 0
+          ? `+${player.strokesGiven}`
+          : player.tripHandicap
+            ? `${player.tripHandicap} hcp`
+            : '—'}
       </p>
       <div className="w-20 shrink-0 text-right">
         <div className="flex items-baseline justify-end gap-1.5">
