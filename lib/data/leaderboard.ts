@@ -138,10 +138,15 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
         .where(inArray(holeScores.matchId, Array.from(visibleMatchIdSet)))
     : [];
 
-  // Map match → round → courseId so we know which course's holes to look at
+  // Map match → round so we know which course's holes to look at AND so
+  // we can dedupe stacked-match scores (one physical ball per player per
+  // round per hole — even though the fan-out writes the same gross to N
+  // hole_scores rows when a player is in N stacked matches).
   const courseIdByMatch = new Map<string, string>();
+  const roundIdByMatch = new Map<string, string>();
   for (const r of visibleMatches) {
     courseIdByMatch.set(r.match.id, r.round.courseId);
+    roundIdByMatch.set(r.match.id, r.round.id);
   }
   const courseIds = Array.from(new Set(visibleMatches.map((r) => r.round.courseId)));
 
@@ -212,20 +217,44 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     });
   }
 
+  // Dedupe by (tripMemberId, roundId, holeNumber) — when a player is in
+  // multiple stacked matches in the same tee time, the upsert fan-out
+  // writes the same gross to N hole_scores rows. Summing all N inflates
+  // every individual leaderboard column by Nx. We keep the first row we
+  // see per (player, round, hole) and ignore subsequent duplicates.
+  type DedupedScore = {
+    tripMemberId: string;
+    courseId: string;
+    holeNumber: number;
+    gross: number;
+  };
+  const dedupedScores = new Map<string, DedupedScore>();
   for (const s of allScores) {
+    if (s.gross == null) continue;
+    const roundId = roundIdByMatch.get(s.matchId);
+    const courseId = courseIdByMatch.get(s.matchId);
+    if (!roundId || !courseId) continue;
+    const key = `${s.tripMemberId}::${roundId}::${s.holeNumber}`;
+    if (dedupedScores.has(key)) continue;
+    dedupedScores.set(key, {
+      tripMemberId: s.tripMemberId,
+      courseId,
+      holeNumber: s.holeNumber,
+      gross: s.gross,
+    });
+  }
+
+  for (const s of dedupedScores.values()) {
     const player = playerTotalsMap.get(s.tripMemberId);
     if (!player) continue;
-    if (s.gross == null) continue;
 
-    const courseId = courseIdByMatch.get(s.matchId);
-    if (!courseId) continue;
-    const courseHolesMap = holesByCourse.get(courseId);
+    const courseHolesMap = holesByCourse.get(s.courseId);
     if (!courseHolesMap) continue;
     const hole = courseHolesMap.get(s.holeNumber);
     if (!hole) continue;
 
     const handicapNum = player.tripHandicap ? parseFloat(player.tripHandicap) : 0;
-    const strokeMap = getStrokes(s.tripMemberId, courseId, handicapNum);
+    const strokeMap = getStrokes(s.tripMemberId, s.courseId, handicapNum);
     const strokes = strokeMap.get(s.holeNumber) ?? 0;
 
     const net = s.gross - strokes;

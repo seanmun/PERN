@@ -245,12 +245,12 @@ async function OutingLiveBoard({
                   const parts = partsByMatch.get(row.match.id) ?? [];
                   const byTeam = new Map<
                     string,
-                    { color: string | null; name: string; nicknames: string[] }
+                    { teamId: string; color: string | null; name: string; nicknames: string[] }
                   >();
                   for (const p of parts) {
                     const entry =
                       byTeam.get(p.team.id) ??
-                      { color: p.team.color, name: p.team.name, nicknames: [] };
+                      { teamId: p.team.id, color: p.team.color, name: p.team.name, nicknames: [] };
                     entry.nicknames.push(p.member.nickname);
                     byTeam.set(p.team.id, entry);
                   }
@@ -265,6 +265,8 @@ async function OutingLiveBoard({
                       sides={sides}
                       upA={live?.upA ?? 0}
                       upB={live?.upB ?? 0}
+                      aTeamId={live?.aTeamId ?? null}
+                      bTeamId={live?.bTeamId ?? null}
                       holesPlayed={live?.holesPlayed ?? 0}
                       totalHoles={live?.totalHoles ?? 18}
                       statusText={live?.statusText ?? '—'}
@@ -333,9 +335,20 @@ async function computeLive(matchId: string) {
       format: fmt,
     });
   }
+
+  // The engine pins side A/B by team UUID sort order. The display order
+  // ("which team shows up on the left") is independent — we have to map
+  // upA/upB to the correct team UUIDs and let the renderer reorder, or
+  // we'd show the right magnitude next to the wrong nickname.
+  const aTeamId =
+    data.participants.find((p) => p.side === 'A')?.team.id ?? null;
+  const bTeamId =
+    data.participants.find((p) => p.side === 'B')?.team.id ?? null;
   return {
     upA: computed.upA,
     upB: computed.upB,
+    aTeamId,
+    bTeamId,
     holesPlayed: computed.holesPlayed,
     totalHoles: computed.totalHoles,
     statusText: formatStatus(computed.status),
@@ -349,6 +362,8 @@ function MatchLiveRow({
   sides,
   upA,
   upB,
+  aTeamId,
+  bTeamId,
   holesPlayed,
   totalHoles,
   statusText,
@@ -356,15 +371,20 @@ function MatchLiveRow({
   slug: string;
   matchId: string;
   format: string;
-  sides: { color: string | null; name: string; nicknames: string[] }[];
+  sides: { teamId: string; color: string | null; name: string; nicknames: string[] }[];
   upA: number;
   upB: number;
+  // Engine pins side A/B by team UUID sort. These tell the renderer which
+  // side in `sides` corresponds to which engine bucket. Without this, the
+  // tally numbers can render against the wrong team.
+  aTeamId: string | null;
+  bTeamId: string | null;
   holesPlayed: number;
   totalHoles: number;
   statusText: string;
 }) {
-  const sideA = sides[0];
-  const sideB = sides[1];
+  const sideA = sides.find((s) => s.teamId === aTeamId) ?? sides[0];
+  const sideB = sides.find((s) => s.teamId === bTeamId) ?? sides[1];
   const remaining = Math.max(0, totalHoles - holesPlayed);
   return (
     <Link
@@ -397,7 +417,7 @@ function SideName({
   side,
   align,
 }: {
-  side: { color: string | null; name: string; nicknames: string[] } | undefined;
+  side: { teamId: string; color: string | null; name: string; nicknames: string[] } | undefined;
   align: 'left' | 'right';
 }) {
   if (!side) {
