@@ -471,12 +471,16 @@ function MatchLiveRow({
         <SideNicknames side={sideB} align="right" />
       </div>
 
+      {/* LeanBar hidden temporarily — testing the gradient background alone.
+          Restore by uncommenting if the gradient doesn't read clearly. */}
+      {/*
       <LeanBar
         upA={upA}
         upB={upB}
         colorA={sideA?.color ?? null}
         colorB={sideB?.color ?? null}
       />
+      */}
     </Link>
   );
 }
