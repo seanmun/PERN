@@ -217,65 +217,113 @@ async function OutingLiveBoard({
         </p>
       ) : (
         <div className="mt-8 space-y-3">
-          {Array.from(byTeeTime.entries()).map(([key, { teeTime, rows }]) => (
-            <div
-              key={key}
-              className="rounded-sm border border-zinc-800 bg-zinc-950/40"
-            >
-              {/* Tee-time header — shown once per group */}
-              <div className="flex items-baseline justify-between gap-3 border-b border-zinc-900 px-3 py-2.5">
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-500">
-                  Group {teeTime?.groupNumber ?? '—'}
-                </p>
-                <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-600">
-                  {rows.length} match{rows.length === 1 ? '' : 'es'}
-                </p>
-              </div>
+          {Array.from(byTeeTime.entries()).map(([key, { teeTime, rows }]) => {
+            // The two teams playing in this group. We derive them from the
+            // first match's participants (all matches in a group are between
+            // the same two teams) and sort by UUID so display A/B match
+            // engine A/B order — same scheme the engine uses to assign sides.
+            const headerTeamsMap = new Map<
+              string,
+              { teamId: string; color: string | null; name: string }
+            >();
+            for (const r of rows) {
+              for (const p of partsByMatch.get(r.match.id) ?? []) {
+                if (!headerTeamsMap.has(p.team.id)) {
+                  headerTeamsMap.set(p.team.id, {
+                    teamId: p.team.id,
+                    color: p.team.color,
+                    name: p.team.name,
+                  });
+                }
+              }
+            }
+            const headerTeams = Array.from(headerTeamsMap.values()).sort(
+              (a, b) => (a.teamId < b.teamId ? -1 : 1),
+            );
+            const headerA = headerTeams[0] ?? null;
+            const headerB = headerTeams[1] ?? null;
 
-              {/* Match sub-rows — sorted by format so identical formats
-                  sit next to each other (mirrors the schedule layout). */}
-              <div className="divide-y divide-zinc-900">
-                {[...rows]
-                  .sort(
-                    (x, y) =>
-                      (MATCH_FORMAT_ORDER[x.match.format] ?? 99) -
-                      (MATCH_FORMAT_ORDER[y.match.format] ?? 99),
-                  )
-                  .map((row) => {
-                  const parts = partsByMatch.get(row.match.id) ?? [];
-                  const byTeam = new Map<
-                    string,
-                    { teamId: string; color: string | null; name: string; nicknames: string[] }
-                  >();
-                  for (const p of parts) {
-                    const entry =
-                      byTeam.get(p.team.id) ??
-                      { teamId: p.team.id, color: p.team.color, name: p.team.name, nicknames: [] };
-                    entry.nicknames.push(p.member.nickname);
-                    byTeam.set(p.team.id, entry);
-                  }
-                  const sides = Array.from(byTeam.values());
-                  const live = liveByMatch.get(row.match.id);
-                  return (
-                    <MatchLiveRow
-                      key={row.match.id}
-                      slug={slug}
-                      matchId={row.match.id}
-                      format={row.match.format}
-                      sides={sides}
-                      upA={live?.upA ?? 0}
-                      upB={live?.upB ?? 0}
-                      aTeamId={live?.aTeamId ?? null}
-                      bTeamId={live?.bTeamId ?? null}
-                      holesPlayed={live?.holesPlayed ?? 0}
-                      totalHoles={live?.totalHoles ?? 18}
-                      statusText={live?.statusText ?? '—'}
-                    />
-                  );
-                })}
+            return (
+              <div
+                key={key}
+                className="rounded-sm border border-zinc-800 bg-zinc-950/40"
+              >
+                {/* Tee-time header — shown once per group with team names */}
+                <div className="border-b border-zinc-900 px-3 py-2.5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-500">
+                      Group {teeTime?.groupNumber ?? '—'}
+                    </p>
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-600">
+                      {rows.length} match{rows.length === 1 ? '' : 'es'}
+                    </p>
+                  </div>
+                  {headerA && headerB && (
+                    <div className="mt-2 flex items-baseline justify-between gap-3">
+                      <p
+                        className="truncate font-mono text-xs font-bold uppercase tracking-widest"
+                        style={{ color: headerA.color ?? '#a1a1aa' }}
+                      >
+                        {headerA.name}
+                      </p>
+                      <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-600">
+                        vs
+                      </span>
+                      <p
+                        className="truncate text-right font-mono text-xs font-bold uppercase tracking-widest"
+                        style={{ color: headerB.color ?? '#a1a1aa' }}
+                      >
+                        {headerB.name}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Match sub-rows — sorted by format so identical formats
+                    sit next to each other (mirrors the schedule layout). */}
+                <div className="divide-y divide-zinc-900">
+                  {[...rows]
+                    .sort(
+                      (x, y) =>
+                        (MATCH_FORMAT_ORDER[x.match.format] ?? 99) -
+                        (MATCH_FORMAT_ORDER[y.match.format] ?? 99),
+                    )
+                    .map((row) => {
+                      const parts = partsByMatch.get(row.match.id) ?? [];
+                      const byTeam = new Map<
+                        string,
+                        { teamId: string; color: string | null; name: string; nicknames: string[] }
+                      >();
+                      for (const p of parts) {
+                        const entry =
+                          byTeam.get(p.team.id) ??
+                          { teamId: p.team.id, color: p.team.color, name: p.team.name, nicknames: [] };
+                        entry.nicknames.push(p.member.nickname);
+                        byTeam.set(p.team.id, entry);
+                      }
+                      const sides = Array.from(byTeam.values());
+                      const live = liveByMatch.get(row.match.id);
+                      return (
+                        <MatchLiveRow
+                          key={row.match.id}
+                          slug={slug}
+                          matchId={row.match.id}
+                          format={row.match.format}
+                          sides={sides}
+                          upA={live?.upA ?? 0}
+                          upB={live?.upB ?? 0}
+                          aTeamId={live?.aTeamId ?? null}
+                          bTeamId={live?.bTeamId ?? null}
+                          holesPlayed={live?.holesPlayed ?? 0}
+                          totalHoles={live?.totalHoles ?? 18}
+                          statusText={live?.statusText ?? '—'}
+                        />
+                      );
+                    })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -386,10 +434,23 @@ function MatchLiveRow({
   const sideA = sides.find((s) => s.teamId === aTeamId) ?? sides[0];
   const sideB = sides.find((s) => s.teamId === bTeamId) ?? sides[1];
   const remaining = Math.max(0, totalHoles - holesPlayed);
+  // Leaning background gradient. Same 10-slice scale as LeanBar — 0 holes
+  // up = even gradient (50/50); 10 holes up = fully one color. Lives behind
+  // the matchup card so the visual weight tracks the score in your peripheral
+  // vision before you read the numbers.
+  const lean = upA - upB;
+  const magnitude = Math.min(10, Math.abs(lean));
+  const offsetPct = (magnitude / 10) * 50; // 0..50% lean from center
+  const aEndPct = lean > 0 ? 50 + offsetPct : 50 - offsetPct;
+  const leanGradient =
+    sideA?.color && sideB?.color
+      ? `linear-gradient(90deg, ${sideA.color}33 0%, ${sideA.color}33 ${Math.max(0, aEndPct - 4)}%, ${sideB.color}33 ${Math.min(100, aEndPct + 4)}%, ${sideB.color}33 100%)`
+      : undefined;
   return (
     <Link
       href={`/trips/${slug}/matches/${matchId}`}
       className="block px-3 py-2.5 hover:bg-zinc-900/40"
+      style={leanGradient ? { background: leanGradient } : undefined}
     >
       <div className="flex items-center justify-between gap-3">
         <FormatBadge format={format} size="xs" />
@@ -401,13 +462,13 @@ function MatchLiveRow({
       </div>
 
       <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-        <SideName side={sideA} align="left" />
+        <SideNicknames side={sideA} align="left" />
         <p className="font-mono text-2xl font-bold tabular-nums text-yellow-400">
           <span style={{ color: sideA?.color ?? undefined }}>{upA}</span>
           <span className="mx-1 text-zinc-700">·</span>
           <span style={{ color: sideB?.color ?? undefined }}>{upB}</span>
         </p>
-        <SideName side={sideB} align="right" />
+        <SideNicknames side={sideB} align="right" />
       </div>
 
       <LeanBar
@@ -468,7 +529,7 @@ function LeanBar({
   );
 }
 
-function SideName({
+function SideNicknames({
   side,
   align,
 }: {
@@ -480,12 +541,6 @@ function SideName({
   }
   return (
     <div className={align === 'right' ? 'text-right' : ''}>
-      <p
-        className="font-mono text-[9px] font-semibold uppercase tracking-widest"
-        style={{ color: side.color ?? '#a1a1aa' }}
-      >
-        {side.name}
-      </p>
       <p className="truncate text-sm font-semibold text-zinc-100">
         {side.nicknames.join(' & ')}
       </p>
