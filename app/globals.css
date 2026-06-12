@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Tell Tailwind v4 that `dark:` should apply when `<html>` has class
+ * `.dark` (set by the no-flash script in <head> from localStorage + the
+ * OS prefers-color-scheme query). Without this, the `dark:` variant
+ * defaults to the media-query, which we can't override per-user. */
+@variant dark (&:where(.dark, .dark *));
+
 :root {
   --color-bg: #0a0a0a;
   --color-surface: #0f1410;
@@ -9,6 +15,15 @@
   --color-green-bright: #16a34a;
   --color-text: #f4f4f5;
   --color-text-muted: #71717a;
+  color-scheme: dark;
+}
+
+:root:not(.dark) {
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-text: #18181b;
+  --color-text-muted: #71717a;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -45,6 +60,11 @@ body::before {
   pointer-events: none;
   background-image: radial-gradient(circle at 20% 0%, rgba(20, 83, 45, 0.08) 0%, transparent 50%);
   z-index: 0;
+}
+
+/* Kill the dark green radial glow in light mode — it reads as a smudge. */
+:root:not(.dark) body::before {
+  background-image: none;
 }
 
 main, header {

@@ -191,7 +191,7 @@ export default async function ScoreEntryPage({
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.25em] text-yellow-400">
             Course needs hole data
           </p>
-          <p className="mt-2 text-sm text-zinc-300">
+          <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
             {data.course.name} doesn&apos;t have par / yardage / stroke-index
             for its 18 holes yet, so scores can&apos;t be entered.
           </p>
@@ -209,7 +209,7 @@ export default async function ScoreEntryPage({
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.25em] text-yellow-400">
             Roster doesn&apos;t match this format
           </p>
-          <p className="mt-2 text-sm text-zinc-300">
+          <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
             {data.match.format === 'scramble'
               ? 'Scramble needs 2 or 4 players per team (matching teams on both sides).'
               : 'Alternate shot needs exactly 2 players per team.'}{' '}

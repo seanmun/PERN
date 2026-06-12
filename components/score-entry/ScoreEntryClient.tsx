@@ -150,12 +150,12 @@ export default function ScoreEntryClient({
                 className={`shrink-0 rounded-sm border px-3 py-1.5 ${
                   isActive
                     ? 'border-yellow-500/60 bg-yellow-500/10'
-                    : 'border-zinc-800 bg-black hover:border-zinc-700'
+                    : 'border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black hover:border-zinc-700'
                 }`}
               >
                 <span
                   className={`font-mono text-[10px] font-semibold uppercase tracking-widest ${
-                    isActive ? 'text-yellow-400' : 'text-zinc-400'
+                    isActive ? 'text-yellow-400' : 'text-zinc-600 dark:text-zinc-400'
                   }`}
                 >
                   {p.nickname}
@@ -204,7 +204,7 @@ function ViewToggle({
   onChange: (v: 'hole' | 'card') => void;
 }) {
   return (
-    <div className="flex rounded-sm border border-zinc-800 bg-black p-0.5">
+    <div className="flex rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black p-0.5">
       <button
         type="button"
         onClick={() => onChange('hole')}
@@ -257,7 +257,7 @@ function HoleByHole({
   return (
     <div className="mt-3">
       <div
-        className="flex items-center justify-between gap-4 rounded-sm border border-zinc-800 bg-zinc-950/60 px-4 py-2.5"
+        className="flex items-center justify-between gap-4 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 px-4 py-2.5"
         style={{
           background:
             'linear-gradient(180deg, rgba(20,83,45,0.15) 0%, rgba(20,83,45,0.02) 100%)',
@@ -274,20 +274,20 @@ function HoleByHole({
             / {holes.length}
           </span>
         </div>
-        <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest text-zinc-400 tabular-nums">
+        <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest text-zinc-600 dark:text-zinc-400 tabular-nums">
           <span>
             <span className="text-zinc-600">Par </span>
-            <span className="text-zinc-200">{hole.par}</span>
+            <span className="text-zinc-800 dark:text-zinc-200">{hole.par}</span>
           </span>
           {hole.yardage != null && (
             <span>
               <span className="text-zinc-600">Yd </span>
-              <span className="text-zinc-200">{hole.yardage}</span>
+              <span className="text-zinc-800 dark:text-zinc-200">{hole.yardage}</span>
             </span>
           )}
           <span>
             <span className="text-zinc-600">SI </span>
-            <span className="text-zinc-200">{hole.handicapIndex}</span>
+            <span className="text-zinc-800 dark:text-zinc-200">{hole.handicapIndex}</span>
           </span>
         </div>
       </div>
@@ -311,7 +311,7 @@ function HoleByHole({
           type="button"
           onClick={onPrev}
           disabled={!canPrev}
-          className="flex flex-1 items-center justify-center gap-1 rounded-sm border border-zinc-700 px-4 py-2.5 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-300 hover:bg-zinc-900 disabled:opacity-40"
+          className="flex flex-1 items-center justify-center gap-1 rounded-sm border border-zinc-400 dark:border-zinc-700 px-4 py-2.5 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 disabled:opacity-40"
         >
           <ChevronLeft size={14} /> Prev
         </button>
@@ -356,11 +356,11 @@ function PlayerHoleRow({
 
   return (
     <div
-      className="flex items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-950/40 p-2"
+      className="flex items-center gap-2 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-2"
       style={{ borderLeft: `3px solid ${color}` }}
     >
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold leading-tight text-zinc-100">
+        <p className="truncate text-sm font-semibold leading-tight text-zinc-900 dark:text-zinc-100">
           {player.nickname}
           {player.isSelf && (
             <span className="ml-1.5 font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
@@ -407,7 +407,7 @@ function PlayerHoleRow({
         type="button"
         onClick={() => setRel(-1)}
         disabled={disabled}
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-zinc-700 text-lg font-bold hover:bg-zinc-900 disabled:opacity-40"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-zinc-400 dark:border-zinc-700 text-lg font-bold hover:bg-zinc-100 dark:hover:bg-zinc-900 disabled:opacity-40"
         aria-label={`Decrease ${player.nickname}'s score`}
       >
         −
@@ -419,16 +419,16 @@ function PlayerHoleRow({
           onScoreChange(hole.par);
         }}
         disabled={disabled}
-        className={`flex h-11 w-14 shrink-0 flex-col items-center justify-center rounded-sm border text-center hover:bg-zinc-900 disabled:opacity-40 ${
+        className={`flex h-11 w-14 shrink-0 flex-col items-center justify-center rounded-sm border text-center hover:bg-zinc-100 dark:hover:bg-zinc-900 disabled:opacity-40 ${
           score === hole.par
             ? 'border-yellow-500/60 bg-yellow-500/10'
-            : 'border-zinc-700'
+            : 'border-zinc-400 dark:border-zinc-700'
         }`}
         aria-label={`Set ${player.nickname}'s score to par (${hole.par})`}
       >
         <span
           className={`font-mono text-3xl font-bold leading-none tabular-nums ${
-            score == null ? 'text-zinc-500' : 'text-zinc-100'
+            score == null ? 'text-zinc-500' : 'text-zinc-900 dark:text-zinc-100'
           }`}
         >
           {score ?? hole.par}
@@ -443,7 +443,7 @@ function PlayerHoleRow({
         type="button"
         onClick={() => setRel(1)}
         disabled={disabled}
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-zinc-700 text-lg font-bold hover:bg-zinc-900 disabled:opacity-40"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-zinc-400 dark:border-zinc-700 text-lg font-bold hover:bg-zinc-100 dark:hover:bg-zinc-900 disabled:opacity-40"
         aria-label={`Increase ${player.nickname}'s score`}
       >
         +
@@ -485,8 +485,8 @@ function CardView({
   );
 
   return (
-    <div className="mt-6 rounded-sm border border-zinc-800 bg-zinc-950/40">
-      <div className="grid grid-cols-[28px_28px_28px_28px_1fr_56px] items-center gap-2 border-b border-zinc-800 px-3 py-2 font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
+    <div className="mt-6 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
+      <div className="grid grid-cols-[28px_28px_28px_28px_1fr_56px] items-center gap-2 border-b border-zinc-300 dark:border-zinc-800 px-3 py-2 font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
         <span>#</span>
         <span>Par</span>
         <span>Yds</span>
@@ -501,12 +501,12 @@ function CardView({
         return (
           <div
             key={h.number}
-            className="grid grid-cols-[28px_28px_28px_28px_1fr_56px] items-center gap-2 border-b border-zinc-900 px-3 py-2 last:border-b-0"
+            className="grid grid-cols-[28px_28px_28px_28px_1fr_56px] items-center gap-2 border-b border-zinc-200 dark:border-zinc-900 px-3 py-2 last:border-b-0"
           >
             <span className="font-mono text-sm font-bold tabular-nums text-yellow-400">
               {h.number}
             </span>
-            <span className="font-mono text-xs tabular-nums text-zinc-300">
+            <span className="font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
               {h.par}
             </span>
             <span className="font-mono text-xs tabular-nums text-zinc-500">
@@ -529,9 +529,9 @@ function CardView({
         );
       })}
 
-      <div className="grid grid-cols-[28px_28px_28px_28px_1fr_56px] items-center gap-2 border-t-2 border-zinc-700 px-3 py-3 font-mono text-xs font-semibold uppercase tracking-widest">
+      <div className="grid grid-cols-[28px_28px_28px_28px_1fr_56px] items-center gap-2 border-t-2 border-zinc-400 dark:border-zinc-700 px-3 py-3 font-mono text-xs font-semibold uppercase tracking-widest">
         <span className="text-zinc-500">Σ</span>
-        <span className="text-zinc-300">{totalPar}</span>
+        <span className="text-zinc-700 dark:text-zinc-300">{totalPar}</span>
         <span />
         <span />
         <span className="text-emerald-400">
@@ -577,7 +577,7 @@ function CardScoreInput({
         onChange(n);
         submitScore({ matchId, tripMemberId, holeNumber, gross: n });
       }}
-      className="w-full rounded-sm border border-zinc-800 bg-black px-2 py-1 text-right font-mono text-sm tabular-nums focus:border-yellow-500 focus:outline-none"
+      className="w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-2 py-1 text-right font-mono text-sm tabular-nums focus:border-yellow-500 focus:outline-none"
     />
   );
 }
@@ -694,7 +694,7 @@ function TeamScoreEntry({
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-3">
-      <div className="mt-2 flex items-center justify-between gap-4 rounded-sm border border-zinc-800 bg-zinc-950/60 px-4 py-2.5">
+      <div className="mt-2 flex items-center justify-between gap-4 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 px-4 py-2.5">
         <div className="flex items-baseline gap-2">
           <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.3em] text-zinc-500">
             Hole
@@ -706,20 +706,20 @@ function TeamScoreEntry({
             / {holes.length}
           </span>
         </div>
-        <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest text-zinc-400 tabular-nums">
+        <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest text-zinc-600 dark:text-zinc-400 tabular-nums">
           <span>
             <span className="text-zinc-600">Par </span>
-            <span className="text-zinc-200">{activeHoleData.par}</span>
+            <span className="text-zinc-800 dark:text-zinc-200">{activeHoleData.par}</span>
           </span>
           {activeHoleData.yardage != null && (
             <span>
               <span className="text-zinc-600">Yd </span>
-              <span className="text-zinc-200">{activeHoleData.yardage}</span>
+              <span className="text-zinc-800 dark:text-zinc-200">{activeHoleData.yardage}</span>
             </span>
           )}
           <span>
             <span className="text-zinc-600">SI </span>
-            <span className="text-zinc-200">{activeHoleData.handicapIndex}</span>
+            <span className="text-zinc-800 dark:text-zinc-200">{activeHoleData.handicapIndex}</span>
           </span>
         </div>
       </div>
@@ -743,7 +743,7 @@ function TeamScoreEntry({
           type="button"
           onClick={() => setActiveHole((h) => Math.max(1, h - 1))}
           disabled={activeHole <= 1}
-          className="flex flex-1 items-center justify-center gap-1 rounded-sm border border-zinc-700 px-4 py-2.5 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-300 hover:bg-zinc-900 disabled:opacity-40"
+          className="flex flex-1 items-center justify-center gap-1 rounded-sm border border-zinc-400 dark:border-zinc-700 px-4 py-2.5 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 disabled:opacity-40"
         >
           <ChevronLeft size={14} /> Prev
         </button>
@@ -788,7 +788,7 @@ function TeamHoleRow({
 
   return (
     <div
-      className="flex items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-950/40 p-2"
+      className="flex items-center gap-2 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-2"
       style={{ borderLeft: `3px solid ${color}` }}
     >
       <div className="min-w-0 flex-1">
@@ -805,7 +805,7 @@ function TeamHoleRow({
             </span>
           )}
         </p>
-        <p className="truncate text-xs text-zinc-400">{team.memberLine}</p>
+        <p className="truncate text-xs text-zinc-600 dark:text-zinc-400">{team.memberLine}</p>
         <div className="mt-0.5 flex items-center gap-1.5">
           {score != null ? (
             <>
@@ -842,7 +842,7 @@ function TeamHoleRow({
         type="button"
         onClick={() => setRel(-1)}
         disabled={disabled}
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-zinc-700 text-lg font-bold hover:bg-zinc-900 disabled:opacity-40"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-zinc-400 dark:border-zinc-700 text-lg font-bold hover:bg-zinc-100 dark:hover:bg-zinc-900 disabled:opacity-40"
         aria-label={`Decrease ${team.name}'s score`}
       >
         −
@@ -854,16 +854,16 @@ function TeamHoleRow({
           onScoreChange(hole.par);
         }}
         disabled={disabled}
-        className={`flex h-11 w-14 shrink-0 flex-col items-center justify-center rounded-sm border text-center hover:bg-zinc-900 disabled:opacity-40 ${
+        className={`flex h-11 w-14 shrink-0 flex-col items-center justify-center rounded-sm border text-center hover:bg-zinc-100 dark:hover:bg-zinc-900 disabled:opacity-40 ${
           score === hole.par
             ? 'border-yellow-500/60 bg-yellow-500/10'
-            : 'border-zinc-700'
+            : 'border-zinc-400 dark:border-zinc-700'
         }`}
         aria-label={`Set ${team.name}'s score to par (${hole.par})`}
       >
         <span
           className={`font-mono text-3xl font-bold leading-none tabular-nums ${
-            score == null ? 'text-zinc-500' : 'text-zinc-100'
+            score == null ? 'text-zinc-500' : 'text-zinc-900 dark:text-zinc-100'
           }`}
         >
           {score ?? hole.par}
@@ -878,7 +878,7 @@ function TeamHoleRow({
         type="button"
         onClick={() => setRel(1)}
         disabled={disabled}
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-zinc-700 text-lg font-bold hover:bg-zinc-900 disabled:opacity-40"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-zinc-400 dark:border-zinc-700 text-lg font-bold hover:bg-zinc-100 dark:hover:bg-zinc-900 disabled:opacity-40"
         aria-label={`Increase ${team.name}'s score`}
       >
         +
