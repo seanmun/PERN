@@ -22,6 +22,7 @@ export default function Footer() {
 
           <nav aria-label="Footer">
             <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+              <FooterLink href="/about">About</FooterLink>
               <FooterLink href="/privacy">Privacy</FooterLink>
               <FooterLink href="/brand">Brand</FooterLink>
               <FooterLink href="https://seanmun.com" external>
