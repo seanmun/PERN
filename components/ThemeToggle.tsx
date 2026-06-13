@@ -6,7 +6,15 @@ import { useTheme } from '@/lib/theme';
 
 // Logged-out / marketing routes are pinned dark by ForceDarkMode; the
 // toggle would just fight the pin, so hide it on those routes.
-const HIDE_ON = ['/', '/about', '/sign-in', '/sign-up'];
+const HIDE_ON = [
+  '/',
+  '/about',
+  '/sign-in',
+  '/sign-up',
+  '/privacy',
+  '/brand',
+  '/documentation',
+];
 
 /**
  * Theme switcher in the header. Three-state cycle: System → Light → Dark →

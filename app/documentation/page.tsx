@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowLeft, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
+import ForceDarkMode from '@/components/ForceDarkMode';
 
 export const metadata: Metadata = {
   title: 'Documentation · BuddyCup',
@@ -16,6 +17,7 @@ export default async function DocumentationPage() {
 
   return (
     <article className="mx-auto max-w-4xl px-4 py-16 sm:py-20">
+      <ForceDarkMode />
       <Link
         href="/home"
         className="group inline-flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 transition-colors hover:text-yellow-400"
