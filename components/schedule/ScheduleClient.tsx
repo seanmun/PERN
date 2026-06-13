@@ -619,12 +619,20 @@ function MatchupShowdownCompact({ match }: { match: ClientMatch }) {
           '0 0 0 2px #eab308, 0 0 0 3px #18181b, 0 0 12px rgba(202,138,4,0.2)',
       }}
     >
+      {/*
+        Light-mode bg borrows the Cup tab's lean gradient — soft horizontal
+        wash of each team's color at ~20% alpha (matches `${color}33`). Dark
+        mode keeps the original deep-navy gradient. CSS vars + the dark:
+        variant keep both branches in one element.
+      */}
       <div
-        className="grid grid-cols-[1fr_auto_1fr] items-stretch"
-        style={{
-          background:
-            'linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%)',
-        }}
+        className="grid grid-cols-[1fr_auto_1fr] items-stretch bg-[image:var(--matchup-bg-light)] dark:bg-[image:var(--matchup-bg-dark)]"
+        style={
+          {
+            '--matchup-bg-light': `linear-gradient(90deg, ${aColor}33 0%, ${aColor}33 46%, ${bColor}33 54%, ${bColor}33 100%)`,
+            '--matchup-bg-dark': 'linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%)',
+          } as React.CSSProperties
+        }
       >
         <CompactPortraitsCell players={a} color={aColor} align="left" />
         <CompactVsBanner />
