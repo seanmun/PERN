@@ -148,8 +148,8 @@ export default function ScheduleClient({
   if (days.length === 0) {
     return (
       <div className="mx-auto max-w-md px-4 pt-16 pb-24">
-        <div className="rounded-sm border border-yellow-600/20 bg-black/50 p-8 text-center">
-          <p className="text-zinc-400">No schedule yet.</p>
+        <div className="rounded-sm border border-yellow-600/20 bg-zinc-50 dark:bg-black/50 p-8 text-center">
+          <p className="text-zinc-600 dark:text-zinc-400">No schedule yet.</p>
           {canEdit ? (
             <>
               <p className="mt-1 text-xs text-zinc-600">
@@ -165,7 +165,7 @@ export default function ScheduleClient({
                 </Link>
                 <Link
                   href={`/trips/${tripSlug}/events/new`}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-sm border border-zinc-700 px-4 py-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:bg-zinc-900"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-sm border border-zinc-400 dark:border-zinc-700 px-4 py-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900"
                 >
                   <Plus size={12} strokeWidth={2.5} />
                   New event
@@ -205,7 +205,7 @@ export default function ScheduleClient({
           </Link>
           <Link
             href={`/trips/${tripSlug}/events/new`}
-            className="flex items-center gap-1.5 rounded-sm border border-zinc-700 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:bg-zinc-900"
+            className="flex items-center gap-1.5 rounded-sm border border-zinc-400 dark:border-zinc-700 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900"
           >
             <Plus size={12} strokeWidth={2.5} />
             New event
@@ -254,7 +254,7 @@ function ViewToggle({
   onChange: (v: 'list' | 'day') => void;
 }) {
   return (
-    <div className="flex rounded-sm border border-zinc-800 bg-black p-0.5">
+    <div className="flex rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black p-0.5">
       <button
         onClick={() => onChange('list')}
         className={`flex items-center gap-1.5 rounded-sm px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest transition-colors ${
@@ -334,7 +334,7 @@ function DayCarouselView({
               className={`shrink-0 rounded-sm border px-4 py-2 text-left transition-colors ${
                 isActive
                   ? 'border-yellow-500/60 bg-yellow-500/10'
-                  : 'border-zinc-800 bg-black hover:border-zinc-700'
+                  : 'border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black hover:border-zinc-700'
               }`}
             >
               <p
@@ -344,7 +344,7 @@ function DayCarouselView({
               >
                 {d.dayLabel.slice(0, 3)}
               </p>
-              <p className={`text-sm font-semibold ${isActive ? 'text-zinc-100' : 'text-zinc-400'}`}>
+              <p className={`text-sm font-semibold ${isActive ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400'}`}>
                 {d.monthDay}
               </p>
             </button>
@@ -369,7 +369,7 @@ function DayCarouselView({
 
 function DayHeader({ day }: { day: ClientScheduleDay }) {
   return (
-    <div className="flex items-baseline justify-between border-b border-zinc-800 pb-2">
+    <div className="flex items-baseline justify-between border-b border-zinc-300 dark:border-zinc-800 pb-2">
       <h2 className="text-lg font-bold tracking-tight">{day.dayLabel}</h2>
       <p className="font-mono text-[11px] font-semibold uppercase tracking-widest text-yellow-500">
         {day.monthDay}
@@ -415,13 +415,13 @@ function EmptyRoundRow({
     }
   };
   return (
-    <div className="rounded-sm border border-dashed border-yellow-500/40 bg-zinc-950/40 p-4">
+    <div className="rounded-sm border border-dashed border-yellow-500/40 bg-zinc-50 dark:bg-zinc-950/40 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-500">
             Round {item.roundOrder} · {formatLabel(item.roundFormat)} · No tee times yet
           </p>
-          <p className="mt-1.5 truncate font-semibold text-zinc-100">
+          <p className="mt-1.5 truncate font-semibold text-zinc-900 dark:text-zinc-100">
             {item.roundLabel ?? item.courseName}
           </p>
           <p className="truncate text-xs text-zinc-500">
@@ -482,7 +482,7 @@ function GolfRow({
   // No matches yet — render placeholder card (e.g., R5 captain-pick, R6 scramble)
   if (item.matches.length === 0) {
     return (
-      <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-3">
+      <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3">
         <div className="flex items-start gap-3">
           <div className="w-16 shrink-0">
             <p className="font-mono text-xs font-bold tabular-nums text-yellow-400">{time}</p>
@@ -526,7 +526,7 @@ function GolfRow({
   return (
     <div className="overflow-hidden rounded-md border border-yellow-600/20 bg-zinc-950/70 shadow-[0_0_0_1px_rgba(0,0,0,0.4)]">
       {/* Tee-time header — shown once for the whole group */}
-      <div className="flex items-baseline justify-between gap-3 border-b border-yellow-600/10 bg-black/30 px-3 py-2">
+      <div className="flex items-baseline justify-between gap-3 border-b border-yellow-600/10 bg-zinc-50 dark:bg-black/30 px-3 py-2">
         <div className="flex items-baseline gap-2">
           <p className="font-mono text-xs font-bold tabular-nums text-yellow-400">
             {time}
@@ -545,21 +545,21 @@ function GolfRow({
         </p>
       </div>
 
-      <div className="flex items-center gap-2 border-b border-zinc-900 px-3 py-1.5">
+      <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-900 px-3 py-1.5">
         <Trophy size={11} className="shrink-0 text-yellow-500/70" />
-        <p className="truncate text-xs text-zinc-300">{item.courseName}</p>
+        <p className="truncate text-xs text-zinc-700 dark:text-zinc-300">{item.courseName}</p>
       </div>
 
       {/* Match sub-rows — each renders a compact NBA-Jam showdown card.
           Sorted so identical formats sit next to each other. */}
-      <div className="divide-y divide-zinc-900">
+      <div className="divide-y divide-zinc-200 dark:divide-zinc-900">
         {[...item.matches]
           .sort((x, y) => MATCH_FORMAT_ORDER[x.format] - MATCH_FORMAT_ORDER[y.format])
           .map((m) => (
             <Link
               key={m.id}
               href={`/trips/${tripSlug}/matches/${m.id}`}
-              className="block px-3 py-3 hover:bg-zinc-900/40"
+              className="block px-3 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
             >
               <div className="flex items-center justify-between gap-2">
                 <FormatBadge format={m.format} size="xs" />
@@ -574,7 +574,7 @@ function GolfRow({
 
       {/* One "Enter scores" button per foursome — only for participants + admins. */}
       {item.canEnterScores && item.scoreMatchId && (
-        <div className="border-t border-yellow-600/15 bg-black/30 p-3">
+        <div className="border-t border-yellow-600/15 bg-zinc-50 dark:bg-black/30 p-3">
           <Link
             href={`/trips/${tripSlug}/matches/${item.scoreMatchId}/score`}
             className="flex w-full items-center justify-center gap-2 rounded-sm bg-yellow-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400"
@@ -730,7 +730,7 @@ function CompactPortraitSlot({
           />
         ) : (
           <div
-            className="flex h-full w-full items-center justify-center rounded-sm bg-zinc-900 font-mono text-base font-bold text-zinc-300"
+            className="flex h-full w-full items-center justify-center rounded-sm bg-zinc-100 dark:bg-zinc-900 font-mono text-base font-bold text-zinc-700 dark:text-zinc-300"
             style={{ boxShadow: `0 0 0 1px ${color}66` }}
           >
             {player.nickname.slice(0, 1).toUpperCase()}
@@ -738,7 +738,7 @@ function CompactPortraitSlot({
         )}
       </div>
       <p
-        className="mt-1 truncate text-center text-[11px] font-semibold leading-tight text-zinc-100"
+        className="mt-1 truncate text-center text-[11px] font-semibold leading-tight text-zinc-900 dark:text-zinc-100"
         style={{ maxWidth: 72 }}
       >
         {player.nickname}
@@ -809,7 +809,7 @@ function TeamSideCell({
         {players.map((p) => (
           <p
             key={p.tripMemberId}
-            className="truncate text-sm font-semibold text-zinc-100"
+            className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100"
           >
             {p.nickname}
             {p.tripHandicap && (
@@ -937,11 +937,11 @@ function EventRow({ item, compact, tripSlug }: { item: ClientEventItem; compact?
   return (
     <Link
       href={`/trips/${tripSlug}/events/${item.eventId}`}
-      className="block rounded-sm border border-zinc-800 bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-900/40"
+      className="block rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
     >
       <div className="flex items-start gap-3">
         <div className="w-16 shrink-0">
-          <p className="font-mono text-xs font-bold tabular-nums text-zinc-300">{time}</p>
+          <p className="font-mono text-xs font-bold tabular-nums text-zinc-700 dark:text-zinc-300">{time}</p>
           <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-600">
             {item.type.replace('_', ' ')}
           </p>
@@ -949,7 +949,7 @@ function EventRow({ item, compact, tripSlug }: { item: ClientEventItem; compact?
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <Icon size={14} className="text-zinc-400" />
+            <Icon size={14} className="text-zinc-600 dark:text-zinc-400" />
             <p className="truncate font-semibold">{item.title}</p>
           </div>
 
@@ -958,7 +958,7 @@ function EventRow({ item, compact, tripSlug }: { item: ClientEventItem; compact?
           )}
 
           {!compact && item.description && (
-            <p className="mt-1.5 text-xs text-zinc-400">{item.description}</p>
+            <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-400">{item.description}</p>
           )}
         </div>
 

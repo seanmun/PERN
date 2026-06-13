@@ -29,13 +29,13 @@ export default function PrivacyPage() {
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
             Privacy
           </p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl">
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-4xl">
             What we store, what we don’t.
           </h1>
           <p className="mt-4 text-sm text-zinc-500">Last updated: May 2026</p>
         </header>
 
-        <div className="mt-10 space-y-8 text-zinc-300">
+        <div className="mt-10 space-y-8 text-zinc-700 dark:text-zinc-300">
           <section>
             <h2 className="text-sm font-mono font-semibold uppercase tracking-[0.3em] text-yellow-500">
               The short version
@@ -55,17 +55,17 @@ export default function PrivacyPage() {
             </h2>
             <ul className="mt-3 space-y-2 leading-relaxed">
               <li>
-                <strong className="text-zinc-100">Your account.</strong> Email
+                <strong className="text-zinc-900 dark:text-zinc-100">Your account.</strong> Email
                 and basic profile data via our auth provider (Clerk). We don’t
                 store passwords — sign‑in is magic‑link based.
               </li>
               <li>
-                <strong className="text-zinc-100">Your trip data.</strong>{' '}
+                <strong className="text-zinc-900 dark:text-zinc-100">Your trip data.</strong>{' '}
                 Scores, matchups, posts, photos, schedule items, and anything
                 else you enter while using the app.
               </li>
               <li>
-                <strong className="text-zinc-100">Standard server logs.</strong>{' '}
+                <strong className="text-zinc-900 dark:text-zinc-100">Standard server logs.</strong>{' '}
                 Request metadata used to keep the service running and debug
                 problems. Logs are retained briefly and not used for marketing.
               </li>

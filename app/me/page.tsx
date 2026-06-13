@@ -122,7 +122,7 @@ export default async function MyProfilePage() {
           </div>
         </div>
 
-        <details className="rounded-sm border border-zinc-900 bg-zinc-950/30">
+        <details className="rounded-sm border border-zinc-200 dark:border-zinc-900 bg-zinc-50 dark:bg-zinc-950/30">
           <summary className="cursor-pointer select-none px-3 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500 hover:text-zinc-300">
             Public handle
             {user.username && (
@@ -131,11 +131,11 @@ export default async function MyProfilePage() {
               </span>
             )}
           </summary>
-          <div className="border-t border-zinc-900 px-3 pt-3 pb-4">
+          <div className="border-t border-zinc-200 dark:border-zinc-900 px-3 pt-3 pb-4">
             <p className="text-[11px] text-zinc-500">
               Your @-handle. Auto-set from your email when you signed up. Will be used for mentions and your profile URL when social ships — you can claim a better one now if you want.
             </p>
-            <div className="mt-2 flex items-stretch overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 focus-within:border-yellow-500">
+            <div className="mt-2 flex items-stretch overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 focus-within:border-yellow-500">
               <span className="flex items-center px-3 font-mono text-base text-zinc-500">@</span>
               <input
                 type="text"
@@ -146,7 +146,7 @@ export default async function MyProfilePage() {
                 autoComplete="off"
                 spellCheck={false}
                 maxLength={20}
-                className="flex-1 bg-transparent px-1 py-2 font-mono text-base text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+                className="flex-1 bg-transparent px-1 py-2 font-mono text-base text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
               />
             </div>
             <p className="mt-1.5 text-[11px] text-zinc-500">
@@ -164,7 +164,7 @@ export default async function MyProfilePage() {
           </button>
           <Link
             href="/home"
-            className="rounded-sm border border-zinc-700 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+            className="rounded-sm border border-zinc-400 dark:border-zinc-700 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-200"
           >
             Cancel
           </Link>
@@ -175,7 +175,7 @@ export default async function MyProfilePage() {
 }
 
 const inputCls =
-  'mt-2 block w-full rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
+  'mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
 
 function Field({
   label,

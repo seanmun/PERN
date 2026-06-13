@@ -69,8 +69,8 @@ export default async function AdminPlayersPage({
       </p>
 
       {players.length === 0 && (
-        <div className="mt-8 rounded-sm border border-dashed border-zinc-800 bg-zinc-950/40 p-6 text-center">
-          <p className="text-sm text-zinc-400">No players yet.</p>
+        <div className="mt-8 rounded-sm border border-dashed border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-6 text-center">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">No players yet.</p>
           <p className="mt-1 text-xs text-zinc-600">
             Tap “Add player” above to start the roster.
           </p>
@@ -84,7 +84,7 @@ export default async function AdminPlayersPage({
           return (
             <div
               key={p.id}
-              className="flex items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-3 hover:border-yellow-500/40"
+              className="flex items-center gap-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3 hover:border-yellow-500/40"
               style={{ borderLeft: `3px solid ${color}` }}
             >
               <Link
@@ -128,7 +128,7 @@ export default async function AdminPlayersPage({
                 <Link
                   href={`/trips/${slug}/admin/players/${p.id}/edit`}
                   aria-label="Edit player"
-                  className="rounded-sm border border-zinc-800 p-1.5 text-zinc-400 hover:border-yellow-500/40 hover:text-yellow-400"
+                  className="rounded-sm border border-zinc-300 dark:border-zinc-800 p-1.5 text-zinc-600 dark:text-zinc-400 hover:border-yellow-500/40 hover:text-yellow-400"
                 >
                   <Pencil size={12} />
                 </Link>

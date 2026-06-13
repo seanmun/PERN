@@ -67,7 +67,7 @@ export default function ImagePickerInput({
       <input type="hidden" name={name} value={url} />
 
       <div
-        className="w-full overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950"
+        className="w-full overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950"
         style={{ aspectRatio: aspect }}
       >
         {url ? (
@@ -97,7 +97,7 @@ export default function ImagePickerInput({
           <button
             type="button"
             onClick={clear}
-            className="rounded-sm border border-zinc-800 p-2 text-zinc-400 hover:border-red-700/40 hover:text-red-400"
+            className="rounded-sm border border-zinc-300 dark:border-zinc-800 p-2 text-zinc-600 dark:text-zinc-400 hover:border-red-700/40 hover:text-red-400"
             aria-label="Remove image"
           >
             <X size={14} />
@@ -122,7 +122,7 @@ export default function ImagePickerInput({
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://..."
-          className="mt-2 block w-full rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
+          className="mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
         />
       </label>
 

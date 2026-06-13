@@ -280,7 +280,7 @@ export default async function Home() {
   if (ctx) redirect('/home');
 
   return (
-    <div className="bg-[#0a0a0a] text-zinc-100">
+    <div className="bg-[#0a0a0a] text-zinc-900 dark:text-zinc-100">
       {/* ───────── Hero ───────── */}
       <section
         aria-label="BuddyCup"
@@ -318,7 +318,7 @@ export default async function Home() {
           </Reveal>
 
           <Reveal delay={0.3}>
-            <p className="mx-auto mt-5 max-w-md text-zinc-300 drop-shadow-[0_1px_8px_rgba(0,0,0,0.8)]">
+            <p className="mx-auto mt-5 max-w-md text-zinc-700 dark:text-zinc-300 drop-shadow-[0_1px_8px_rgba(0,0,0,0.8)]">
               Ryder-Cup-style match play for your buddy trip — scoring, schedule, trash talk,
               and the surrounding chaos, all on one shared scoreboard.
             </p>
@@ -334,7 +334,7 @@ export default async function Home() {
               </Link>
               <Link
                 href="#how-it-works"
-                className="group inline-flex items-center gap-2 rounded-sm border border-zinc-700/80 bg-black/40 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-zinc-200 backdrop-blur transition-colors hover:border-yellow-500/60 hover:text-yellow-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                className="group inline-flex items-center gap-2 rounded-sm border border-zinc-700/80 bg-zinc-50 dark:bg-black/40 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-zinc-800 dark:text-zinc-200 backdrop-blur transition-colors hover:border-yellow-500/60 hover:text-yellow-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               >
                 How it works
                 <ChevronDown
@@ -353,18 +353,18 @@ export default async function Home() {
       <section
         id="how-it-works"
         aria-labelledby="how-it-works-heading"
-        className="border-t border-zinc-900 py-20 sm:py-28"
+        className="border-t border-zinc-200 dark:border-zinc-900 py-20 sm:py-28"
       >
         <div className="mx-auto max-w-3xl px-4">
           <Reveal>
             <SectionKicker>How it works</SectionKicker>
             <h2
               id="how-it-works-heading"
-              className="mt-4 text-balance text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl"
+              className="mt-4 text-balance text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-4xl"
             >
               From signed-up to first tee shot in an afternoon.
             </h2>
-            <p className="mt-4 text-zinc-400">
+            <p className="mt-4 text-zinc-600 dark:text-zinc-400">
               No setup nightmares. No spreadsheets. Five short steps, and your trip is live.
             </p>
           </Reveal>
@@ -374,21 +374,21 @@ export default async function Home() {
               const Icon = step.icon;
               return (
                 <Reveal key={step.num} delay={i * 0.06}>
-                  <li className="flex gap-5 rounded-sm border border-zinc-800 bg-zinc-950/40 p-5 transition-colors hover:border-zinc-700">
+                  <li className="flex gap-5 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-5 transition-colors hover:border-zinc-700">
                     <div className="flex flex-col items-center gap-3">
                       <span className="font-mono text-sm font-bold tracking-widest text-yellow-500">
                         {step.num}
                       </span>
                       <span
-                        className="flex h-9 w-9 items-center justify-center rounded-sm bg-zinc-900 text-zinc-300"
+                        className="flex h-9 w-9 items-center justify-center rounded-sm bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300"
                         aria-hidden="true"
                       >
                         <Icon size={18} strokeWidth={2} />
                       </span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-base font-semibold text-zinc-100">{step.title}</h3>
-                      <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{step.body}</p>
+                      <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{step.title}</h3>
+                      <p className="mt-1.5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{step.body}</p>
                     </div>
                   </li>
                 </Reveal>
@@ -498,18 +498,18 @@ export default async function Home() {
       {/* ───────── Closing CTA ───────── */}
       <section
         aria-labelledby="closing-cta"
-        className="border-t border-zinc-900 py-24 sm:py-32"
+        className="border-t border-zinc-200 dark:border-zinc-900 py-24 sm:py-32"
       >
         <div className="mx-auto max-w-2xl px-4 text-center">
           <Reveal>
             <SectionKicker center>Ready to run yours?</SectionKicker>
             <h2
               id="closing-cta"
-              className="mt-4 text-balance text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl"
+              className="mt-4 text-balance text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-4xl"
             >
               Sign in and create your cup.
             </h2>
-            <p className="mt-4 text-zinc-400">
+            <p className="mt-4 text-zinc-600 dark:text-zinc-400">
               Built for buddy trips. Free while we figure it out.
             </p>
             <div className="mt-10 flex justify-center">
@@ -561,7 +561,7 @@ function FeatureSection({
   return (
     <section
       aria-labelledby={labelledBy}
-      className="border-t border-zinc-900 py-20 sm:py-28"
+      className="border-t border-zinc-200 dark:border-zinc-900 py-20 sm:py-28"
     >
       <div className="mx-auto max-w-5xl px-4">{children}</div>
     </section>
@@ -585,16 +585,16 @@ function FeatureCopy({ kicker, headingId, heading, body, bullets, icon: Icon }: 
       </p>
       <h2
         id={headingId}
-        className="mt-4 text-balance text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl"
+        className="mt-4 text-balance text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-4xl"
       >
         {heading}
       </h2>
-      <p className="mt-5 text-zinc-400">{body}</p>
+      <p className="mt-5 text-zinc-600 dark:text-zinc-400">{body}</p>
       <ul className="mt-7 flex flex-col gap-3">
         {bullets.map((b) => (
-          <li key={b} className="flex items-start gap-3 text-sm text-zinc-300">
+          <li key={b} className="flex items-start gap-3 text-sm text-zinc-700 dark:text-zinc-300">
             <span
-              className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-sm bg-zinc-900 text-yellow-500"
+              className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-sm bg-zinc-100 dark:bg-zinc-900 text-yellow-500"
               aria-hidden="true"
             >
               <Icon size={13} strokeWidth={2.5} />
@@ -612,7 +612,7 @@ function ScheduleMock() {
     <div
       role="img"
       aria-label="Schedule preview for Wednesday Aug 19: hotel check-in, three Round 1 matches at Pine Needles, and a welcome dinner"
-      className="rounded-sm border border-zinc-800 bg-zinc-950/60 p-5 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)]"
+      className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 p-5 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)]"
     >
       <div className="flex items-center gap-3">
         <span className="h-px w-6 bg-yellow-600/60" aria-hidden="true" />
@@ -630,7 +630,7 @@ function ScheduleMock() {
               className={`rounded-sm border px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-widest ${
                 active
                   ? 'border-yellow-500/60 bg-yellow-500/10 text-yellow-400'
-                  : 'border-zinc-800 bg-zinc-900/60 text-zinc-500'
+                  : 'border-zinc-300 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900/60 text-zinc-500'
               }`}
             >
               {d}
@@ -640,7 +640,7 @@ function ScheduleMock() {
       </div>
 
       <div className="mt-4 flex items-baseline gap-3">
-        <p className="text-sm font-semibold text-zinc-100">Wednesday</p>
+        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Wednesday</p>
         <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">Aug 19</p>
       </div>
 
@@ -648,11 +648,11 @@ function ScheduleMock() {
         {SCHEDULE.map((item, i) => (
           <li key={i} className="flex gap-3">
             <div className="w-16 flex-none pt-1">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-300">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-700 dark:text-zinc-300">
                 {item.time}
               </p>
             </div>
-            <div className="min-w-0 flex-1 rounded-sm border border-zinc-900 bg-black/40 p-3">
+            <div className="min-w-0 flex-1 rounded-sm border border-zinc-200 dark:border-zinc-900 bg-zinc-50 dark:bg-black/40 p-3">
               {item.kind === 'event' ? (
                 <ScheduleEventRow item={item} />
               ) : (
@@ -673,10 +673,10 @@ function ScheduleEventRow({
 }) {
   return (
     <div>
-      <span className="inline-block rounded-sm border border-zinc-800 bg-zinc-900/80 px-2 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.25em] text-zinc-400">
+      <span className="inline-block rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-900/80 px-2 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.25em] text-zinc-600 dark:text-zinc-400">
         {item.badge}
       </span>
-      <p className="mt-1.5 text-sm font-semibold text-zinc-100">{item.title}</p>
+      <p className="mt-1.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{item.title}</p>
       <p className="text-xs text-zinc-500">{item.place}</p>
     </div>
   );
@@ -722,7 +722,7 @@ function MatchSide({
     <div className={align === 'right' ? 'text-right' : 'text-left'}>
       {side.players.map((p, i) => (
         <p key={p.name} className="leading-tight">
-          <span className="text-sm font-semibold text-zinc-100">{p.name}</span>
+          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{p.name}</span>
           {p.hcp && (
             <span
               className="ml-1 font-mono text-[10px] tabular-nums"
@@ -745,7 +745,7 @@ function ScoreboardMock() {
     <div
       role="img"
       aria-label="Cup standings preview: Hacks 8½, Chunkers 6½, with the top of the individual leaderboard"
-      className="rounded-sm border border-zinc-800 bg-zinc-950/60 p-5 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)]"
+      className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 p-5 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)]"
     >
       <div className="flex items-center gap-3">
         <span className="h-px w-6 bg-yellow-600/60" aria-hidden="true" />
@@ -753,7 +753,7 @@ function ScoreboardMock() {
           Cup standings
         </p>
       </div>
-      <p className="mt-2 text-sm font-semibold text-zinc-200">Round 3 · Live</p>
+      <p className="mt-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200">Round 3 · Live</p>
 
       <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
         <TeamBox name="Hacks" pts="8½" color={GREEN} align="right" />
@@ -767,12 +767,12 @@ function ScoreboardMock() {
         9 of 15 matches in the books · 6 pts left
       </p>
 
-      <div className="mt-5 overflow-hidden rounded-sm border border-zinc-900">
+      <div className="mt-5 overflow-hidden rounded-sm border border-zinc-200 dark:border-zinc-900">
         {LEADERBOARD.map((row, i) => (
           <div
             key={row.name}
             className={`flex items-center gap-3 px-3 py-2.5 ${
-              i !== LEADERBOARD.length - 1 ? 'border-b border-zinc-900' : ''
+              i !== LEADERBOARD.length - 1 ? 'border-b border-zinc-200 dark:border-zinc-900' : ''
             }`}
           >
             <span
@@ -783,14 +783,14 @@ function ScoreboardMock() {
             <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
               0{i + 1}
             </span>
-            <span className="flex-1 text-sm text-zinc-200">{row.name}</span>
+            <span className="flex-1 text-sm text-zinc-800 dark:text-zinc-200">{row.name}</span>
             <span
               className={`font-mono text-sm font-bold tabular-nums ${
                 row.score.startsWith('-')
                   ? 'text-red-400'
                   : row.score.startsWith('+')
-                    ? 'text-zinc-400'
-                    : 'text-zinc-100'
+                    ? 'text-zinc-600 dark:text-zinc-400'
+                    : 'text-zinc-900 dark:text-zinc-100'
               }`}
             >
               {row.score}
@@ -815,7 +815,7 @@ function TeamBox({
 }) {
   return (
     <div
-      className={`rounded-sm border border-zinc-900 bg-black/40 p-3 ${
+      className={`rounded-sm border border-zinc-200 dark:border-zinc-900 bg-zinc-50 dark:bg-black/40 p-3 ${
         align === 'right' ? 'text-right' : 'text-left'
       }`}
       style={{
@@ -828,7 +828,7 @@ function TeamBox({
       >
         {name}
       </p>
-      <p className="mt-1 font-mono text-3xl font-bold text-zinc-100">{pts}</p>
+      <p className="mt-1 font-mono text-3xl font-bold text-zinc-900 dark:text-zinc-100">{pts}</p>
     </div>
   );
 }
@@ -843,7 +843,7 @@ function FeedMock() {
       {FEED_POSTS.map((post, i) => (
         <div
           key={i}
-          className="relative overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950/60 p-4 pl-5"
+          className="relative overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 p-4 pl-5"
         >
           <span
             className="absolute inset-y-0 left-0 w-1"
@@ -851,7 +851,7 @@ function FeedMock() {
             aria-hidden="true"
           />
           <div className="flex items-baseline justify-between gap-3">
-            <p className="text-sm font-semibold text-zinc-100">
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               {post.name}
               <span
                 className="ml-2 font-mono text-[10px] uppercase tracking-widest"
@@ -866,11 +866,11 @@ function FeedMock() {
           </div>
 
           {post.kind === 'text' ? (
-            <p className="mt-2 text-sm leading-relaxed text-zinc-300">{post.body}</p>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{post.body}</p>
           ) : (
-            <div className="mt-3 rounded-sm border border-zinc-800 bg-black/40 p-3">
+            <div className="mt-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-black/40 p-3">
               <div className="flex items-baseline justify-between gap-3">
-                <p className="text-sm font-semibold text-zinc-200">{post.course}</p>
+                <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{post.course}</p>
                 <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
                   {post.round}
                 </p>
@@ -893,10 +893,10 @@ function FeedMock() {
             {post.reactions.map((r) => (
               <span
                 key={r.emoji}
-                className="inline-flex items-center gap-1 rounded-full border border-zinc-800 bg-zinc-900/80 px-2.5 py-1 text-xs text-zinc-300"
+                className="inline-flex items-center gap-1 rounded-full border border-zinc-300 dark:border-zinc-800 bg-zinc-900/80 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300"
               >
                 <span aria-hidden="true">{r.emoji}</span>
-                <span className="font-mono text-[10px] tabular-nums text-zinc-400">{r.count}</span>
+                <span className="font-mono text-[10px] tabular-nums text-zinc-600 dark:text-zinc-400">{r.count}</span>
               </span>
             ))}
           </div>
@@ -920,11 +920,11 @@ function ScoreSplit({
   emphasized?: boolean;
 }) {
   return (
-    <div className="rounded-sm border border-zinc-900 bg-zinc-950/60 px-2 py-2 text-center">
+    <div className="rounded-sm border border-zinc-200 dark:border-zinc-900 bg-zinc-50 dark:bg-zinc-950/60 px-2 py-2 text-center">
       <p className="font-mono text-[9px] uppercase tracking-[0.25em] text-zinc-500">{label}</p>
       <p
         className={`mt-1 font-mono font-bold tabular-nums ${
-          emphasized ? 'text-2xl text-zinc-100' : 'text-xl text-zinc-200'
+          emphasized ? 'text-2xl text-zinc-900 dark:text-zinc-100' : 'text-xl text-zinc-800 dark:text-zinc-200'
         }`}
       >
         {value}
@@ -1169,7 +1169,7 @@ function ShowcaseStatRow({
         )}
       </p>
       <div
-        className="mt-1 h-2.5 overflow-hidden rounded-[1px] bg-black/60"
+        className="mt-1 h-2.5 overflow-hidden rounded-[1px] bg-zinc-50 dark:bg-black/60"
         style={{
           direction: align === 'right' ? 'rtl' : 'ltr',
           boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.8)',

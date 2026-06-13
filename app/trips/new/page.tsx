@@ -55,10 +55,10 @@ export default async function NewTripPage({
         <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
           {copy.eyebrow}
         </p>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-zinc-100">
+        <h1 className="mt-3 text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
           {copy.title}
         </h1>
-        <p className="mt-3 text-sm text-zinc-400">{copy.body}</p>
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">{copy.body}</p>
       </header>
 
       <NewTripForm kind={kind} />

@@ -48,7 +48,7 @@ export default function PhotoWithPortraitSection({
         </div>
       </div>
 
-      <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-4">
+      <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4">
         <div className="flex items-baseline justify-between gap-2">
           <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-500">
             Arcade portrait
@@ -65,7 +65,7 @@ export default function PhotoWithPortraitSection({
 
         <div className="mt-4 grid grid-cols-[120px_1fr] items-start gap-4">
           <div
-            className="aspect-square overflow-hidden rounded-sm border border-zinc-800"
+            className="aspect-square overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800"
             style={{
               backgroundImage:
                 'linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.04) 75%), linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.04) 75%)',

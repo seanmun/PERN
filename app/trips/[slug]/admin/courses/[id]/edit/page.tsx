@@ -152,7 +152,7 @@ export default async function EditCoursePage({
           </button>
           <Link
             href={`/trips/${slug}/admin/courses`}
-            className="rounded-sm border border-zinc-700 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+            className="rounded-sm border border-zinc-400 dark:border-zinc-700 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-200"
           >
             Cancel
           </Link>
@@ -223,7 +223,7 @@ export default async function EditCoursePage({
             {teesRows.map((t) => (
               <div
                 key={t.id}
-                className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-3"
+                className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -231,11 +231,11 @@ export default async function EditCoursePage({
                       {t.color && (
                         <span
                           aria-hidden
-                          className="inline-block h-3 w-3 rounded-full border border-zinc-700"
+                          className="inline-block h-3 w-3 rounded-full border border-zinc-400 dark:border-zinc-700"
                           style={{ background: t.color }}
                         />
                       )}
-                      <p className="text-sm font-semibold text-zinc-100">{t.name}</p>
+                      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t.name}</p>
                       {t.isDefault && (
                         <span className="rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-yellow-300">
                           Default
@@ -259,7 +259,7 @@ export default async function EditCoursePage({
                       <input type="hidden" name="teeId" value={t.id} />
                       <button
                         type="submit"
-                        className="shrink-0 rounded-sm border border-zinc-700 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:border-yellow-500/40 hover:text-yellow-400"
+                        className="shrink-0 rounded-sm border border-zinc-400 dark:border-zinc-700 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:border-yellow-500/40 hover:text-yellow-400"
                       >
                         Make default
                       </button>
@@ -268,7 +268,7 @@ export default async function EditCoursePage({
                 </div>
 
                 <div className="mt-3 overflow-x-auto">
-                  <div className="inline-grid grid-cols-[20px_repeat(18,minmax(40px,1fr))] gap-x-1 font-mono text-[10px] tabular-nums text-zinc-400">
+                  <div className="inline-grid grid-cols-[20px_repeat(18,minmax(40px,1fr))] gap-x-1 font-mono text-[10px] tabular-nums text-zinc-600 dark:text-zinc-400">
                     <span className="text-right text-zinc-600">#</span>
                     {Array.from({ length: 18 }, (_, i) => (
                       <span key={`h-${i}`} className="text-right text-zinc-600">
@@ -296,7 +296,7 @@ export default async function EditCoursePage({
 }
 
 const inputCls =
-  'mt-2 block w-full rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
+  'mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
 
 function Field({
   label,

@@ -55,7 +55,7 @@ export default async function TeamPage({
         <div className="mx-auto max-w-md px-4 pb-10 pt-6">
           <Link
             href={`/trips/${slug}/scoreboard`}
-            className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-400 hover:text-yellow-400"
+            className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:text-yellow-400"
           >
             <ArrowLeft size={12} /> Scoreboard
           </Link>
@@ -72,7 +72,7 @@ export default async function TeamPage({
           >
             {team.name}
           </h1>
-          <p className="mt-1 font-mono text-xs uppercase tracking-widest text-zinc-400">
+          <p className="mt-1 font-mono text-xs uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
             {roster.length} players
           </p>
         </div>
@@ -84,7 +84,7 @@ export default async function TeamPage({
             <Link
               key={m.id}
               href={`/trips/${slug}/profile/${m.id}`}
-              className="flex items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-900/40"
+              className="flex items-center gap-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
               style={{ borderLeft: `3px solid ${color}` }}
             >
               <MemberAvatar

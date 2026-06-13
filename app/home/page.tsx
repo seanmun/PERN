@@ -94,18 +94,18 @@ export default async function GlobalMePage() {
         </div>
         <Link
           href="/me"
-          className="shrink-0 rounded-sm border border-zinc-700 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:border-yellow-500/50 hover:text-yellow-400"
+          className="shrink-0 rounded-sm border border-zinc-400 dark:border-zinc-700 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:border-yellow-500/50 hover:text-yellow-400"
         >
           Edit
         </Link>
       </header>
 
       {user.handicap && (
-        <div className="mt-4 flex items-baseline gap-2 rounded-sm border border-zinc-800 bg-zinc-950/40 px-3 py-2">
+        <div className="mt-4 flex items-baseline gap-2 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-3 py-2">
           <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500">
             Default handicap
           </span>
-          <span className="font-mono text-sm font-bold tabular-nums text-zinc-100">
+          <span className="font-mono text-sm font-bold tabular-nums text-zinc-900 dark:text-zinc-100">
             {user.handicap}
           </span>
           <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-zinc-600">
@@ -115,13 +115,13 @@ export default async function GlobalMePage() {
       )}
 
       {(user.clubName || user.city || user.state) && (
-        <div className="mt-3 rounded-sm border border-zinc-800 bg-zinc-950/40 px-3 py-3 text-sm text-zinc-300">
+        <div className="mt-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-3 py-3 text-sm text-zinc-700 dark:text-zinc-300">
           {user.clubName && (
             <p>
               <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500">
                 Club
               </span>{' '}
-              <span className="text-zinc-200">{user.clubName}</span>
+              <span className="text-zinc-800 dark:text-zinc-200">{user.clubName}</span>
             </p>
           )}
           {(user.city || user.state) && (
@@ -129,7 +129,7 @@ export default async function GlobalMePage() {
               <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500">
                 Hometown
               </span>{' '}
-              <span className="text-zinc-200">
+              <span className="text-zinc-800 dark:text-zinc-200">
                 {[user.city, user.state].filter(Boolean).join(', ')}
               </span>
             </p>
@@ -154,7 +154,7 @@ export default async function GlobalMePage() {
               >
                 <input type="hidden" name="tripMemberId" value={s.tripMemberId} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-zinc-100">
+                  <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                     {s.tripName}
                   </p>
                   <p className="truncate font-mono text-[10px] uppercase tracking-widest text-zinc-500">
@@ -204,8 +204,8 @@ export default async function GlobalMePage() {
           </div>
 
           {currentMemberships.length === 0 ? (
-            <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-6 text-center">
-              <p className="text-sm text-zinc-400">No upcoming trips yet.</p>
+            <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-6 text-center">
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">No upcoming trips yet.</p>
               <p className="mt-1 text-xs text-zinc-600">
                 A trip admin needs to add you, or you need an invite link.
               </p>
@@ -258,7 +258,7 @@ export default async function GlobalMePage() {
               {pastHidden > 0 && (
                 <Link
                   href="/home/past-trips"
-                  className="block rounded-sm border border-zinc-900 bg-zinc-950/40 px-4 py-3 text-center font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500 transition-colors hover:border-yellow-500/40 hover:text-yellow-400"
+                  className="block rounded-sm border border-zinc-200 dark:border-zinc-900 bg-zinc-50 dark:bg-zinc-950/40 px-4 py-3 text-center font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500 transition-colors hover:border-yellow-500/40 hover:text-yellow-400"
                 >
                   View all {pastMemberships.length} past trips →
                 </Link>
@@ -288,7 +288,7 @@ export default async function GlobalMePage() {
         )}
       </section>
 
-      <div className="mt-12 flex items-center justify-between border-t border-zinc-800 pt-6">
+      <div className="mt-12 flex items-center justify-between border-t border-zinc-300 dark:border-zinc-800 pt-6">
         <SignOutLink />
       </div>
     </div>
@@ -309,7 +309,7 @@ function NewKindButton({
   return (
     <Link
       href={href}
-      className="flex flex-col items-center justify-center gap-1 rounded-sm border border-dashed border-yellow-500/40 bg-zinc-950/40 p-3 text-center transition-colors hover:border-yellow-500/70 hover:bg-yellow-500/5"
+      className="flex flex-col items-center justify-center gap-1 rounded-sm border border-dashed border-yellow-500/40 bg-zinc-50 dark:bg-zinc-950/40 p-3 text-center transition-colors hover:border-yellow-500/70 hover:bg-yellow-500/5"
     >
       <span className="text-yellow-500">{icon}</span>
       <p className="font-mono text-[11px] font-bold uppercase tracking-widest text-yellow-400">
@@ -344,12 +344,12 @@ function TripCard({
       href={href}
       className={
         muted
-          ? 'flex items-center gap-3 rounded-sm border border-zinc-900 bg-zinc-950/20 p-4 opacity-60 transition-colors hover:border-zinc-700 hover:bg-zinc-950/40 hover:opacity-90'
-          : 'flex items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 hover:border-yellow-500/40 hover:bg-zinc-900/40'
+          ? 'flex items-center gap-3 rounded-sm border border-zinc-200 dark:border-zinc-900 bg-zinc-50 dark:bg-zinc-950/20 p-4 opacity-60 transition-colors hover:border-zinc-700 hover:bg-zinc-950/40 hover:opacity-90'
+          : 'flex items-center gap-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 hover:border-yellow-500/40 hover:bg-zinc-100 dark:hover:bg-zinc-900/40'
       }
     >
       <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-zinc-900 ${
+        className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-zinc-100 dark:bg-zinc-900 ${
           muted ? 'text-zinc-500' : 'text-yellow-500'
         }`}
       >
@@ -361,7 +361,7 @@ function TripCard({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className={muted ? 'truncate font-semibold text-zinc-300' : 'truncate font-semibold'}>
+        <p className={muted ? 'truncate font-semibold text-zinc-700 dark:text-zinc-300' : 'truncate font-semibold'}>
           {name}
         </p>
         <p className="truncate font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">

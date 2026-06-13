@@ -6,10 +6,10 @@ import { slugifyTripName } from '@/lib/slug';
 import ImagePickerInput from '@/components/ImagePickerInput';
 
 const inputCls =
-  'w-full rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:border-yellow-500/60 focus:outline-none focus:ring-1 focus:ring-yellow-500/40';
+  'w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-600 focus:border-yellow-500/60 focus:outline-none focus:ring-1 focus:ring-yellow-500/40';
 
 const labelCls =
-  'block font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-400';
+  'block font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-600 dark:text-zinc-400';
 
 const hintCls = 'mt-1 text-[11px] text-zinc-500';
 
@@ -74,8 +74,8 @@ export default function NewTripForm({ kind = 'trip' }: { kind?: Kind }) {
           <label htmlFor="trip-slug" className={labelCls}>
             URL slug <span className="text-yellow-500">*</span>
           </label>
-          <div className="mt-1.5 flex items-stretch overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 focus-within:border-yellow-500/60 focus-within:ring-1 focus-within:ring-yellow-500/40">
-            <span className="flex items-center bg-zinc-900 px-3 font-mono text-[11px] text-zinc-500">
+          <div className="mt-1.5 flex items-stretch overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 focus-within:border-yellow-500/60 focus-within:ring-1 focus-within:ring-yellow-500/40">
+            <span className="flex items-center bg-zinc-100 dark:bg-zinc-900 px-3 font-mono text-[11px] text-zinc-500">
               /trips/
             </span>
             <input
@@ -92,7 +92,7 @@ export default function NewTripForm({ kind = 'trip' }: { kind?: Kind }) {
                 setSlug(slugifyTripName(e.target.value));
                 setSlugTouched(true);
               }}
-              className="w-full bg-transparent px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none"
+              className="w-full bg-transparent px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-600 focus:outline-none"
             />
           </div>
           <p className={hintCls}>
@@ -171,7 +171,7 @@ export default function NewTripForm({ kind = 'trip' }: { kind?: Kind }) {
       </section>
 
       {/* Teams */}
-      <section className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-4">
+      <section className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4">
         <p className={labelCls}>Teams</p>
         <p className={`${hintCls} mt-2`}>
           Two teams compete for the cup. You can rename and recolor them later.
@@ -229,7 +229,7 @@ function TeamFieldset({
   const [color, setColor] = useState(defaultColor);
 
   return (
-    <div className="space-y-2 rounded-sm border border-zinc-900 bg-black/40 p-3">
+    <div className="space-y-2 rounded-sm border border-zinc-200 dark:border-zinc-900 bg-zinc-50 dark:bg-black/40 p-3">
       <label htmlFor={`${idPrefix}-name`} className={labelCls}>
         Name
       </label>
@@ -253,10 +253,10 @@ function TeamFieldset({
           name={colorField}
           value={color}
           onChange={(e) => setColor(e.target.value)}
-          className="h-9 w-12 cursor-pointer rounded-sm border border-zinc-800 bg-zinc-950"
+          className="h-9 w-12 cursor-pointer rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950"
           aria-label={`${defaultName} color`}
         />
-        <span className="font-mono text-[11px] uppercase tabular-nums text-zinc-400">
+        <span className="font-mono text-[11px] uppercase tabular-nums text-zinc-600 dark:text-zinc-400">
           {color}
         </span>
       </div>

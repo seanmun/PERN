@@ -35,11 +35,11 @@ export default async function MePage({
   if (!tripMember) {
     return (
       <div className="mx-auto max-w-md px-4 py-16">
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-6">
+        <div className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900/40 p-6">
           <p className="font-mono text-xs uppercase tracking-widest text-yellow-400">
             Not on the roster
           </p>
-          <p className="mt-3 text-zinc-300">
+          <p className="mt-3 text-zinc-700 dark:text-zinc-300">
             You&apos;re signed in, but <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-sm">{user.email}</code>{' '}
             isn&apos;t on the Pinehurst Cup roster.
           </p>
@@ -66,7 +66,7 @@ export default async function MePage({
         <Link
           href={`/trips/${slug}/me/edit`}
           aria-label="Edit profile"
-          className="absolute right-4 top-4 rounded-sm border border-zinc-800 bg-black/50 p-2 text-zinc-400 hover:border-yellow-500/50 hover:text-yellow-400"
+          className="absolute right-4 top-4 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-black/50 p-2 text-zinc-600 dark:text-zinc-400 hover:border-yellow-500/50 hover:text-yellow-400"
         >
           <Pencil size={14} />
         </Link>
@@ -81,7 +81,7 @@ export default async function MePage({
           />
         ) : (
           <div
-            className="mb-4 flex h-24 w-24 items-center justify-center rounded-sm bg-zinc-900 font-mono text-2xl font-bold text-zinc-500"
+            className="mb-4 flex h-24 w-24 items-center justify-center rounded-sm bg-zinc-100 dark:bg-zinc-900 font-mono text-2xl font-bold text-zinc-500"
             style={{ boxShadow: `0 0 0 3px ${teamColor}` }}
           >
             {tripMember.nickname.slice(0, 1).toUpperCase()}
@@ -110,11 +110,11 @@ export default async function MePage({
         {isPlatformAdmin && <Pill label="PLATFORM ADMIN" accent="#f59e0b" />}
       </div>
 
-      <div className="mt-10 border-t border-zinc-800 pt-6 text-sm text-zinc-500">
+      <div className="mt-10 border-t border-zinc-300 dark:border-zinc-800 pt-6 text-sm text-zinc-500">
         <p className="font-mono text-xs uppercase tracking-widest text-zinc-600">
           Trip
         </p>
-        <p className="mt-1 text-zinc-300">{trip?.name}</p>
+        <p className="mt-1 text-zinc-700 dark:text-zinc-300">{trip?.name}</p>
         {trip?.startDate && trip?.endDate && (
           <p className="text-xs text-zinc-500">
             {formatTripDates(trip.startDate, trip.endDate)}
@@ -141,7 +141,7 @@ function Stat({
   accent?: string;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+    <div className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900/40 p-4">
       <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
         {label}
       </p>
@@ -167,7 +167,7 @@ function Pill({ label, accent }: { label: string; accent?: string }) {
     );
   }
   return (
-    <span className="rounded-sm border border-zinc-700 bg-zinc-900 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300">
+    <span className="rounded-sm border border-zinc-400 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300">
       {label}
     </span>
   );

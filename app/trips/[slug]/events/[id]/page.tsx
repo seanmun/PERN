@@ -82,7 +82,7 @@ export default async function EventDetailPage({
           <Link
             href={`/trips/${slug}/events/${event.id}/edit`}
             aria-label="Edit event"
-            className="shrink-0 rounded-sm border border-zinc-800 bg-black/50 p-2 text-zinc-400 hover:border-yellow-500/50 hover:text-yellow-400"
+            className="shrink-0 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-black/50 p-2 text-zinc-600 dark:text-zinc-400 hover:border-yellow-500/50 hover:text-yellow-400"
           >
             <Pencil size={14} />
           </Link>
@@ -109,7 +109,7 @@ export default async function EventDetailPage({
 
         {event.description && (
           <Row label="Notes">
-            <p className="whitespace-pre-wrap text-sm text-zinc-300">{event.description}</p>
+            <p className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">{event.description}</p>
           </Row>
         )}
       </dl>

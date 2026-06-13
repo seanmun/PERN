@@ -108,11 +108,11 @@ export default function FeedClient({
 
       <div className="mt-6 space-y-3">
         {filtered.length === 0 ? (
-          <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-8 text-center">
+          <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-8 text-center">
             <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
               Quiet
             </p>
-            <p className="mt-2 text-sm text-zinc-400">
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
               Nothing on the feed yet. Be the first.
             </p>
           </div>
@@ -151,12 +151,12 @@ function FilterChip({
       className={`shrink-0 rounded-sm border px-3 py-1.5 ${
         active
           ? 'border-yellow-500/60 bg-yellow-500/10'
-          : 'border-zinc-800 bg-black hover:border-zinc-700'
+          : 'border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black hover:border-zinc-700'
       }`}
     >
       <span
         className={`flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest ${
-          active ? 'text-yellow-400' : 'text-zinc-400'
+          active ? 'text-yellow-400' : 'text-zinc-600 dark:text-zinc-400'
         }`}
       >
         {icon}
@@ -200,19 +200,19 @@ function ScoreCard({
     netDiff <= -1
       ? 'text-emerald-400'
       : netDiff === 0
-      ? 'text-zinc-200'
+      ? 'text-zinc-800 dark:text-zinc-200'
       : netDiff === 1
       ? 'text-yellow-400'
       : 'text-red-400';
 
   return (
     <div
-      className="rounded-sm border border-zinc-800 bg-zinc-950/40"
+      className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40"
       style={{ borderLeft: `3px solid ${color}` }}
     >
       <Link
         href={`/trips/${tripSlug}/matches/${item.match.matchId}`}
-        className="block p-3 hover:bg-zinc-900/40"
+        className="block p-3 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
       >
         <div className="flex items-start gap-3">
           <Avatar author={item.author} color={color} />
@@ -236,7 +236,7 @@ function ScoreCard({
           </div>
         </div>
       </Link>
-      <div className="border-t border-zinc-800 px-3 py-2">
+      <div className="border-t border-zinc-300 dark:border-zinc-800 px-3 py-2">
         <ReactionsBar
           targetKind="score"
           targetId={item.targetId}
@@ -260,7 +260,7 @@ function MediaCard({
 
   return (
     <div
-      className="rounded-sm border border-zinc-800 bg-zinc-950/40"
+      className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40"
       style={{ borderLeft: `3px solid ${color}` }}
     >
       <div className="p-3 pb-2">
@@ -278,7 +278,7 @@ function MediaCard({
         </div>
       </div>
 
-      <div className="flex items-center justify-center border-y border-zinc-800 bg-black">
+      <div className="flex items-center justify-center border-y border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black">
         {isFlagged ? (
           <FlaggedMediaCard reason={item.moderationReason} nickname={item.author.nickname} />
         ) : item.mediaType === 'video' ? (
@@ -286,23 +286,23 @@ function MediaCard({
             src={item.mediaUrl}
             controls
             playsInline
-            className="block max-h-[80vh] w-full bg-black object-contain"
+            className="block max-h-[80vh] w-full bg-white dark:bg-black object-contain"
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={item.mediaUrl}
             alt={item.caption ?? ''}
-            className="block max-h-[80vh] w-full bg-black object-contain"
+            className="block max-h-[80vh] w-full bg-white dark:bg-black object-contain"
           />
         )}
       </div>
 
       {item.caption && !isFlagged && (
-        <p className="px-3 py-3 text-sm text-zinc-200">{item.caption}</p>
+        <p className="px-3 py-3 text-sm text-zinc-800 dark:text-zinc-200">{item.caption}</p>
       )}
 
-      <div className="flex items-center justify-between gap-2 border-t border-zinc-800 px-3 py-2">
+      <div className="flex items-center justify-between gap-2 border-t border-zinc-300 dark:border-zinc-800 px-3 py-2">
         <ReactionsBar
           targetKind="media"
           targetId={item.targetId}
@@ -328,7 +328,7 @@ function FlaggedMediaCard({
   nickname: string;
 }) {
   return (
-    <div className="relative w-full bg-black">
+    <div className="relative w-full bg-white dark:bg-black">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/SICKOS.webp"
@@ -339,7 +339,7 @@ function FlaggedMediaCard({
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-red-400">
           Flagged · {reason ?? 'content moderation'}
         </p>
-        <p className="mt-1 text-sm font-semibold text-zinc-100">
+        <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           {nickname}, what were you thinking?
         </p>
       </div>
@@ -358,8 +358,8 @@ function TextCard({
   const canDelete = item.isMine || isAdmin;
   return (
     <div
-      className={`rounded-sm border bg-zinc-950/40 ${
-        item.pinned ? 'border-yellow-500/50' : 'border-zinc-800'
+      className={`rounded-sm border bg-zinc-50 dark:bg-zinc-950/40 ${
+        item.pinned ? 'border-yellow-500/50' : 'border-zinc-300 dark:border-zinc-800'
       }`}
       style={{ borderLeft: `3px solid ${color}` }}
     >
@@ -373,13 +373,13 @@ function TextCard({
                 Pinned
               </p>
             )}
-            <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-100">
+            <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-900 dark:text-zinc-100">
               {item.body}
             </p>
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-between gap-2 border-t border-zinc-800 px-3 py-2">
+      <div className="flex items-center justify-between gap-2 border-t border-zinc-300 dark:border-zinc-800 px-3 py-2">
         <ReactionsBar
           targetKind="text"
           targetId={item.targetId}

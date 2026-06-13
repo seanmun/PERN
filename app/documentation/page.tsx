@@ -29,7 +29,7 @@ export default async function DocumentationPage() {
           Internal · Platform admin only
         </p>
         <h1 className="mt-2 text-4xl font-bold tracking-tight">BuddyCup — full app map</h1>
-        <p className="mt-3 text-sm text-zinc-400">
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
           One scrollable page. Every feature, every route, every server action, every table, every permission rule.
           Past security findings (now patched) are kept with{' '}
           <ShieldCheck size={12} className="inline text-emerald-400" /> so the fix and the original mistake stay
@@ -52,23 +52,23 @@ export default async function DocumentationPage() {
       </Section>
 
       <Section id="bugs" title="2. Security audit — all leaks closed">
-        <p className="text-sm text-zinc-300">
+        <p className="text-sm text-zinc-700 dark:text-zinc-300">
           Page-level: every page under <code>/trips/[slug]/*</code> calls{' '}
           <code>getTripAuthContext(trip.id)</code> and redirects non-members. Safe.
         </p>
-        <p className="mt-3 text-sm text-zinc-300">
+        <p className="mt-3 text-sm text-zinc-700 dark:text-zinc-300">
           Action-level: six actions previously trusted input or used the wrong auth context. All six were patched in
           the same pass:
         </p>
         <Bugs />
-        <p className="mt-4 text-sm text-zinc-400">
+        <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
           The "flights from a trip I'm not on" symptom traced to a separate bug in the (now-removed)
           <code>MoreMenu</code>: when rendered outside a trip route, it fell back to{' '}
           <code>DEFAULT_TRIP_SLUG = 'pcup26'</code> and linked its menu items at Pinehurst. The page enforced
           membership, but the menu deep-linked into a trip the user happened to be on (Pinehurst), so no redirect
           fired. The fallback is gone and the menu component itself was deleted in the BottomNav restructure.
         </p>
-        <p className="mt-3 text-sm text-zinc-400">
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
           Architectural follow-through: <code>getAuthContext</code> was renamed to{' '}
           <code>getGlobalAuthContext</code> across the codebase (80 references, 27 files) so any future call site
           that reaches for the global context to make a trip-scoped permission decision has to actively rename it —
@@ -86,11 +86,11 @@ export default async function DocumentationPage() {
             ['player', 'tripMembers.role = player (default)', 'View, enter own scores, edit own profile'],
           ]}
         />
-        <p className="mt-4 text-sm text-zinc-400">
+        <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
           Cascade order in every <code>can*</code> helper: platform_admin → trip_admin → captain → self. The first
           match wins; checks short-circuit. Defined in <code>lib/auth/permissions.ts</code>.
         </p>
-        <p className="mt-3 text-sm text-zinc-400">
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
           <strong>Two auth contexts</strong> — pick the right one:
         </p>
         <List>
@@ -100,7 +100,7 @@ export default async function DocumentationPage() {
       </Section>
 
       <Section id="claims" title="4. Auth & lazy-claim flow">
-        <ol className="mt-2 space-y-2 text-sm text-zinc-300 list-decimal pl-5">
+        <ol className="mt-2 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-decimal pl-5">
           <li>Admin adds a player on <code>/trips/[slug]/admin/players/new</code> with an email. A <code>tripMembers</code> row is inserted with <code>userId = NULL</code>.</li>
           <li>That person signs in via Clerk (magic link). <code>getGlobalAuthContext()</code> runs.</li>
           <li>Clerk email is normalized to lowercase. Lookup <code>users</code> by <code>clerkId</code> — if absent, lookup by lowercase email and attach <code>clerkId</code>, otherwise insert a new row.</li>
@@ -108,13 +108,13 @@ export default async function DocumentationPage() {
           <li><code>/me</code> queries by <code>userId</code> — the trip now appears. <code>listClaimableSlots()</code> renders any leftover unclaimed rows as a fallback "Pending claims" CTA.</li>
           <li><code>claimTripMember(formData)</code> — explicit belt-and-suspenders claim. Requires the slot's email matches the caller's (case-insensitive). Used when the lazy-claim missed a row.</li>
         </ol>
-        <p className="mt-4 text-sm text-zinc-400">
+        <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
           Files: <code>lib/auth/current-user.ts</code>, <code>lib/auth/trip-context.ts</code>, <code>lib/actions/claim.ts</code>.
         </p>
       </Section>
 
       <Section id="tables" title="5. Data model — every table">
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Source of truth: <code>db/schema.ts</code>. Docs in <code>docs/schema.md</code> are stale (missing reactions,
           tripInvites, tripEvents, courseTees, courseTeeYardages, user profile fields, media moderation, rounds.isHidden).
         </p>
@@ -148,7 +148,7 @@ export default async function DocumentationPage() {
             ['tripInvites', 'Reusable invite codes', 'tripId, code (unique), usesAllowed, usesCount, expiresAt'],
           ]}
         />
-        <p className="mt-4 text-sm text-zinc-400">
+        <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
           All <code>trip_id</code> FKs use <code>ON DELETE CASCADE</code>. Delete a trip and everything beneath it
           goes with it.
         </p>
@@ -228,7 +228,7 @@ export default async function DocumentationPage() {
       </Section>
 
       <Section id="actions" title="7. Server actions — every mutation">
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Files in <code>lib/actions/</code>. Each action's permission check is the security boundary. The six that
           previously had cross-trip risk are now patched (see §2).
         </p>
@@ -264,7 +264,7 @@ export default async function DocumentationPage() {
       </Section>
 
       <Section id="scoring" title="8. Scoring engine">
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
           <code>lib/scoring/engine.ts</code> — pure functions. Heavily unit-tested. No DB, no side effects.
         </p>
         <SubHeading>Public surface</SubHeading>
@@ -291,25 +291,25 @@ export default async function DocumentationPage() {
       </Section>
 
       <Section id="portraits" title="9. Arcade portraits">
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
           NBA Jam–style portrait generated from a user's photo. Stored on <code>users</code> (platform-wide, reused
           across trips).
         </p>
         <SubHeading>Flow</SubHeading>
-        <ol className="mt-1 list-decimal pl-5 text-sm text-zinc-300 space-y-1">
+        <ol className="mt-1 list-decimal pl-5 text-sm text-zinc-700 dark:text-zinc-300 space-y-1">
           <li>User uploads a photo → Vercel Blob URL stored as <code>avatarUrl</code>.</li>
           <li>Click "Generate portrait" → server action <code>generateMyArcadePortrait</code> (self) or <code>generateArcadePortraitForPlayer</code> (admin).</li>
           <li><code>generateArcadePortrait(sourceUrl)</code> in <code>lib/portraits/generate.ts</code>: fetch photo → sharp normalize (rotate, resize ≤1024, sRGB PNG) → OpenAI <code>images.edit</code> with <code>gpt-image-1</code>, baked prompt, transparent background → sharp trim+extend-to-square → Vercel Blob upload.</li>
           <li>Save <code>arcadePortraitUrl</code>, <code>arcadePortraitSourceUrl</code>, <code>arcadePortraitGeneratedAt</code> on users.</li>
         </ol>
         <SubHeading>Display priority</SubHeading>
-        <p className="text-sm text-zinc-300">
+        <p className="text-sm text-zinc-700 dark:text-zinc-300">
           <code>&lt;MemberAvatar /&gt;</code>: <code>arcadePortraitUrl</code> → <code>avatarUrl</code> → monogram fallback.
           Portraits only appear on hero surfaces (match detail, profile). Dense lists (scoreboard, feed, header) keep
           the regular photo.
         </p>
         <SubHeading>Errors</SubHeading>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Action returns a tagged result type instead of throwing: <code>NO_API_KEY</code>, <code>SOURCE_FETCH_FAILED</code>,{' '}
           <code>OPENAI_FAILED</code>, <code>NO_IMAGE_DATA</code>, <code>BLOB_UPLOAD_FAILED</code>. The button surfaces
           the <code>detail</code> string. <code>STYLE_VERSION = 10</code> — bump when prompt changes.
@@ -341,7 +341,7 @@ export default async function DocumentationPage() {
             ['0018', 'users.username (unique) + city, state, clubName'],
           ]}
         />
-        <p className="mt-4 text-sm text-zinc-400">
+        <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
           Workflow rule: every migration ships as a standalone SQL block + an <code>INSERT INTO
           drizzle.__drizzle_migrations</code> tracker row. Run in Neon SQL editor, confirm, <em>then</em> push the
           schema-dependent code.
@@ -361,7 +361,7 @@ export default async function DocumentationPage() {
         </List>
       </Section>
 
-      <footer className="mt-16 border-t border-zinc-900 pt-6">
+      <footer className="mt-16 border-t border-zinc-200 dark:border-zinc-900 pt-6">
         <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-600">
           Generated from a full-codebase survey. Update this page when the app changes — it's the map.
         </p>
@@ -385,11 +385,11 @@ function Toc() {
     ['conventions', 'Conventions'],
   ] as const;
   return (
-    <nav className="mt-10 rounded-lg border border-zinc-900 bg-zinc-950/50 p-4">
+    <nav className="mt-10 rounded-lg border border-zinc-200 dark:border-zinc-900 bg-zinc-950/50 p-4">
       <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500">Contents</p>
       <ol className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
         {items.map(([id, label], i) => (
-          <li key={id} className="text-zinc-300 hover:text-yellow-400">
+          <li key={id} className="text-zinc-700 dark:text-zinc-300 hover:text-yellow-400">
             <a href={`#${id}`}>
               <span className="text-zinc-600">{String(i + 1).padStart(2, '0')}.</span> {label}
             </a>
@@ -429,19 +429,19 @@ function SubHeading({ children }: { children: React.ReactNode }) {
 }
 
 function List({ children }: { children: React.ReactNode }) {
-  return <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-300">{children}</ul>;
+  return <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-700 dark:text-zinc-300">{children}</ul>;
 }
 
 function Table({ head, rows }: { head: readonly string[]; rows: readonly (readonly string[])[] }) {
   return (
-    <div className="mt-3 overflow-x-auto rounded-md border border-zinc-900">
+    <div className="mt-3 overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-900">
       <table className="w-full border-collapse text-left text-xs">
-        <thead className="bg-zinc-950">
+        <thead className="bg-white dark:bg-zinc-950">
           <tr>
             {head.map((h) => (
               <th
                 key={h}
-                className="border-b border-zinc-900 px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500"
+                className="border-b border-zinc-200 dark:border-zinc-900 px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500"
               >
                 {h}
               </th>
@@ -450,10 +450,10 @@ function Table({ head, rows }: { head: readonly string[]; rows: readonly (readon
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className="border-b border-zinc-900/60 last:border-0">
+            <tr key={i} className="border-b border-zinc-200 dark:border-zinc-900/60 last:border-0">
               {row.map((cell, j) => (
-                <td key={j} className="px-3 py-2 align-top text-zinc-300">
-                  {j === 0 ? <code className="text-zinc-200">{cell}</code> : cell}
+                <td key={j} className="px-3 py-2 align-top text-zinc-700 dark:text-zinc-300">
+                  {j === 0 ? <code className="text-zinc-800 dark:text-zinc-200">{cell}</code> : cell}
                 </td>
               ))}
             </tr>
@@ -515,10 +515,10 @@ function Bugs() {
             {b.title} <span className="text-emerald-500/60">·</span>{' '}
             <span className="text-zinc-500">{b.where}</span>
           </p>
-          <p className="mt-1 text-zinc-400">
+          <p className="mt-1 text-zinc-600 dark:text-zinc-400">
             <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-red-400">Was:</span> {b.was}
           </p>
-          <p className="mt-1 text-zinc-300">
+          <p className="mt-1 text-zinc-700 dark:text-zinc-300">
             <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald-400">Now:</span> {b.now}
           </p>
         </li>

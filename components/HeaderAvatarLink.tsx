@@ -69,7 +69,7 @@ export default function HeaderAvatarLink({
             className={`h-full w-full ${arcadePortraitUrl ? 'object-contain' : 'object-cover'}`}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-zinc-800 font-mono text-sm font-bold text-zinc-300">
+          <div className="flex h-full w-full items-center justify-center bg-zinc-800 font-mono text-sm font-bold text-zinc-700 dark:text-zinc-300">
             {initial}
           </div>
         )}

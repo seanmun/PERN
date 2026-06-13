@@ -162,7 +162,7 @@ export default async function MatchDetailPage({
   return (
     <div className="pb-24">
       <section
-        className="relative -mt-px overflow-hidden border-b border-zinc-800"
+        className="relative -mt-px overflow-hidden border-b border-zinc-300 dark:border-zinc-800"
         style={
           match.course.imageUrl
             ? {
@@ -177,7 +177,7 @@ export default async function MatchDetailPage({
         <div className="relative mx-auto max-w-md px-4 pb-10 pt-6">
           <Link
             href={`/trips/${slug}/schedule`}
-            className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:text-yellow-400"
+            className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:text-yellow-400"
           >
             <ArrowLeft size={12} /> Schedule
           </Link>
@@ -207,14 +207,14 @@ export default async function MatchDetailPage({
                 {match.course.name}
               </h1>
               {match.course.location && (
-                <p className="mt-1 text-sm text-zinc-300">{match.course.location}</p>
+                <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{match.course.location}</p>
               )}
             </div>
             {canEdit && (
               <Link
                 href={`/trips/${slug}/matches/${match.match.id}/edit`}
                 aria-label="Edit matchup"
-                className="shrink-0 rounded-sm border border-zinc-700/60 bg-black/50 p-2 text-zinc-200 hover:border-yellow-500/50 hover:text-yellow-400"
+                className="shrink-0 rounded-sm border border-zinc-700/60 bg-zinc-50 dark:bg-black/50 p-2 text-zinc-800 dark:text-zinc-200 hover:border-yellow-500/50 hover:text-yellow-400"
               >
                 <Pencil size={14} />
               </Link>
@@ -226,7 +226,7 @@ export default async function MatchDetailPage({
       <div className="mx-auto max-w-md px-4 pt-6">
 
       {match.teeTime?.time && (
-        <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-4">
+        <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
             Tee time
           </p>
@@ -246,13 +246,13 @@ export default async function MatchDetailPage({
         {sides.length === 2 ? (
           <MatchupShowdown left={sides[0]} right={sides[1]} />
         ) : (
-          <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 text-sm text-zinc-500">
+          <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 text-sm text-zinc-500">
             Matchup not set yet.
           </div>
         )}
       </div>
 
-      <div className="mt-6 rounded-sm border border-zinc-800 bg-zinc-950/40 p-4">
+      <div className="mt-6 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
           Status
         </p>
@@ -284,13 +284,13 @@ export default async function MatchDetailPage({
       <div className="mt-8 grid grid-cols-2 gap-2">
         <Link
           href={`/trips/${slug}/schedule`}
-          className="flex items-center justify-center gap-2 rounded-sm border border-zinc-700 px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
+          className="flex items-center justify-center gap-2 rounded-sm border border-zinc-400 dark:border-zinc-700 px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
         >
           <Calendar size={12} /> Schedule
         </Link>
         <Link
           href={`/trips/${slug}/scoreboard`}
-          className="flex items-center justify-center gap-2 rounded-sm border border-zinc-700 px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
+          className="flex items-center justify-center gap-2 rounded-sm border border-zinc-400 dark:border-zinc-700 px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
         >
           <Trophy size={12} /> Cup
         </Link>
@@ -447,7 +447,7 @@ function PortraitSlot({
         />
       ) : (
         <div
-          className="absolute inset-0 flex items-center justify-center rounded-sm bg-zinc-900 font-mono text-2xl font-bold text-white"
+          className="absolute inset-0 flex items-center justify-center rounded-sm bg-zinc-100 dark:bg-zinc-900 font-mono text-2xl font-bold text-zinc-900 dark:text-white"
           style={{ boxShadow: `0 0 0 2px ${color}` }}
         >
           {member.nickname.slice(0, 1).toUpperCase()}
@@ -494,7 +494,7 @@ function StatRow({
         {member.nickname}
       </p>
       <div
-        className="mt-1 h-2.5 overflow-hidden rounded-[1px] bg-black/60"
+        className="mt-1 h-2.5 overflow-hidden rounded-[1px] bg-zinc-50 dark:bg-black/60"
         style={{
           // Direction the bar fills — left team fills L→R, right team fills R→L.
           direction: align === 'right' ? 'rtl' : 'ltr',

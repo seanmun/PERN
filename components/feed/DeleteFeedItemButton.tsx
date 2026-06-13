@@ -36,7 +36,7 @@ export default function DeleteFeedItemButton({
         onClick={() => setOpen(true)}
         disabled={isPending}
         aria-label="Delete"
-        className="rounded-sm border border-zinc-800 p-1.5 text-zinc-500 hover:border-red-700/40 hover:text-red-400 disabled:opacity-50"
+        className="rounded-sm border border-zinc-300 dark:border-zinc-800 p-1.5 text-zinc-500 hover:border-red-700/40 hover:text-red-400 disabled:opacity-50"
       >
         <Trash2 size={12} />
       </button>

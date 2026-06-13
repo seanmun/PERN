@@ -61,7 +61,7 @@ export default async function ScoreboardPage({
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
           No match yet
         </p>
-        <p className="mt-2 text-sm text-zinc-400">
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           Add a match from the admin page to start keeping score.
         </p>
       </div>
@@ -123,7 +123,7 @@ function TripIndividualLeaderboard({
           </Link>
         )}
       </div>
-      <div className="mt-3 overflow-hidden rounded-sm border border-zinc-800">
+      <div className="mt-3 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800">
         {visible.map((p, i) => (
           <PlayerRow key={p.tripMemberId} player={p} rank={i + 1} slug={slug} />
         ))}
@@ -246,10 +246,10 @@ async function OutingLiveBoard({
             return (
               <div
                 key={key}
-                className="rounded-sm border border-zinc-800 bg-zinc-950/40"
+                className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40"
               >
                 {/* Tee-time header — shown once per group with team names */}
-                <div className="border-b border-zinc-900 px-3 py-2.5">
+                <div className="border-b border-zinc-200 dark:border-zinc-900 px-3 py-2.5">
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-500">
                       Group {teeTime?.groupNumber ?? '—'}
@@ -281,7 +281,7 @@ async function OutingLiveBoard({
 
                 {/* Match sub-rows — sorted by format so identical formats
                     sit next to each other (mirrors the schedule layout). */}
-                <div className="divide-y divide-zinc-900">
+                <div className="divide-y divide-zinc-200 dark:divide-zinc-900">
                   {[...rows]
                     .sort(
                       (x, y) =>
@@ -342,7 +342,7 @@ async function OutingLiveBoard({
               </Link>
             )}
           </div>
-          <div className="mt-3 overflow-hidden rounded-sm border border-zinc-800">
+          <div className="mt-3 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800">
             {lbVisible.map((p, i) => (
               <PlayerRow key={p.tripMemberId} player={p} rank={i + 1} slug={slug} />
             ))}
@@ -449,7 +449,7 @@ function MatchLiveRow({
   return (
     <Link
       href={`/trips/${slug}/matches/${matchId}`}
-      className="block px-3 py-2.5 hover:bg-zinc-900/40"
+      className="block px-3 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
       style={leanGradient ? { background: leanGradient } : undefined}
     >
       <div className="flex items-center justify-between gap-3">
@@ -512,7 +512,7 @@ function LeanBar({
   const winnerColor = lean === 0 ? null : lean > 0 ? colorA : colorB;
   return (
     <div className="mt-2.5">
-      <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-zinc-900">
+      <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-900">
         {lean !== 0 && winnerColor && (
           <div
             className="absolute top-0 h-full"
@@ -545,7 +545,7 @@ function SideNicknames({
   }
   return (
     <div className={align === 'right' ? 'text-right' : ''}>
-      <p className="truncate text-sm font-semibold text-zinc-100">
+      <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
         {side.nicknames.join(' & ')}
       </p>
     </div>
@@ -599,7 +599,7 @@ function TeamSide({ team, align, slug }: { team: TeamTotal; align: 'left' | 'rig
       </p>
       <Link
         href={`/trips/${slug}/teams/${team.teamId}`}
-        className={`mt-4 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:text-yellow-400 ${
+        className={`mt-4 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:text-yellow-400 ${
           align === 'right' ? 'ml-auto' : ''
         }`}
       >
@@ -618,12 +618,12 @@ function PlayerRow({ player, rank, slug }: { player: PlayerTotal; rank: number; 
       : player.scoreVsPar < 0
         ? 'text-red-400'
         : player.scoreVsPar === 0
-          ? 'text-zinc-100'
-          : 'text-zinc-400';
+          ? 'text-zinc-900 dark:text-zinc-100'
+          : 'text-zinc-600 dark:text-zinc-400';
   return (
     <Link
       href={`/trips/${slug}/profile/${player.tripMemberId}`}
-      className="flex items-center gap-3 border-b border-zinc-800 bg-zinc-950/40 px-3 py-2.5 last:border-b-0 hover:bg-zinc-900/40"
+      className="flex items-center gap-3 border-b border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-3 py-2.5 last:border-b-0 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
       style={{ borderLeft: `3px solid ${color}` }}
     >
       <p className="w-6 shrink-0 font-mono text-xs font-semibold tabular-nums text-zinc-500">

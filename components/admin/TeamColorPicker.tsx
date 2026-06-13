@@ -17,9 +17,9 @@ export default function TeamColorPicker({
         name={name}
         value={color}
         onChange={(e) => setColor(e.target.value)}
-        className="h-10 w-14 cursor-pointer rounded-sm border border-zinc-800 bg-zinc-950"
+        className="h-10 w-14 cursor-pointer rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950"
       />
-      <span className="font-mono text-xs uppercase tabular-nums text-zinc-400">
+      <span className="font-mono text-xs uppercase tabular-nums text-zinc-600 dark:text-zinc-400">
         {color}
       </span>
     </div>

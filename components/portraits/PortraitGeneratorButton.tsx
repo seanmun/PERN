@@ -125,7 +125,7 @@ export default function PortraitGeneratorButton({
           <button
             type="button"
             onClick={requestClear}
-            className="rounded-sm border border-zinc-800 p-2.5 text-zinc-400 hover:border-red-700/40 hover:text-red-400"
+            className="rounded-sm border border-zinc-300 dark:border-zinc-800 p-2.5 text-zinc-600 dark:text-zinc-400 hover:border-red-700/40 hover:text-red-400"
             aria-label="Remove arcade portrait"
           >
             <X size={14} />

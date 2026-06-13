@@ -92,14 +92,14 @@ export default async function NewRoundPage({
           </select>
         </Field>
 
-        <label className="flex items-start gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 px-3 py-3">
+        <label className="flex items-start gap-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-3 py-3">
           <input
             type="checkbox"
             name="friendly"
             className="mt-0.5 h-4 w-4 accent-yellow-500"
           />
           <span className="min-w-0 flex-1">
-            <span className="block font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-200">
+            <span className="block font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-800 dark:text-zinc-200">
               Friendly round
             </span>
             <span className="block text-[11px] text-zinc-500">
@@ -117,7 +117,7 @@ export default async function NewRoundPage({
           </button>
           <Link
             href={`/trips/${slug}/schedule`}
-            className="rounded-sm border border-zinc-700 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+            className="rounded-sm border border-zinc-400 dark:border-zinc-700 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-200"
           >
             Cancel
           </Link>
@@ -128,7 +128,7 @@ export default async function NewRoundPage({
 }
 
 const inputCls =
-  'mt-2 block w-full rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
+  'mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
 
 function Field({
   label,

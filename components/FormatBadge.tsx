@@ -35,7 +35,7 @@ export default function FormatBadge({
       : 'px-2 py-0.5 text-[9px]';
   return (
     <span
-      className={`inline-block rounded-sm border border-zinc-800 bg-zinc-950 font-mono font-bold uppercase tracking-[0.18em] text-zinc-400 ${cls}`}
+      className={`inline-block rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 font-mono font-bold uppercase tracking-[0.18em] text-zinc-600 dark:text-zinc-400 ${cls}`}
     >
       {label}
     </span>

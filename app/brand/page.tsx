@@ -62,10 +62,10 @@ export default function BrandPage() {
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
             Brand
           </p>
-          <h1 className="mt-3 text-4xl font-bold tracking-tight text-zinc-100 sm:text-5xl">
+          <h1 className="mt-3 text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-5xl">
             Designed for the trip, not the boardroom.
           </h1>
-          <p className="mt-5 text-zinc-400">
+          <p className="mt-5 text-zinc-600 dark:text-zinc-400">
             BuddyCup borrows from Ryder Cup broadcasts, classic arcade UI, and
             the energy of a Saturday‑night clubhouse. Below is the visual
             system everything is built on.
@@ -77,7 +77,7 @@ export default function BrandPage() {
           <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
             Palette
           </h2>
-          <p className="mt-3 text-zinc-400">
+          <p className="mt-3 text-zinc-600 dark:text-zinc-400">
             High contrast, dark‑first, two saturated accents. Greens and golds
             map to the two competing teams; zinc neutrals handle everything
             else.
@@ -87,18 +87,18 @@ export default function BrandPage() {
             {PALETTE.map((c) => (
               <li
                 key={c.hex}
-                className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-3"
+                className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3"
               >
                 <div
-                  className="h-16 w-full rounded-sm border border-zinc-900"
+                  className="h-16 w-full rounded-sm border border-zinc-200 dark:border-zinc-900"
                   style={{ background: c.hex }}
                   aria-hidden="true"
                 />
-                <p className="mt-3 text-sm font-semibold text-zinc-100">{c.label}</p>
+                <p className="mt-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{c.label}</p>
                 <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
                   {c.hex}
                 </p>
-                <p className="mt-2 text-xs leading-relaxed text-zinc-400">{c.role}</p>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">{c.role}</p>
               </li>
             ))}
           </ul>
@@ -109,33 +109,33 @@ export default function BrandPage() {
           <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
             Typography
           </h2>
-          <p className="mt-3 text-zinc-400">
+          <p className="mt-3 text-zinc-600 dark:text-zinc-400">
             Two faces from the Geist family — Sans for everything readable,
             Mono for labels, scores, and broadcast‑style kickers.
           </p>
 
           <div className="mt-6 space-y-3">
-            <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-5">
+            <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-5">
               <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500">
                 Geist Sans · Body
               </p>
-              <p className="mt-2 text-2xl font-bold text-zinc-100">
+              <p className="mt-2 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                 Run your trip. Crown your champion.
               </p>
-              <p className="mt-2 text-sm text-zinc-400">
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
                 Headlines, paragraphs, button text. Tight tracking on the big
                 ones, normal everywhere else.
               </p>
             </div>
 
-            <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-5">
+            <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-5">
               <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500">
                 Geist Mono · Labels
               </p>
               <p className="mt-2 font-mono text-xs font-bold uppercase tracking-[0.35em] text-yellow-500">
                 Defend the cup · Round 03 · Live
               </p>
-              <p className="mt-3 text-sm text-zinc-400">
+              <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
                 Uppercase, wide tracking ({'0.30em–0.35em'}). The voice of
                 kickers, badges, scoreboards, and footer chrome.
               </p>
@@ -148,26 +148,26 @@ export default function BrandPage() {
           <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
             Design theory
           </h2>
-          <div className="mt-4 space-y-5 leading-relaxed text-zinc-300">
+          <div className="mt-4 space-y-5 leading-relaxed text-zinc-700 dark:text-zinc-300">
             <p>
-              <strong className="text-zinc-100">Broadcast‑native.</strong>{' '}
+              <strong className="text-zinc-900 dark:text-zinc-100">Broadcast‑native.</strong>{' '}
               Scores, leaderboards, and kicker labels read like a sports
               broadcast graphic. Mono‑case labels, gold accents on key numbers,
               team color stripes on every player chip.
             </p>
             <p>
-              <strong className="text-zinc-100">Mobile‑first.</strong> The
+              <strong className="text-zinc-900 dark:text-zinc-100">Mobile‑first.</strong> The
               canonical surface is a phone in a cart on a Wednesday afternoon —
               one column, big touch targets, no nested menus. Desktop layouts
               are a courtesy, not the priority.
             </p>
             <p>
-              <strong className="text-zinc-100">Irreverent, not cute.</strong>{' '}
+              <strong className="text-zinc-900 dark:text-zinc-100">Irreverent, not cute.</strong>{' '}
               Buddy trips don’t use corporate SaaS voice and they don’t use
               cartoon mascots either. The copy talks like the group does.
             </p>
             <p>
-              <strong className="text-zinc-100">Dark, with edges.</strong>{' '}
+              <strong className="text-zinc-900 dark:text-zinc-100">Dark, with edges.</strong>{' '}
               Sharp corners (Tailwind’s <code className="font-mono text-yellow-500">rounded-sm</code>)
               over pill shapes. Visible borders. Black surfaces with one‑pixel
               hairline rules between sections — never floating cards in soft

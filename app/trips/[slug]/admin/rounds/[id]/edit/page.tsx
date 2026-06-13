@@ -223,7 +223,7 @@ export default async function EditRoundPage({
           </select>
         </Field>
 
-        <label className="flex items-start gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 px-3 py-3">
+        <label className="flex items-start gap-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-3 py-3">
           <input
             type="checkbox"
             name="friendly"
@@ -231,7 +231,7 @@ export default async function EditRoundPage({
             className="mt-0.5 h-4 w-4 accent-yellow-500"
           />
           <span className="min-w-0 flex-1">
-            <span className="block font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-200">
+            <span className="block font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-800 dark:text-zinc-200">
               Friendly round
             </span>
             <span className="block text-[11px] text-zinc-500">
@@ -270,7 +270,7 @@ export default async function EditRoundPage({
               return (
                 <div
                   key={tt.id}
-                  className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-3"
+                  className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -290,7 +290,7 @@ export default async function EditRoundPage({
                       <Link
                         href={`/trips/${slug}/admin/tee-times/${tt.id}/edit`}
                         aria-label="Edit tee time"
-                        className="rounded-sm border border-zinc-800 p-1.5 text-zinc-400 hover:border-yellow-500/50 hover:text-yellow-400"
+                        className="rounded-sm border border-zinc-300 dark:border-zinc-800 p-1.5 text-zinc-600 dark:text-zinc-400 hover:border-yellow-500/50 hover:text-yellow-400"
                       >
                         <Pencil size={12} />
                       </Link>
@@ -322,7 +322,7 @@ export default async function EditRoundPage({
                           <Link
                             key={m.id}
                             href={`/trips/${slug}/matches/${m.id}/edit`}
-                            className="flex items-center justify-between gap-2 rounded-sm border border-zinc-800 bg-black/40 px-2 py-1.5 hover:border-yellow-500/40"
+                            className="flex items-center justify-between gap-2 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-black/40 px-2 py-1.5 hover:border-yellow-500/40"
                           >
                             <FormatBadge format={m.format} size="xs" />
                             <p className="min-w-0 flex-1 truncate text-xs">
@@ -371,7 +371,7 @@ export default async function EditRoundPage({
         </div>
       </section>
 
-      <div className="mt-12 border-t border-zinc-800 pt-6">
+      <div className="mt-12 border-t border-zinc-300 dark:border-zinc-800 pt-6">
         <DeleteRoundButton roundId={round.id} />
       </div>
     </div>
@@ -379,7 +379,7 @@ export default async function EditRoundPage({
 }
 
 const inputCls =
-  'mt-2 block w-full rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
+  'mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
 
 function Field({
   label,

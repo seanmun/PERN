@@ -54,17 +54,17 @@ export default async function PastTripsPage() {
 
       <div className="mt-8 space-y-2">
         {past.length === 0 ? (
-          <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-6 text-center">
-            <p className="text-sm text-zinc-400">No past trips yet.</p>
+          <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-6 text-center">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">No past trips yet.</p>
           </div>
         ) : (
           past.map((m) => (
             <Link
               key={m.tripId}
               href={`/trips/${m.tripSlug}/schedule`}
-              className="flex items-center gap-3 rounded-sm border border-zinc-900 bg-zinc-950/20 p-4 opacity-60 transition-colors hover:border-zinc-700 hover:bg-zinc-950/40 hover:opacity-90"
+              className="flex items-center gap-3 rounded-sm border border-zinc-200 dark:border-zinc-900 bg-zinc-50 dark:bg-zinc-950/20 p-4 opacity-60 transition-colors hover:border-zinc-700 hover:bg-zinc-950/40 hover:opacity-90"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-zinc-900 text-zinc-500">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-zinc-100 dark:bg-zinc-900 text-zinc-500">
                 {m.tripImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={m.tripImageUrl} alt="" className="h-full w-full object-cover" />
@@ -73,7 +73,7 @@ export default async function PastTripsPage() {
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold text-zinc-300">{m.tripName}</p>
+                <p className="truncate font-semibold text-zinc-700 dark:text-zinc-300">{m.tripName}</p>
                 <p className="truncate font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
                   {[
                     formatDates(m.startDate, m.endDate),

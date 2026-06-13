@@ -81,7 +81,7 @@ export default function MemberAvatar({
   // Monogram fallback
   return (
     <div
-      className={`flex shrink-0 items-center justify-center rounded-sm bg-zinc-900 font-mono font-bold text-zinc-500 ${className ?? ''}`}
+      className={`flex shrink-0 items-center justify-center rounded-sm bg-zinc-100 dark:bg-zinc-900 font-mono font-bold text-zinc-500 ${className ?? ''}`}
       style={{
         ...baseStyle,
         fontSize: `${Math.max(12, Math.round(size * 0.4))}px`,

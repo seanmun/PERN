@@ -86,7 +86,7 @@ function AdminLink({
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 hover:border-yellow-500/40 hover:bg-zinc-900/40"
+      className="flex items-center gap-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 hover:border-yellow-500/40 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
     >
       <span className="text-yellow-500">{icon}</span>
       <div className="min-w-0 flex-1">

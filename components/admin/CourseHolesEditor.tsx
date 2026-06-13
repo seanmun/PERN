@@ -27,15 +27,15 @@ export default function CourseHolesEditor({
         <button
           type="button"
           onClick={() => setEditing((e) => !e)}
-          className="flex items-center gap-1.5 rounded-sm border border-zinc-700 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:border-yellow-500/50 hover:text-yellow-400"
+          className="flex items-center gap-1.5 rounded-sm border border-zinc-400 dark:border-zinc-700 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:border-yellow-500/50 hover:text-yellow-400"
         >
           <Pencil size={11} />
           {editing ? 'Done' : 'Edit holes'}
         </button>
       </div>
 
-      <div className="mt-3 overflow-hidden rounded-sm border border-zinc-800">
-        <div className="grid grid-cols-[32px_1fr_1fr_1fr_24px] gap-2 border-b border-zinc-800 bg-zinc-950 px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+      <div className="mt-3 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800">
+        <div className="grid grid-cols-[32px_1fr_1fr_1fr_24px] gap-2 border-b border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
           <span>#</span>
           <span className="text-right">Par</span>
           <span className="text-right">Yards</span>
@@ -97,7 +97,7 @@ function HoleRow({
     (hole.yardage != null ? String(hole.yardage) : '') !== yardage;
 
   return (
-    <div className="border-b border-zinc-900 last:border-b-0">
+    <div className="border-b border-zinc-200 dark:border-zinc-900 last:border-b-0">
       <div className="grid grid-cols-[32px_1fr_1fr_1fr_24px] items-center gap-2 px-3 py-1.5 font-mono text-xs tabular-nums">
         <span className="text-yellow-400">{hole.holeNumber}</span>
         {editing ? (
@@ -109,7 +109,7 @@ function HoleRow({
               value={par}
               onChange={(e) => setPar(e.target.value)}
               onBlur={() => dirty && save()}
-              className="rounded-sm border border-zinc-800 bg-black px-2 py-1 text-right tabular-nums text-zinc-100 focus:border-yellow-500 focus:outline-none"
+              className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-2 py-1 text-right tabular-nums text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none"
             />
             <input
               type="number"
@@ -119,7 +119,7 @@ function HoleRow({
               onChange={(e) => setYardage(e.target.value)}
               onBlur={() => dirty && save()}
               placeholder="—"
-              className="rounded-sm border border-zinc-800 bg-black px-2 py-1 text-right tabular-nums text-zinc-100 focus:border-yellow-500 focus:outline-none"
+              className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-2 py-1 text-right tabular-nums text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none"
             />
             <input
               type="number"
@@ -128,12 +128,12 @@ function HoleRow({
               value={si}
               onChange={(e) => setSi(e.target.value)}
               onBlur={() => dirty && save()}
-              className="rounded-sm border border-zinc-800 bg-black px-2 py-1 text-right tabular-nums text-zinc-100 focus:border-yellow-500 focus:outline-none"
+              className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-2 py-1 text-right tabular-nums text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none"
             />
           </>
         ) : (
           <>
-            <span className="text-right text-zinc-200">{hole.par}</span>
+            <span className="text-right text-zinc-800 dark:text-zinc-200">{hole.par}</span>
             <span className="text-right text-zinc-500">
               {hole.yardage ?? '—'}
             </span>

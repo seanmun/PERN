@@ -55,7 +55,7 @@ export default function PlayerInviteButton({
 
   if (state === 'sending') {
     return (
-      <span className="flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+      <span className="flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
         <Loader2 size={11} className="animate-spin" /> Sending
       </span>
     );

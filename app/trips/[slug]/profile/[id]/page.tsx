@@ -40,7 +40,7 @@ export default async function PlayerProfilePage({
         <div className="mx-auto max-w-md px-4 pb-8 pt-6">
           <Link
             href={`/trips/${slug}/scoreboard`}
-            className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-400 hover:text-yellow-400"
+            className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:text-yellow-400"
           >
             <ArrowLeft size={12} /> Scoreboard
           </Link>
@@ -98,11 +98,11 @@ export default async function PlayerProfilePage({
         </div>
 
         {member.scoutingReport && (
-          <section className="mt-6 rounded-sm border border-zinc-800 bg-zinc-950/40 p-4">
+          <section className="mt-6 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4">
             <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
               Scouting report
             </p>
-            <p className="mt-2 text-sm whitespace-pre-wrap text-zinc-300">
+            <p className="mt-2 text-sm whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
               {member.scoutingReport}
             </p>
           </section>
@@ -170,7 +170,7 @@ function MatchRow({
   return (
     <Link
       href={`/trips/${slug}/matches/${m.match.id}`}
-      className="block rounded-sm border border-zinc-800 bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-900/40"
+      className="block rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
     >
       <div className="flex items-start gap-3">
         <div className="w-12 shrink-0">
@@ -192,11 +192,11 @@ function MatchRow({
           <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
             {roundFormatLabel(m.round.format)}
           </p>
-          <p className="mt-1 text-xs text-zinc-400">
+          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
             {partners.length > 0 && (
               <>
                 with{' '}
-                <span className="text-zinc-200">
+                <span className="text-zinc-800 dark:text-zinc-200">
                   {partners.map((p) => p.nickname).join(' & ')}
                 </span>{' '}
               </>
@@ -217,7 +217,7 @@ function MatchRow({
                     ? 'text-emerald-400'
                     : youLost
                     ? 'text-red-400'
-                    : 'text-zinc-400'
+                    : 'text-zinc-600 dark:text-zinc-400'
                 }`}
               >
                 {youWon ? 'W' : youLost ? 'L' : halved ? 'AS' : ''}
@@ -255,7 +255,7 @@ function Stat({
   accent?: string;
 }) {
   return (
-    <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-4">
+    <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4">
       <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
         {label}
       </p>

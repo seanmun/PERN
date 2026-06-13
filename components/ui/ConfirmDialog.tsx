@@ -70,28 +70,28 @@ export default function ConfirmDialog({
         onClick={onCancel}
         className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
       />
-      <div className="relative w-full max-w-sm overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
-        <div className="border-b border-zinc-900 px-5 py-3">
+      <div className="relative w-full max-w-sm overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
+        <div className="border-b border-zinc-200 dark:border-zinc-900 px-5 py-3">
           <div className="flex items-center gap-2">
             <Icon size={14} className={iconColor} strokeWidth={2.5} />
             <h2
               id="confirm-dialog-title"
-              className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-100"
+              className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-900 dark:text-zinc-100"
             >
               {title}
             </h2>
           </div>
         </div>
 
-        <p className="px-5 py-5 text-sm leading-relaxed text-zinc-300">
+        <p className="px-5 py-5 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
           {message}
         </p>
 
-        <div className="flex items-center gap-2 border-t border-zinc-900 bg-zinc-950/40 px-5 py-3">
+        <div className="flex items-center gap-2 border-t border-zinc-200 dark:border-zinc-900 bg-zinc-50 dark:bg-zinc-950/40 px-5 py-3">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-sm border border-zinc-700 px-4 py-2.5 font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100"
+            className="flex-1 rounded-sm border border-zinc-400 dark:border-zinc-700 px-4 py-2.5 font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-100"
           >
             {cancelLabel}
           </button>

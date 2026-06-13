@@ -44,7 +44,7 @@ export default function ReactionsBar({
             className={`flex items-center gap-1 rounded-full border px-2 py-1 text-sm transition-all ${
               isActive
                 ? 'border-yellow-500/60 bg-yellow-500/10'
-                : 'border-zinc-800 bg-black hover:border-zinc-700'
+                : 'border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black hover:border-zinc-700'
             } ${isPending ? 'opacity-60' : ''}`}
             aria-pressed={isActive}
           >
@@ -59,7 +59,7 @@ export default function ReactionsBar({
               {e}
             </span>
             {count > 0 && (
-              <span className="font-mono text-[10px] tabular-nums text-zinc-400">
+              <span className="font-mono text-[10px] tabular-nums text-zinc-600 dark:text-zinc-400">
                 {count}
               </span>
             )}

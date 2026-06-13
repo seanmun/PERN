@@ -130,13 +130,13 @@ export default function NewPlayerForm({
           </p>
 
           {results.length > 0 && (
-            <ul className="mt-2 max-h-64 overflow-y-auto rounded-sm border border-zinc-800 bg-zinc-950/70">
+            <ul className="mt-2 max-h-64 overflow-y-auto rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-950/70">
               {results.map((u) => (
                 <li key={u.id}>
                   <button
                     type="button"
                     onClick={() => selectUser(u)}
-                    className="flex w-full items-center gap-3 border-b border-zinc-900 px-3 py-2 text-left last:border-b-0 hover:bg-zinc-900/80"
+                    className="flex w-full items-center gap-3 border-b border-zinc-200 dark:border-zinc-900 px-3 py-2 text-left last:border-b-0 hover:bg-zinc-900/80"
                   >
                     {u.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -146,7 +146,7 @@ export default function NewPlayerForm({
                         className="h-9 w-9 shrink-0 rounded-sm object-cover"
                       />
                     ) : (
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-zinc-900 text-zinc-500">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-zinc-100 dark:bg-zinc-900 text-zinc-500">
                         <UserIcon size={14} />
                       </div>
                     )}
@@ -178,7 +178,7 @@ export default function NewPlayerForm({
               className="h-10 w-10 shrink-0 rounded-sm object-cover"
             />
           ) : (
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-zinc-900 text-zinc-500">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-zinc-100 dark:bg-zinc-900 text-zinc-500">
               <UserIcon size={16} />
             </div>
           )}
@@ -194,7 +194,7 @@ export default function NewPlayerForm({
           <button
             type="button"
             onClick={clearLinked}
-            className="shrink-0 rounded-sm border border-zinc-700 p-2 text-zinc-400 hover:border-red-700/40 hover:text-red-400"
+            className="shrink-0 rounded-sm border border-zinc-400 dark:border-zinc-700 p-2 text-zinc-600 dark:text-zinc-400 hover:border-red-700/40 hover:text-red-400"
             aria-label="Unlink user"
           >
             <X size={14} />
@@ -274,7 +274,7 @@ export default function NewPlayerForm({
         </button>
         <Link
           href={`/trips/${slug}/admin/players`}
-          className="rounded-sm border border-zinc-700 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+          className="rounded-sm border border-zinc-400 dark:border-zinc-700 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-200"
         >
           Cancel
         </Link>
@@ -284,7 +284,7 @@ export default function NewPlayerForm({
 }
 
 const inputCls =
-  'mt-2 block w-full rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
+  'mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
 
 function Field({
   label,

@@ -61,7 +61,7 @@ export default async function EditEventPage({
             endTime: event.endTime,
           }}
           deleteSlot={
-            <div className="mt-6 border-t border-zinc-800 pt-6">
+            <div className="mt-6 border-t border-zinc-300 dark:border-zinc-800 pt-6">
               <DeleteEventButton eventId={event.id} />
             </div>
           }

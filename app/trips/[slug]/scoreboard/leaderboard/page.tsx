@@ -39,7 +39,7 @@ export default async function FullLeaderboardPage({
         {board.playerTotals.length} players
       </p>
 
-      <div className="mt-6 overflow-hidden rounded-sm border border-zinc-800">
+      <div className="mt-6 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800">
         {board.playerTotals.map((p, i) => (
           <PlayerRow key={p.tripMemberId} player={p} rank={i + 1} slug={slug} />
         ))}
@@ -57,12 +57,12 @@ function PlayerRow({ player, rank, slug }: { player: PlayerTotal; rank: number; 
       : player.scoreVsPar < 0
         ? 'text-red-400'
         : player.scoreVsPar === 0
-          ? 'text-zinc-100'
-          : 'text-zinc-400';
+          ? 'text-zinc-900 dark:text-zinc-100'
+          : 'text-zinc-600 dark:text-zinc-400';
   return (
     <Link
       href={`/trips/${slug}/profile/${player.tripMemberId}`}
-      className="flex items-center gap-3 border-b border-zinc-800 bg-zinc-950/40 px-3 py-2.5 last:border-b-0 hover:bg-zinc-900/40"
+      className="flex items-center gap-3 border-b border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-3 py-2.5 last:border-b-0 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
       style={{ borderLeft: `3px solid ${color}` }}
     >
       <p className="w-6 shrink-0 font-mono text-xs font-semibold tabular-nums text-zinc-500">

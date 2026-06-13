@@ -89,7 +89,7 @@ export default async function EditMatchPage({
           <select
             name="format"
             defaultValue={match.match.format}
-            className="mt-2 block w-full rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
+            className="mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
           >
             <option value="best_ball">Best Ball — 2v2 (lowest net per side)</option>
             <option value="two_man_aggregate">Two-Man Aggregate — 2v2 (sum of nets)</option>
@@ -127,7 +127,7 @@ export default async function EditMatchPage({
                   return (
                     <label
                       key={m.id}
-                      className="flex cursor-pointer items-center gap-2 rounded-sm border border-zinc-800 bg-zinc-950/40 px-3 py-2 text-sm hover:border-zinc-600 has-checked:border-yellow-500/60 has-checked:bg-yellow-500/10"
+                      className="flex cursor-pointer items-center gap-2 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-3 py-2 text-sm hover:border-zinc-600 has-checked:border-yellow-500/60 has-checked:bg-yellow-500/10"
                     >
                       <input
                         type="checkbox"
@@ -158,14 +158,14 @@ export default async function EditMatchPage({
           </button>
           <Link
             href={`/trips/${slug}/matches/${match.match.id}`}
-            className="rounded-sm border border-zinc-700 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+            className="rounded-sm border border-zinc-400 dark:border-zinc-700 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-200"
           >
             Cancel
           </Link>
         </div>
       </form>
 
-      <div className="mt-6 border-t border-zinc-800 pt-6">
+      <div className="mt-6 border-t border-zinc-300 dark:border-zinc-800 pt-6">
         <DeleteMatchButton matchId={match.match.id} />
       </div>
     </div>

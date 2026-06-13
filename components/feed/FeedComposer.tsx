@@ -136,18 +136,18 @@ export default function FeedComposer({
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 sm:items-center">
       <div
-        className="flex w-full max-w-md flex-col overflow-hidden rounded-t-lg border border-zinc-800 bg-zinc-950 sm:rounded-lg"
+        className="flex w-full max-w-md flex-col overflow-hidden rounded-t-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 sm:rounded-lg"
         style={{ height: 'min(85svh, 720px)' }}
       >
         {/* Sticky header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3">
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-300 dark:border-zinc-800 px-4 py-3">
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-yellow-500">
             New post
           </p>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-sm border border-zinc-800 p-1.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+            className="rounded-sm border border-zinc-300 dark:border-zinc-800 p-1.5 text-zinc-600 dark:text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
             aria-label="Close composer"
           >
             <X size={14} />
@@ -155,14 +155,14 @@ export default function FeedComposer({
         </div>
 
         {/* Sticky tabs */}
-        <div className="flex shrink-0 border-b border-zinc-800">
+        <div className="flex shrink-0 border-b border-zinc-300 dark:border-zinc-800">
           <button
             type="button"
             onClick={() => setMode('media')}
             className={`flex flex-1 items-center justify-center gap-2 py-3 font-mono text-[11px] font-semibold uppercase tracking-widest ${
               mode === 'media'
                 ? 'bg-yellow-500/10 text-yellow-300'
-                : 'text-zinc-500 hover:bg-zinc-900'
+                : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900'
             }`}
           >
             <ImageIcon size={14} /> Photo / video
@@ -173,7 +173,7 @@ export default function FeedComposer({
             className={`flex flex-1 items-center justify-center gap-2 py-3 font-mono text-[11px] font-semibold uppercase tracking-widest ${
               mode === 'text'
                 ? 'bg-yellow-500/10 text-yellow-300'
-                : 'text-zinc-500 hover:bg-zinc-900'
+                : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900'
             }`}
           >
             <MessageSquare size={14} /> Text
@@ -185,7 +185,7 @@ export default function FeedComposer({
           {mode === 'media' ? (
             <>
               {mediaUrl ? (
-                <div className="overflow-hidden rounded-sm border border-zinc-800 bg-black">
+                <div className="overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black">
                   {mediaType === 'video' ? (
                     <video
                       src={mediaUrl}
@@ -206,7 +206,7 @@ export default function FeedComposer({
                   type="button"
                   onClick={() => fileRef.current?.click()}
                   disabled={uploading}
-                  className="flex aspect-video w-full items-center justify-center rounded-sm border-2 border-dashed border-zinc-800 text-zinc-500 hover:border-yellow-500/50 hover:text-yellow-400 disabled:opacity-50"
+                  className="flex aspect-video w-full items-center justify-center rounded-sm border-2 border-dashed border-zinc-300 dark:border-zinc-800 text-zinc-500 hover:border-yellow-500/50 hover:text-yellow-400 disabled:opacity-50"
                 >
                   <span className="text-sm">
                     {uploading ? 'Uploading…' : 'Tap to choose photo or video'}
@@ -267,7 +267,7 @@ export default function FeedComposer({
 
         {/* Sticky footer with submit */}
         <div
-          className="shrink-0 border-t border-zinc-800 bg-zinc-950 p-4"
+          className="shrink-0 border-t border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
         >
           <button
@@ -287,7 +287,7 @@ export default function FeedComposer({
 }
 
 const inputCls =
-  'mt-2 block w-full rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
+  'mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
 
 function Field({
   label,

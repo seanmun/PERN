@@ -177,10 +177,10 @@ export default function AboutPage() {
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
             About
           </p>
-          <h1 className="mt-3 text-4xl font-bold tracking-tight text-zinc-100 sm:text-5xl">
+          <h1 className="mt-3 text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-5xl">
             How BuddyCup works.
           </h1>
-          <p className="mt-5 text-zinc-400">
+          <p className="mt-5 text-zinc-600 dark:text-zinc-400">
             Setup, formats, and the rules of the road — in plain English. If
             you&rsquo;re not a tournament-grade golfer, start at the top.
           </p>
@@ -191,7 +191,7 @@ export default function AboutPage() {
           <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
             Set up an event
           </h2>
-          <p className="mt-3 text-zinc-400">
+          <p className="mt-3 text-zinc-600 dark:text-zinc-400">
             Ten steps from logged-in to live scoring. You can do it in under
             ten minutes once you know the path.
           </p>
@@ -200,15 +200,15 @@ export default function AboutPage() {
             {SETUP_STEPS.map((step) => (
               <li
                 key={step.num}
-                className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 sm:p-5"
+                className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 sm:p-5"
               >
                 <div className="flex items-start gap-4">
                   <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-500">
                     {step.num}
                   </p>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-zinc-100">{step.title}</p>
-                    <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">
+                    <p className="font-semibold text-zinc-900 dark:text-zinc-100">{step.title}</p>
+                    <p className="mt-1.5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
                       {step.body}
                     </p>
                   </div>
@@ -223,7 +223,7 @@ export default function AboutPage() {
           <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
             Event types
           </h2>
-          <p className="mt-3 text-zinc-400">
+          <p className="mt-3 text-zinc-600 dark:text-zinc-400">
             Pick the right one at the start — it sets the defaults and shapes
             the Cup tab.
           </p>
@@ -232,17 +232,17 @@ export default function AboutPage() {
             {EVENT_KINDS.map((k) => (
               <div
                 key={k.name}
-                className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-4"
+                className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4"
               >
                 <p
                   className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-500"
                 >
                   {k.name}
                 </p>
-                <p className="mt-2 text-sm font-semibold text-zinc-100">
+                <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   {k.oneLine}
                 </p>
-                <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+                <p className="mt-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
                   {k.body}
                 </p>
               </div>
@@ -255,7 +255,7 @@ export default function AboutPage() {
           <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
             Round &amp; match formats
           </h2>
-          <p className="mt-3 text-zinc-400">
+          <p className="mt-3 text-zinc-600 dark:text-zinc-400">
             Every match in a round has a format. Most foursomes pick one. Some
             stack two or three at once (see Side matches below).
           </p>
@@ -264,12 +264,12 @@ export default function AboutPage() {
             {FORMATS.map((f) => (
               <div
                 key={f.name}
-                className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 sm:p-5"
+                className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 sm:p-5"
               >
                 <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-500">
                   {f.name}
                 </p>
-                <p className="mt-2 text-base font-semibold text-zinc-100">
+                <p className="mt-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">
                   {f.oneLine}
                 </p>
 
@@ -277,22 +277,22 @@ export default function AboutPage() {
                   <dt className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500">
                     Who plays
                   </dt>
-                  <dd className="text-zinc-200">{f.who}</dd>
+                  <dd className="text-zinc-800 dark:text-zinc-200">{f.who}</dd>
 
                   <dt className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500">
                     Scoring
                   </dt>
-                  <dd className="leading-relaxed text-zinc-300">{f.scoring}</dd>
+                  <dd className="leading-relaxed text-zinc-700 dark:text-zinc-300">{f.scoring}</dd>
 
                   <dt className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500">
                     Handicap
                   </dt>
-                  <dd className="leading-relaxed text-zinc-300">{f.handicap}</dd>
+                  <dd className="leading-relaxed text-zinc-700 dark:text-zinc-300">{f.handicap}</dd>
 
                   <dt className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500">
                     Best for
                   </dt>
-                  <dd className="leading-relaxed text-zinc-300">
+                  <dd className="leading-relaxed text-zinc-700 dark:text-zinc-300">
                     {f.whenToUse}
                   </dd>
                 </dl>
@@ -306,21 +306,21 @@ export default function AboutPage() {
           <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
             Side matches (stacking)
           </h2>
-          <p className="mt-3 text-zinc-400">
+          <p className="mt-3 text-zinc-600 dark:text-zinc-400">
             One foursome can be scoring against more than one match at the
             same time. The classic move: a 2v2 Best Ball as the main game,
             with a 1v1 Singles side bet between two of the players.
           </p>
 
-          <div className="mt-6 rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 sm:p-5">
-            <p className="text-sm leading-relaxed text-zinc-300">
+          <div className="mt-6 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 sm:p-5">
+            <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
               All players in the foursome only play one physical ball each.
               When you enter a score for any one player, BuddyCup fans it out
               to every match that player is in for that group — the side bet
               updates the same instant the main match does. You only have to
               enter the score once.
             </p>
-            <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+            <p className="mt-3 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
               To add a side match: open the round, hit Add another matchup on
               the same tee time, pick the side-bet players and format.
             </p>
@@ -332,17 +332,17 @@ export default function AboutPage() {
           <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
             How scoring shows up
           </h2>
-          <p className="mt-3 text-zinc-400">
+          <p className="mt-3 text-zinc-600 dark:text-zinc-400">
             Two surfaces: team standings (Cup points) and the individual
             leaderboard.
           </p>
 
           <div className="mt-6 space-y-3">
-            <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 sm:p-5">
+            <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 sm:p-5">
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-500">
                 Team Cup points
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+              <p className="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
                 Every completed match awards <strong>1 point</strong> to the
                 winning team. A halved match (tied through 18) awards
                 <strong> 0.5 to each team</strong>. Only matches in rounds
@@ -351,11 +351,11 @@ export default function AboutPage() {
               </p>
             </div>
 
-            <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 sm:p-5">
+            <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 sm:p-5">
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-500">
                 Individual leaderboard
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+              <p className="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
                 <strong>Net vs par</strong> using the strokes you actually
                 receive in your match (not your absolute handicap allocation
                 against the course). If you&rsquo;re the lowest handicap in
@@ -363,7 +363,7 @@ export default function AboutPage() {
                 the hardest holes. If your match&rsquo;s low is much better
                 than you, you get strokes accordingly.
               </p>
-              <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+              <p className="mt-3 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
                 The right column shows <strong>+N strokes</strong> — how
                 many strokes you&rsquo;ve actually received across the holes
                 you&rsquo;ve played. Once scoring starts that replaces the
@@ -371,11 +371,11 @@ export default function AboutPage() {
               </p>
             </div>
 
-            <div className="rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 sm:p-5">
+            <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 sm:p-5">
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-500">
                 Live status (the leaning gradient)
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+              <p className="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
                 On the Cup tab during play, every match row gets a muted
                 team-color gradient behind it. Even at the start; leans
                 further as one side pulls ahead; fully one color when a side

@@ -53,11 +53,11 @@ export default async function AdminCoursesPage({
           <Link
             key={c.id}
             href={`/trips/${slug}/admin/courses/${c.id}/edit`}
-            className="block rounded-sm border border-zinc-800 bg-zinc-950/40 hover:border-yellow-500/40 hover:bg-zinc-900/40"
+            className="block rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 hover:border-yellow-500/40 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
           >
             <div className="flex items-center gap-3 p-3">
               <div
-                className="relative h-16 w-24 shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900"
+                className="relative h-16 w-24 shrink-0 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900"
                 style={
                   c.imageUrl
                     ? {
