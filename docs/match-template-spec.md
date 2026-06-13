@@ -191,10 +191,49 @@ No data migration scripts needed beyond optional column adds.
 - Skins / side bets as first-class entities. They're a derived view today and can stay that way.
 - Auto-handicap recomputation when rosters shift. Handled by existing engine.
 
+## Retrofit strategy
+
+> Read this before opening any of the implementation-order PRs below. The headline is that **every existing match already fits the new model** — Pinehurst's rounds are all single-foursome, individual-input, which is the trivial case of foursome-keyed scoring. So this is mostly a routing + UI shift, not a data migration.
+
+### 1. Build new route alongside old, no big-bang swap
+
+`/trips/[slug]/tee-times/[id]/score` ships next to the existing `/trips/[slug]/matches/[id]/score`. Both work for a PR cycle. Once the new route renders correctly for Pinehurst's existing rounds, the old route becomes a 301 redirect to `/tee-times/{match.teeTimeId}/score`. Existing bookmarks and links survive. Delete the old route only after nothing in the codebase links to it (grep audit before removal).
+
+### 2. `matches.tee_time_id` becomes optional, not load-bearing
+
+Today it's how score entry locates the match. Tomorrow score entry reads from the **tee time's roster**, not the match. Keep the column — it's still useful as "this match's primary foursome" for in-group matches (so the schedule can group them under the right tee time card). **Cross-foursome matches** (4v4 best ball spanning two groups, 1v1 between two foursomes) set `tee_time_id = null` and render in a separate "Round rollups" lane on the schedule.
+
+Required schema delta when we hit this step: `ALTER TABLE matches ALTER COLUMN tee_time_id DROP NOT NULL;` if it's NOT NULL today. Verify before the PR.
+
+### 3. `round.format` stays as the round's display identity, not a constraint
+
+"Round 1 · Best Ball day" is still the headline on the schedule. Matches under the round can have any format the admin picks. The default-from-round behavior in the New Match form stays — it's just a *suggestion* now, not a source of truth. No data change.
+
+### 4. Leaderboard, Cup tab, fan-out engine — zero changes
+
+All three are already match-keyed and read from `hole_scores`. As long as `hole_scores` stays the canonical input table (which it does), every match — old single-foursome or new cross-foursome — recomputes the same way. The 39 engine tests (`tests/engine.test.ts` + `tests/formats.test.ts`) already lock this in.
+
+### 5. Validation + tests gate each step
+
+Each new route lands with vitest tests that prove the existing Pinehurst data still scores correctly through the new path. We don't ship step 3 (new route) until "render every Pinehurst tee time's scorecard via the new route and confirm scores load identically to the old route" is green. The test fixture clones a Pinehurst round and asserts the leaderboard output is byte-identical across both code paths.
+
+### Risk to design around
+
+If a trip ever puts a player in two tee times of the same round (admin mistake, twosomes restructured mid-round, captain edit gone wrong), the foursome-keyed scorecard model becomes ambiguous about *which* tee time owns that player's gross. Pinehurst doesn't hit this today, but the admin UI for tee-time assignment should enforce **"one player ↔ one tee time per round"** with a hard constraint at the action layer (and ideally a partial unique index in Postgres). Cheap rule to add when we touch the tee-time admin UI; expensive bug to chase later if someone hand-edits prod.
+
+### Backward-compat checklist (run before each PR)
+
+- [ ] Existing match-keyed URL still loads or 301-redirects
+- [ ] Existing rounds render their scorecard via the new route with identical scores
+- [ ] Leaderboard for a known round matches pre-refactor output (snapshot test or screenshot diff)
+- [ ] Cup-tab live state for an in-flight match matches pre-refactor
+- [ ] All 39 engine/format tests still green
+- [ ] `npm run build` green (no Turbopack-only success — full prod build)
+
 ## Implementation order (once decisions are locked)
 
-1. Hardcode `FORMAT_META` in `lib/scoring/formats.ts` with the table above.
-2. Add `template_size_a` / `template_size_b` to `matches` (migration via Neon SQL editor per house style).
+1. ✅ Hardcode `FORMAT_META` in `lib/scoring/formats.ts` with the table above. — *shipped in `ea3b5e6`*
+2. ✅ Add `template_size_a` / `template_size_b` to `matches` (migration via Neon SQL editor per house style). — *shipped in `187197d`*
 3. Build the foursome scorecard route: `/trips/[slug]/tee-times/[id]/score`. Render individual rows for the 4 players. Existing match-keyed score route redirects here.
 4. Add the team-line section to the scorecard (renders when a team-input match's roster matches the foursome).
 5. Build the **New match** flow: format picker → side-size picker → drag-and-drop template with validation.
