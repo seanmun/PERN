@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { getScheduleByDay } from '@/lib/data/schedule';
+import { isIndividualInput, type FormatId } from '@/lib/scoring/formats';
 import ScheduleClient, {
   type ClientScheduleDay,
 } from '@/components/schedule/ScheduleClient';
@@ -41,6 +42,13 @@ export default async function TripSchedulePage({
                 m.participants.some((p) => p.tripMemberId === ctx.tripMember!.id),
               )
             : false;
+        // Route individual-input formats to the new tee-time scorecard.
+        // Team-input formats (scramble, alternate_shot) stay on the legacy
+        // match-keyed route until step 4 of the match-template spec ships
+        // the team-line section on the new surface.
+        const widestIsIndividual = widestMatch
+          ? isIndividualInput(widestMatch.format as FormatId)
+          : true;
         return {
           kind: 'golf',
           startTimeISO: item.startTime.toISOString(),
@@ -52,6 +60,7 @@ export default async function TripSchedulePage({
           courseName: item.course.name,
           courseLocation: item.course.location,
           scoreMatchId: widestMatch?.id ?? null,
+          scoreRoutesToTeeTime: widestIsIndividual,
           canEnterScores: canEdit || selfIsParticipant,
           matches: item.matches.map((m) => ({
             id: m.id,

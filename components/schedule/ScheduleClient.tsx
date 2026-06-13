@@ -65,6 +65,12 @@ export type ClientGolfItem = {
   // the group (most participants) — scoring rows there cover all stacked
   // matches via the upsert fan-out.
   scoreMatchId: string | null;
+  // When true, route to the new tee-time-keyed scorecard
+  // (/trips/:slug/tee-times/:id/score). Else fall back to the legacy
+  // /trips/:slug/matches/:id/score. Server-computed: true for
+  // individual-input formats, false for scramble / alternate shot until
+  // step 4 of the match-template spec ships.
+  scoreRoutesToTeeTime: boolean;
   canEnterScores: boolean;
   matches: ClientMatch[];
 };
@@ -576,7 +582,11 @@ function GolfRow({
       {item.canEnterScores && item.scoreMatchId && (
         <div className="border-t border-yellow-600/15 bg-zinc-50 dark:bg-black/30 p-3">
           <Link
-            href={`/trips/${tripSlug}/matches/${item.scoreMatchId}/score`}
+            href={
+              item.scoreRoutesToTeeTime
+                ? `/trips/${tripSlug}/tee-times/${item.teeTimeId}/score`
+                : `/trips/${tripSlug}/matches/${item.scoreMatchId}/score`
+            }
             className="flex w-full items-center justify-center gap-2 rounded-sm bg-yellow-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400"
           >
             Enter scores
