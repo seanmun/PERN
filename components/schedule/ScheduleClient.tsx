@@ -743,11 +743,9 @@ function CompactPortraitSlot({
       >
         {player.nickname}
       </p>
-      {player.tripHandicap && (
-        <p className="font-mono text-[9px] tabular-nums text-zinc-500">
-          {player.tripHandicap}
-        </p>
-      )}
+      <p className="font-mono text-[9px] tabular-nums text-zinc-500">
+        {player.tripHandicap ?? 'N/A'}
+      </p>
     </div>
   );
 }
@@ -812,11 +810,9 @@ function TeamSideCell({
             className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100"
           >
             {p.nickname}
-            {p.tripHandicap && (
-              <span className="ml-1 font-mono text-[10px] tabular-nums text-zinc-500">
-                {p.tripHandicap}
-              </span>
-            )}
+            <span className="ml-1 font-mono text-[10px] tabular-nums text-zinc-500">
+              {p.tripHandicap ?? 'N/A'}
+            </span>
           </p>
         ))}
       </div>
@@ -873,11 +869,9 @@ function TeamBlock({ players }: { players: ClientParticipant[] }) {
             className="flex items-baseline justify-between gap-2"
           >
             <p className="text-sm font-semibold">{p.nickname}</p>
-            {p.tripHandicap && (
-              <p className="font-mono text-xs tabular-nums text-zinc-500">
-                {p.tripHandicap}
-              </p>
-            )}
+            <p className="font-mono text-xs tabular-nums text-zinc-500">
+              {p.tripHandicap ?? 'N/A'}
+            </p>
           </div>
         ))}
       </div>
@@ -919,11 +913,9 @@ function TeamSide({ players, align = 'left' }: { players: ClientParticipant[]; a
         <span key={p.tripMemberId}>
           {i > 0 && ' & '}
           {p.nickname}
-          {p.tripHandicap && (
-            <span className="ml-1 font-mono text-[10px] tabular-nums opacity-60">
-              {p.tripHandicap}
-            </span>
-          )}
+          <span className="ml-1 font-mono text-[10px] tabular-nums opacity-60">
+            {p.tripHandicap ?? 'N/A'}
+          </span>
         </span>
       ))}
     </span>
