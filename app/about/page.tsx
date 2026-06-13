@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import Footer from '@/components/marketing/Footer';
+import ForceDarkMode from '@/components/ForceDarkMode';
 
 export const metadata: Metadata = {
   title: 'About · BuddyCup',
@@ -159,6 +160,7 @@ const FORMATS: {
 export default function AboutPage() {
   return (
     <>
+      <ForceDarkMode />
       <article className="mx-auto max-w-3xl px-4 py-16 sm:py-20">
         <Link
           href="/"

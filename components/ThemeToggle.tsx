@@ -1,7 +1,12 @@
 'use client';
 
 import { Monitor, Moon, Sun } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { useTheme } from '@/lib/theme';
+
+// Logged-out / marketing routes are pinned dark by ForceDarkMode; the
+// toggle would just fight the pin, so hide it on those routes.
+const HIDE_ON = ['/', '/about', '/sign-in', '/sign-up'];
 
 /**
  * Theme switcher in the header. Three-state cycle: System → Light → Dark →
@@ -10,7 +15,16 @@ import { useTheme } from '@/lib/theme';
  * stored choice is + what tapping does next.
  */
 export default function ThemeToggle() {
+  const pathname = usePathname();
   const { theme, resolved, setTheme } = useTheme();
+
+  if (
+    HIDE_ON.includes(pathname) ||
+    pathname.startsWith('/sign-in') ||
+    pathname.startsWith('/sign-up')
+  ) {
+    return null;
+  }
 
   const next: { [k: string]: 'light' | 'dark' | 'system' } = {
     system: 'light',

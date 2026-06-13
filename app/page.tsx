@@ -16,6 +16,7 @@ import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import HomeBgVideo from '@/components/HomeBgVideo';
 import Footer from '@/components/marketing/Footer';
 import Reveal from '@/components/marketing/Reveal';
+import ForceDarkMode from '@/components/ForceDarkMode';
 
 const GOLD = '#eab308';
 const GREEN = '#16a34a';
@@ -281,6 +282,7 @@ export default async function Home() {
 
   return (
     <div className="bg-[#0a0a0a] text-zinc-900 dark:text-zinc-100">
+      <ForceDarkMode />
       {/* ───────── Hero ───────── */}
       <section
         aria-label="BuddyCup"
