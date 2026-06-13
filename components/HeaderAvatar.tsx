@@ -12,7 +12,7 @@ export default async function HeaderAvatar() {
     return (
       <Link
         href="/sign-in"
-        className="rounded-sm border border-yellow-600/40 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-widest text-yellow-400 hover:bg-yellow-600/10 hover:text-yellow-300"
+        className="rounded-sm border border-yellow-600/40 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-400 hover:bg-yellow-600/10 hover:text-yellow-300"
       >
         Sign in
       </Link>

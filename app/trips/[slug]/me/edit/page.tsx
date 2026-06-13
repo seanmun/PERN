@@ -26,7 +26,7 @@ export default async function EditProfilePage({
 
   return (
     <div className="mx-auto max-w-md px-4 pb-24 pt-10">
-      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
         Edit profile
       </p>
       <h1 className="mt-2 text-3xl font-bold tracking-tight">

@@ -237,7 +237,7 @@ export default async function EditCoursePage({
                       )}
                       <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t.name}</p>
                       {t.isDefault && (
-                        <span className="rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-yellow-300">
+                        <span className="rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300">
                           Default
                         </span>
                       )}
@@ -313,7 +313,7 @@ function Field({
     <label className="block">
       <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
         {label}
-        {required && <span className="ml-1 text-yellow-500">*</span>}
+        {required && <span className="ml-1 text-yellow-800 dark:text-yellow-500">*</span>}
       </span>
       {children}
       {hint && <p className="mt-1.5 text-[11px] text-zinc-500">{hint}</p>}

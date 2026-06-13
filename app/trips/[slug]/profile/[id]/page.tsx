@@ -81,7 +81,7 @@ export default async function PlayerProfilePage({
                   </span>
                 )}
                 {member.role === 'trip_admin' && (
-                  <span className="rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-300">
+                  <span className="rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-300">
                     Admin
                   </span>
                 )}
@@ -174,7 +174,7 @@ function MatchRow({
     >
       <div className="flex items-start gap-3">
         <div className="w-12 shrink-0">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-400">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-400">
             R{m.round.order}
           </p>
           {m.teeTime?.time && (
@@ -186,7 +186,7 @@ function MatchRow({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <Trophy size={12} className="text-yellow-500" />
+            <Trophy size={12} className="text-yellow-800 dark:text-yellow-500" />
             <p className="truncate text-sm font-semibold">{m.course.name}</p>
           </div>
           <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-zinc-500">

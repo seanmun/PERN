@@ -73,7 +73,7 @@ export default function BottomNavClient() {
               href={href}
               className={`flex flex-1 flex-col items-center gap-1 px-2 py-3 transition-colors ${
                 isActive
-                  ? 'text-yellow-400'
+                  ? 'text-yellow-800 dark:text-yellow-400'
                   : 'text-zinc-500 hover:text-zinc-200'
               }`}
             >

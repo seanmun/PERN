@@ -126,7 +126,7 @@ export default async function MyProfilePage() {
           <summary className="cursor-pointer select-none px-3 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500 hover:text-zinc-300">
             Public handle
             {user.username && (
-              <span className="ml-2 normal-case tracking-normal text-yellow-400">
+              <span className="ml-2 normal-case tracking-normal text-yellow-800 dark:text-yellow-400">
                 @{user.username}
               </span>
             )}

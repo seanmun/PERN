@@ -60,8 +60,8 @@ export default function FeedClient({
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <Flame size={16} className="text-yellow-500" />
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+            <Flame size={16} className="text-yellow-800 dark:text-yellow-500" />
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
               Live feed
             </p>
           </div>
@@ -73,7 +73,7 @@ export default function FeedClient({
           <button
             type="button"
             onClick={() => setComposerOpen(true)}
-            className="flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+            className="flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
           >
             <Plus size={12} strokeWidth={2.5} /> Post
           </button>
@@ -156,7 +156,7 @@ function FilterChip({
     >
       <span
         className={`flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest ${
-          active ? 'text-yellow-400' : 'text-zinc-600 dark:text-zinc-400'
+          active ? 'text-yellow-800 dark:text-yellow-400' : 'text-zinc-600 dark:text-zinc-400'
         }`}
       >
         {icon}
@@ -202,7 +202,7 @@ function ScoreCard({
       : netDiff === 0
       ? 'text-zinc-800 dark:text-zinc-200'
       : netDiff === 1
-      ? 'text-yellow-400'
+      ? 'text-yellow-800 dark:text-yellow-400'
       : 'text-red-400';
 
   return (
@@ -369,7 +369,7 @@ function TextCard({
           <div className="min-w-0 flex-1">
             <FeedHeader author={item.author} at={item.at} />
             {item.pinned && (
-              <p className="mt-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-yellow-400">
+              <p className="mt-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-400">
                 Pinned
               </p>
             )}

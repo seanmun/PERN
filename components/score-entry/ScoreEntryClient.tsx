@@ -155,7 +155,7 @@ export default function ScoreEntryClient({
               >
                 <span
                   className={`font-mono text-[10px] font-semibold uppercase tracking-widest ${
-                    isActive ? 'text-yellow-400' : 'text-zinc-600 dark:text-zinc-400'
+                    isActive ? 'text-yellow-800 dark:text-yellow-400' : 'text-zinc-600 dark:text-zinc-400'
                   }`}
                 >
                   {p.nickname}
@@ -267,7 +267,7 @@ function HoleByHole({
           <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.3em] text-zinc-500">
             Hole
           </span>
-          <span className="font-mono text-3xl font-bold leading-none tabular-nums text-yellow-400">
+          <span className="font-mono text-3xl font-bold leading-none tabular-nums text-yellow-800 dark:text-yellow-400">
             {hole.number}
           </span>
           <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
@@ -503,7 +503,7 @@ function CardView({
             key={h.number}
             className="grid grid-cols-[28px_28px_28px_28px_1fr_56px] items-center gap-2 border-b border-zinc-200 dark:border-zinc-900 px-3 py-2 last:border-b-0"
           >
-            <span className="font-mono text-sm font-bold tabular-nums text-yellow-400">
+            <span className="font-mono text-sm font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
               {h.number}
             </span>
             <span className="font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
@@ -537,7 +537,7 @@ function CardView({
         <span className="text-emerald-400">
           {totalStrokes > 0 ? `+${totalStrokes}` : ''}
         </span>
-        <span className="text-right font-bold tabular-nums text-yellow-400">
+        <span className="text-right font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
           {total > 0 ? total : '—'}
         </span>
       </div>
@@ -699,7 +699,7 @@ function TeamScoreEntry({
           <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.3em] text-zinc-500">
             Hole
           </span>
-          <span className="font-mono text-3xl font-bold leading-none tabular-nums text-yellow-400">
+          <span className="font-mono text-3xl font-bold leading-none tabular-nums text-yellow-800 dark:text-yellow-400">
             {activeHoleData.number}
           </span>
           <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">

@@ -188,7 +188,7 @@ export default async function ScoreEntryPage({
 
       {holes.length === 0 ? (
         <div className="mt-8 rounded-sm border border-yellow-600/30 bg-yellow-500/5 p-6">
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.25em] text-yellow-400">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.25em] text-yellow-800 dark:text-yellow-400">
             Course needs hole data
           </p>
           <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
@@ -198,7 +198,7 @@ export default async function ScoreEntryPage({
           {isAdmin && (
             <Link
               href={`/trips/${slug}/admin/courses`}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-sm border border-yellow-500/50 bg-yellow-500/10 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-sm border border-yellow-500/50 bg-yellow-500/10 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
             >
               Add hole data
             </Link>
@@ -206,7 +206,7 @@ export default async function ScoreEntryPage({
         </div>
       ) : data.inputMode === 'team' && !validTeamSetup(data) ? (
         <div className="mt-8 rounded-sm border border-yellow-600/30 bg-yellow-500/5 p-6">
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.25em] text-yellow-400">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.25em] text-yellow-800 dark:text-yellow-400">
             Roster doesn&apos;t match this format
           </p>
           <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
@@ -218,7 +218,7 @@ export default async function ScoreEntryPage({
           {isAdmin && (
             <Link
               href={`/trips/${slug}/matches/${id}/edit`}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-sm border border-yellow-500/50 bg-yellow-500/10 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-sm border border-yellow-500/50 bg-yellow-500/10 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
             >
               Edit matchup
             </Link>

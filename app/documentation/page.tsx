@@ -25,7 +25,7 @@ export default async function DocumentationPage() {
       </Link>
 
       <header className="mt-8">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
           Internal · Platform admin only
         </p>
         <h1 className="mt-2 text-4xl font-bold tracking-tight">BuddyCup — full app map</h1>

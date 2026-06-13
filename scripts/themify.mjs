@@ -43,6 +43,11 @@ const SWAPS = [
   ['text-zinc-400', 'text-zinc-600'],
   // 500/600 sit in the middle — leave alone, they read on both backgrounds
   ['text-white', 'text-zinc-900'],
+  // Yellow text on yellow tints — bright yellow vanishes on a pale yellow
+  // bg in light mode. Invert to a dark yellow so it reads on the tint.
+  ['text-yellow-300', 'text-yellow-800'],
+  ['text-yellow-400', 'text-yellow-800'],
+  ['text-yellow-500', 'text-yellow-800'],
   // Borders
   ['border-zinc-950', 'border-zinc-200'],
   ['border-zinc-900/60', 'border-zinc-200'],

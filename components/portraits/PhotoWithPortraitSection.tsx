@@ -50,7 +50,7 @@ export default function PhotoWithPortraitSection({
 
       <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-500">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-800 dark:text-yellow-500">
             Arcade portrait
           </span>
           <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">

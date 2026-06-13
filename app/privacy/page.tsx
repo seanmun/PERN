@@ -26,7 +26,7 @@ export default function PrivacyPage() {
         </Link>
 
         <header className="mt-8">
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
             Privacy
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-4xl">
@@ -37,7 +37,7 @@ export default function PrivacyPage() {
 
         <div className="mt-10 space-y-8 text-zinc-700 dark:text-zinc-300">
           <section>
-            <h2 className="text-sm font-mono font-semibold uppercase tracking-[0.3em] text-yellow-500">
+            <h2 className="text-sm font-mono font-semibold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
               The short version
             </h2>
             <p className="mt-3 leading-relaxed">
@@ -50,7 +50,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-sm font-mono font-semibold uppercase tracking-[0.3em] text-yellow-500">
+            <h2 className="text-sm font-mono font-semibold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
               What we collect
             </h2>
             <ul className="mt-3 space-y-2 leading-relaxed">
@@ -73,7 +73,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-sm font-mono font-semibold uppercase tracking-[0.3em] text-yellow-500">
+            <h2 className="text-sm font-mono font-semibold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
               What we don’t do
             </h2>
             <ul className="mt-3 space-y-2 leading-relaxed">
@@ -88,7 +88,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-sm font-mono font-semibold uppercase tracking-[0.3em] text-yellow-500">
+            <h2 className="text-sm font-mono font-semibold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
               Your data, your call
             </h2>
             <p className="mt-3 leading-relaxed">
@@ -100,7 +100,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-sm font-mono font-semibold uppercase tracking-[0.3em] text-yellow-500">
+            <h2 className="text-sm font-mono font-semibold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
               Contact
             </h2>
             <p className="mt-3 leading-relaxed">
@@ -110,7 +110,7 @@ export default function PrivacyPage() {
                 href="https://seanmun.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-yellow-500 underline-offset-2 hover:underline"
+                className="text-yellow-800 dark:text-yellow-500 underline-offset-2 hover:underline"
               >
                 seanmun.com
               </a>

@@ -158,7 +158,7 @@ export default function ScheduleClient({
               <div className="mt-6 flex flex-col items-stretch gap-2 sm:flex-row sm:justify-center">
                 <Link
                   href={`/trips/${tripSlug}/admin/rounds/new`}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-4 py-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-4 py-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
                 >
                   <Plus size={12} strokeWidth={2.5} />
                   New round
@@ -186,7 +186,7 @@ export default function ScheduleClient({
     <div className="mx-auto max-w-2xl px-4 pt-6 pb-24">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
             Itinerary
           </p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight">Schedule</h1>
@@ -198,7 +198,7 @@ export default function ScheduleClient({
         <div className="mb-6 flex justify-end gap-2">
           <Link
             href={`/trips/${tripSlug}/admin/rounds/new`}
-            className="flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+            className="flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
           >
             <Plus size={12} strokeWidth={2.5} />
             New round
@@ -339,7 +339,7 @@ function DayCarouselView({
             >
               <p
                 className={`font-mono text-[10px] font-semibold uppercase tracking-widest ${
-                  isActive ? 'text-yellow-400' : 'text-zinc-500'
+                  isActive ? 'text-yellow-800 dark:text-yellow-400' : 'text-zinc-500'
                 }`}
               >
                 {d.dayLabel.slice(0, 3)}
@@ -371,7 +371,7 @@ function DayHeader({ day }: { day: ClientScheduleDay }) {
   return (
     <div className="flex items-baseline justify-between border-b border-zinc-300 dark:border-zinc-800 pb-2">
       <h2 className="text-lg font-bold tracking-tight">{day.dayLabel}</h2>
-      <p className="font-mono text-[11px] font-semibold uppercase tracking-widest text-yellow-500">
+      <p className="font-mono text-[11px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-500">
         {day.monthDay}
       </p>
     </div>
@@ -418,7 +418,7 @@ function EmptyRoundRow({
     <div className="rounded-sm border border-dashed border-yellow-500/40 bg-zinc-50 dark:bg-zinc-950/40 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-500">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-800 dark:text-yellow-500">
             Round {item.roundOrder} · {formatLabel(item.roundFormat)} · No tee times yet
           </p>
           <p className="mt-1.5 truncate font-semibold text-zinc-900 dark:text-zinc-100">
@@ -432,7 +432,7 @@ function EmptyRoundRow({
         {canEdit && (
           <Link
             href={editHref}
-            className="shrink-0 rounded-sm border border-yellow-500/50 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+            className="shrink-0 rounded-sm border border-yellow-500/50 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
           >
             Add tee times
           </Link>
@@ -485,14 +485,14 @@ function GolfRow({
       <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3">
         <div className="flex items-start gap-3">
           <div className="w-16 shrink-0">
-            <p className="font-mono text-xs font-bold tabular-nums text-yellow-400">{time}</p>
+            <p className="font-mono text-xs font-bold tabular-nums text-yellow-800 dark:text-yellow-400">{time}</p>
             <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-600">
               Group {item.groupNumber}
             </p>
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <Trophy size={14} className="text-yellow-500" />
+              <Trophy size={14} className="text-yellow-800 dark:text-yellow-500" />
               <p className="truncate font-semibold">{item.courseName}</p>
             </div>
             <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
@@ -504,7 +504,7 @@ function GolfRow({
             {canEdit && (
               <Link
                 href={`/trips/${tripSlug}/matches/new?teeTimeId=${item.teeTimeId}`}
-                className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-400 hover:text-yellow-300"
+                className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-400 hover:text-yellow-300"
               >
                 <Plus size={11} /> Add matchup
               </Link>
@@ -524,11 +524,11 @@ function GolfRow({
   // badge column, so the matchup gets the full width.
   void compact;
   return (
-    <div className="overflow-hidden rounded-md border border-yellow-600/20 bg-zinc-950/70 shadow-[0_0_0_1px_rgba(0,0,0,0.4)]">
+    <div className="overflow-hidden rounded-md border border-yellow-600/20 bg-white dark:bg-zinc-950/70 shadow-[0_0_0_1px_rgba(0,0,0,0.4)]">
       {/* Tee-time header — shown once for the whole group */}
       <div className="flex items-baseline justify-between gap-3 border-b border-yellow-600/10 bg-zinc-50 dark:bg-black/30 px-3 py-2">
         <div className="flex items-baseline gap-2">
-          <p className="font-mono text-xs font-bold tabular-nums text-yellow-400">
+          <p className="font-mono text-xs font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
             {time}
           </p>
           <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
@@ -563,7 +563,7 @@ function GolfRow({
             >
               <div className="flex items-center justify-between gap-2">
                 <FormatBadge format={m.format} size="xs" />
-                <ChevronRight size={12} className="shrink-0 text-zinc-700" />
+                <ChevronRight size={12} className="shrink-0 text-zinc-600 dark:text-zinc-400 dark:text-zinc-700" />
               </div>
               <div className="mt-2">
                 <MatchupShowdownCompact match={m} />

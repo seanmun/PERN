@@ -81,7 +81,7 @@ export default async function GlobalMePage() {
           size={72}
         />
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
             Signed in
           </p>
           <h1 className="mt-1 truncate text-xl font-bold">{displayName}</h1>
@@ -311,8 +311,8 @@ function NewKindButton({
       href={href}
       className="flex flex-col items-center justify-center gap-1 rounded-sm border border-dashed border-yellow-500/40 bg-zinc-50 dark:bg-zinc-950/40 p-3 text-center transition-colors hover:border-yellow-500/70 hover:bg-yellow-500/5"
     >
-      <span className="text-yellow-500">{icon}</span>
-      <p className="font-mono text-[11px] font-bold uppercase tracking-widest text-yellow-400">
+      <span className="text-yellow-800 dark:text-yellow-500">{icon}</span>
+      <p className="font-mono text-[11px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-400">
         {label}
       </p>
       <p className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">
@@ -350,7 +350,7 @@ function TripCard({
     >
       <div
         className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-zinc-100 dark:bg-zinc-900 ${
-          muted ? 'text-zinc-500' : 'text-yellow-500'
+          muted ? 'text-zinc-500' : 'text-yellow-800 dark:text-yellow-500'
         }`}
       >
         {imageUrl ? (

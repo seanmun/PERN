@@ -69,7 +69,7 @@ export default async function AdminTeamsPage({
 
             <label className="mt-4 block">
               <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
-                Name <span className="text-yellow-500">*</span>
+                Name <span className="text-yellow-800 dark:text-yellow-500">*</span>
               </span>
               <input
                 type="text"

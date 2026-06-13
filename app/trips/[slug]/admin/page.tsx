@@ -31,7 +31,7 @@ export default async function AdminPage({
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-6">
-      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
         Admin
       </p>
       <h1 className="mt-1 text-3xl font-bold tracking-tight">Trip controls</h1>
@@ -88,7 +88,7 @@ function AdminLink({
       href={href}
       className="flex items-center gap-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 hover:border-yellow-500/40 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
     >
-      <span className="text-yellow-500">{icon}</span>
+      <span className="text-yellow-800 dark:text-yellow-500">{icon}</span>
       <div className="min-w-0 flex-1">
         <p className="font-semibold">{label}</p>
         {hint && <p className="mt-0.5 text-xs text-zinc-500">{hint}</p>}

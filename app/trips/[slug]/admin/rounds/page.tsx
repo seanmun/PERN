@@ -49,7 +49,7 @@ export default async function AdminRoundsPage({
         </div>
         <Link
           href={`/trips/${slug}/admin/rounds/new`}
-          className="shrink-0 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+          className="shrink-0 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
         >
           <Plus className="inline" size={11} /> New
         </Link>
@@ -62,12 +62,12 @@ export default async function AdminRoundsPage({
             href={`/trips/${slug}/admin/rounds/${round.id}/edit`}
             className="flex items-center gap-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-zinc-100 dark:bg-zinc-900 font-mono text-lg font-bold text-yellow-400">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-zinc-100 dark:bg-zinc-900 font-mono text-lg font-bold text-yellow-800 dark:text-yellow-400">
               {round.order}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <Trophy size={12} className="text-yellow-500" />
+                <Trophy size={12} className="text-yellow-800 dark:text-yellow-500" />
                 <p className="truncate font-semibold">
                   {round.label ?? `Round ${round.order}`}
                 </p>

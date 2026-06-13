@@ -99,7 +99,7 @@ function HoleRow({
   return (
     <div className="border-b border-zinc-200 dark:border-zinc-900 last:border-b-0">
       <div className="grid grid-cols-[32px_1fr_1fr_1fr_24px] items-center gap-2 px-3 py-1.5 font-mono text-xs tabular-nums">
-        <span className="text-yellow-400">{hole.holeNumber}</span>
+        <span className="text-yellow-800 dark:text-yellow-400">{hole.holeNumber}</span>
         {editing ? (
           <>
             <input

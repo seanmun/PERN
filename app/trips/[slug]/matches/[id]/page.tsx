@@ -185,8 +185,8 @@ export default async function MatchDetailPage({
           <div className="mt-8 flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <Trophy size={16} className="text-yellow-400" />
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-400">
+                <Trophy size={16} className="text-yellow-800 dark:text-yellow-400" />
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-400">
                   Round {match.round.order} · {roundFormatLabel(match.round.format)}
                   {roundTee && (
                     <>
@@ -233,7 +233,7 @@ export default async function MatchDetailPage({
           <p className="mt-1 text-lg font-semibold">
             {formatTripDayLong(match.teeTime.time)}
           </p>
-          <p className="font-mono text-base font-bold tabular-nums text-yellow-400">
+          <p className="font-mono text-base font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
             {formatTripTime(match.teeTime.time)} · Group {match.teeTime.groupNumber}
           </p>
         </div>
@@ -258,7 +258,7 @@ export default async function MatchDetailPage({
         </p>
         {liveMatch && liveMatch.holesPlayed > 0 ? (
           <>
-            <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-yellow-400">
+            <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
               {liveStatusText}
             </p>
             <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
@@ -355,7 +355,7 @@ function MatchupShowdown({ left, right }: { left: MatchSide; right: MatchSide })
         <StatsCell members={left.members} color={leftColor} align="left" />
         <div className="flex items-center px-1">
           <p
-            className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-yellow-400"
+            className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-yellow-800 dark:text-yellow-400"
             style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
           >
             Rating
@@ -488,7 +488,7 @@ function StatRow({
   return (
     <div>
       <p
-        className="truncate font-mono text-[11px] font-bold uppercase tracking-widest text-yellow-300"
+        className="truncate font-mono text-[11px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300"
         style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
       >
         {member.nickname}

@@ -110,7 +110,7 @@ export default async function AdminPlayersPage({
                       </span>
                     )}
                     {p.role === 'trip_admin' && (
-                      <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-yellow-400">
+                      <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-400">
                         Admin
                       </span>
                     )}

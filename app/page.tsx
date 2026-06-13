@@ -376,7 +376,7 @@ export default async function Home() {
                 <Reveal key={step.num} delay={i * 0.06}>
                   <li className="flex gap-5 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-5 transition-colors hover:border-zinc-700">
                     <div className="flex flex-col items-center gap-3">
-                      <span className="font-mono text-sm font-bold tracking-widest text-yellow-500">
+                      <span className="font-mono text-sm font-bold tracking-widest text-yellow-800 dark:text-yellow-500">
                         {step.num}
                       </span>
                       <span
@@ -543,7 +543,7 @@ function SectionKicker({
   return (
     <div className={`flex items-center gap-3 ${center ? 'justify-center' : ''}`}>
       <span className="h-px w-8 bg-yellow-600/60" aria-hidden="true" />
-      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
         {children}
       </p>
       <span className="h-px w-8 bg-yellow-600/60" aria-hidden="true" />
@@ -580,7 +580,7 @@ type FeatureCopyProps = {
 function FeatureCopy({ kicker, headingId, heading, body, bullets, icon: Icon }: FeatureCopyProps) {
   return (
     <div>
-      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
         {kicker}
       </p>
       <h2
@@ -594,7 +594,7 @@ function FeatureCopy({ kicker, headingId, heading, body, bullets, icon: Icon }: 
         {bullets.map((b) => (
           <li key={b} className="flex items-start gap-3 text-sm text-zinc-700 dark:text-zinc-300">
             <span
-              className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-sm bg-zinc-100 dark:bg-zinc-900 text-yellow-500"
+              className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-sm bg-zinc-100 dark:bg-zinc-900 text-yellow-800 dark:text-yellow-500"
               aria-hidden="true"
             >
               <Icon size={13} strokeWidth={2.5} />
@@ -616,7 +616,7 @@ function ScheduleMock() {
     >
       <div className="flex items-center gap-3">
         <span className="h-px w-6 bg-yellow-600/60" aria-hidden="true" />
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-500">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
           Itinerary
         </p>
       </div>
@@ -629,7 +629,7 @@ function ScheduleMock() {
               key={d}
               className={`rounded-sm border px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-widest ${
                 active
-                  ? 'border-yellow-500/60 bg-yellow-500/10 text-yellow-400'
+                  ? 'border-yellow-500/60 bg-yellow-500/10 text-yellow-800 dark:text-yellow-400'
                   : 'border-zinc-300 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900/60 text-zinc-500'
               }`}
             >
@@ -691,7 +691,7 @@ function ScheduleMatchRow({
     <div>
       <div className="flex items-center justify-between gap-2">
         <span
-          className="inline-block rounded-sm border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.25em] text-yellow-400"
+          className="inline-block rounded-sm border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.25em] text-yellow-800 dark:text-yellow-400"
         >
           {item.badge}
         </span>
@@ -749,7 +749,7 @@ function ScoreboardMock() {
     >
       <div className="flex items-center gap-3">
         <span className="h-px w-6 bg-yellow-600/60" aria-hidden="true" />
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-500">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
           Cup standings
         </p>
       </div>
@@ -1054,7 +1054,7 @@ function MatchupCardMock({
         <ShowcaseStats players={left} color={leftColor} align="left" />
         <div className="flex items-center px-1">
           <p
-            className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-yellow-400"
+            className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-yellow-800 dark:text-yellow-400"
             style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
           >
             Rating
@@ -1158,7 +1158,7 @@ function ShowcaseStatRow({
   return (
     <div>
       <p
-        className="truncate font-mono text-[11px] font-bold uppercase tracking-widest text-yellow-300"
+        className="truncate font-mono text-[11px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300"
         style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
       >
         {player.nickname.toUpperCase()}

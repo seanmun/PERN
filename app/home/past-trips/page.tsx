@@ -44,7 +44,7 @@ export default async function PastTripsPage() {
       </Link>
 
       <header className="mt-6">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
           Past trips
         </p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">

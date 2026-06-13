@@ -36,7 +36,7 @@ export default async function MePage({
     return (
       <div className="mx-auto max-w-md px-4 py-16">
         <div className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900/40 p-6">
-          <p className="font-mono text-xs uppercase tracking-widest text-yellow-400">
+          <p className="font-mono text-xs uppercase tracking-widest text-yellow-800 dark:text-yellow-400">
             Not on the roster
           </p>
           <p className="mt-3 text-zinc-700 dark:text-zinc-300">

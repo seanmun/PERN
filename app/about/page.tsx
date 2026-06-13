@@ -174,7 +174,7 @@ export default function AboutPage() {
         </Link>
 
         <header className="mt-8">
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
             About
           </p>
           <h1 className="mt-3 text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-5xl">
@@ -188,7 +188,7 @@ export default function AboutPage() {
 
         {/* ───────────────── Setup ───────────────── */}
         <section className="mt-16">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
             Set up an event
           </h2>
           <p className="mt-3 text-zinc-600 dark:text-zinc-400">
@@ -203,7 +203,7 @@ export default function AboutPage() {
                 className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 sm:p-5"
               >
                 <div className="flex items-start gap-4">
-                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-500">
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
                     {step.num}
                   </p>
                   <div className="min-w-0 flex-1">
@@ -220,7 +220,7 @@ export default function AboutPage() {
 
         {/* ───────────────── Event types ───────────────── */}
         <section className="mt-16">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
             Event types
           </h2>
           <p className="mt-3 text-zinc-600 dark:text-zinc-400">
@@ -235,7 +235,7 @@ export default function AboutPage() {
                 className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4"
               >
                 <p
-                  className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-500"
+                  className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500"
                 >
                   {k.name}
                 </p>
@@ -252,7 +252,7 @@ export default function AboutPage() {
 
         {/* ───────────────── Round formats ───────────────── */}
         <section className="mt-16">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
             Round &amp; match formats
           </h2>
           <p className="mt-3 text-zinc-600 dark:text-zinc-400">
@@ -266,7 +266,7 @@ export default function AboutPage() {
                 key={f.name}
                 className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 sm:p-5"
               >
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-500">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
                   {f.name}
                 </p>
                 <p className="mt-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">
@@ -303,7 +303,7 @@ export default function AboutPage() {
 
         {/* ───────────────── Stacked matches ───────────────── */}
         <section className="mt-16">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
             Side matches (stacking)
           </h2>
           <p className="mt-3 text-zinc-600 dark:text-zinc-400">
@@ -329,7 +329,7 @@ export default function AboutPage() {
 
         {/* ───────────────── How scoring is shown ───────────────── */}
         <section className="mt-16">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
             How scoring shows up
           </h2>
           <p className="mt-3 text-zinc-600 dark:text-zinc-400">
@@ -339,7 +339,7 @@ export default function AboutPage() {
 
           <div className="mt-6 space-y-3">
             <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 sm:p-5">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-500">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
                 Team Cup points
               </p>
               <p className="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
@@ -352,7 +352,7 @@ export default function AboutPage() {
             </div>
 
             <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 sm:p-5">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-500">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
                 Individual leaderboard
               </p>
               <p className="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
@@ -372,7 +372,7 @@ export default function AboutPage() {
             </div>
 
             <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 sm:p-5">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-500">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
                 Live status (the leaning gradient)
               </p>
               <p className="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">

@@ -72,7 +72,7 @@ export default async function NewRoundPage({
           </select>
           <Link
             href={`/trips/${slug}/admin/courses/new?redirectTo=/trips/${slug}/admin/rounds/new`}
-            className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-400 hover:text-yellow-300"
+            className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-400 hover:text-yellow-300"
           >
             <Plus size={11} /> Add new course
           </Link>
@@ -145,7 +145,7 @@ function Field({
     <label className="block">
       <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
         {label}
-        {required && <span className="ml-1 text-yellow-500">*</span>}
+        {required && <span className="ml-1 text-yellow-800 dark:text-yellow-500">*</span>}
       </span>
       {children}
       {hint && <p className="mt-1.5 text-[11px] text-zinc-500">{hint}</p>}

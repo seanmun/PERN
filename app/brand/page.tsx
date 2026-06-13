@@ -59,7 +59,7 @@ export default function BrandPage() {
         </Link>
 
         <header className="mt-8">
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
             Brand
           </p>
           <h1 className="mt-3 text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-5xl">
@@ -74,7 +74,7 @@ export default function BrandPage() {
 
         {/* Palette */}
         <section className="mt-16">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
             Palette
           </h2>
           <p className="mt-3 text-zinc-600 dark:text-zinc-400">
@@ -106,7 +106,7 @@ export default function BrandPage() {
 
         {/* Typography */}
         <section className="mt-16">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
             Typography
           </h2>
           <p className="mt-3 text-zinc-600 dark:text-zinc-400">
@@ -132,7 +132,7 @@ export default function BrandPage() {
               <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500">
                 Geist Mono · Labels
               </p>
-              <p className="mt-2 font-mono text-xs font-bold uppercase tracking-[0.35em] text-yellow-500">
+              <p className="mt-2 font-mono text-xs font-bold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
                 Defend the cup · Round 03 · Live
               </p>
               <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
@@ -145,7 +145,7 @@ export default function BrandPage() {
 
         {/* Theory */}
         <section className="mt-16">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
             Design theory
           </h2>
           <div className="mt-4 space-y-5 leading-relaxed text-zinc-700 dark:text-zinc-300">
@@ -168,7 +168,7 @@ export default function BrandPage() {
             </p>
             <p>
               <strong className="text-zinc-900 dark:text-zinc-100">Dark, with edges.</strong>{' '}
-              Sharp corners (Tailwind’s <code className="font-mono text-yellow-500">rounded-sm</code>)
+              Sharp corners (Tailwind’s <code className="font-mono text-yellow-800 dark:text-yellow-500">rounded-sm</code>)
               over pill shapes. Visible borders. Black surfaces with one‑pixel
               hairline rules between sections — never floating cards in soft
               gradients.

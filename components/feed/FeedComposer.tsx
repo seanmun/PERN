@@ -141,7 +141,7 @@ export default function FeedComposer({
       >
         {/* Sticky header */}
         <div className="flex shrink-0 items-center justify-between border-b border-zinc-300 dark:border-zinc-800 px-4 py-3">
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-yellow-500">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
             New post
           </p>
           <button
@@ -161,7 +161,7 @@ export default function FeedComposer({
             onClick={() => setMode('media')}
             className={`flex flex-1 items-center justify-center gap-2 py-3 font-mono text-[11px] font-semibold uppercase tracking-widest ${
               mode === 'media'
-                ? 'bg-yellow-500/10 text-yellow-300'
+                ? 'bg-yellow-500/10 text-yellow-800 dark:text-yellow-300'
                 : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900'
             }`}
           >
@@ -172,7 +172,7 @@ export default function FeedComposer({
             onClick={() => setMode('text')}
             className={`flex flex-1 items-center justify-center gap-2 py-3 font-mono text-[11px] font-semibold uppercase tracking-widest ${
               mode === 'text'
-                ? 'bg-yellow-500/10 text-yellow-300'
+                ? 'bg-yellow-500/10 text-yellow-800 dark:text-yellow-300'
                 : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900'
             }`}
           >

@@ -48,7 +48,7 @@ export default function ExtractScorecardButton({
         type="button"
         onClick={request}
         disabled={isPending}
-        className="flex w-full items-center justify-center gap-2 rounded-sm border border-yellow-500/50 bg-yellow-500/10 px-4 py-3 font-mono text-xs font-bold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20 disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-sm border border-yellow-500/50 bg-yellow-500/10 px-4 py-3 font-mono text-xs font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20 disabled:opacity-60"
       >
         {isPending ? (
           <>

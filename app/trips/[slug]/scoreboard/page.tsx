@@ -58,7 +58,7 @@ export default async function ScoreboardPage({
     // No match yet — fall through to a stub.
     return (
       <div className="mx-auto max-w-md px-4 pt-10">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
           No match yet
         </p>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
@@ -78,7 +78,7 @@ export default async function ScoreboardPage({
   const board = await getLeaderboard(trip.id);
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6 pb-24">
-      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
         Cup standings
       </p>
       <h1 className="mt-1 text-3xl font-bold tracking-tight">{trip.name}</h1>
@@ -117,7 +117,7 @@ function TripIndividualLeaderboard({
         {overflow > 0 && (
           <Link
             href={`/trips/${slug}/scoreboard/leaderboard`}
-            className="font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-400 hover:text-yellow-300"
+            className="font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-400 hover:text-yellow-300"
           >
             View all {board.playerTotals.length} →
           </Link>
@@ -206,7 +206,7 @@ async function OutingLiveBoard({
 
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6 pb-24">
-      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
         Outing live board
       </p>
       <h1 className="mt-1 text-3xl font-bold tracking-tight">{tripName}</h1>
@@ -251,7 +251,7 @@ async function OutingLiveBoard({
                 {/* Tee-time header — shown once per group with team names */}
                 <div className="border-b border-zinc-200 dark:border-zinc-900 px-3 py-2.5">
                   <div className="flex items-baseline justify-between gap-3">
-                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-500">
+                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
                       Group {teeTime?.groupNumber ?? '—'}
                     </p>
                     <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-600">
@@ -336,7 +336,7 @@ async function OutingLiveBoard({
             {lbOverflow > 0 && (
               <Link
                 href={`/trips/${slug}/scoreboard/leaderboard`}
-                className="font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-400 hover:text-yellow-300"
+                className="font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-400 hover:text-yellow-300"
               >
                 View all {board.playerTotals.length} →
               </Link>
@@ -463,7 +463,7 @@ function MatchLiveRow({
 
       <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <SideNicknames side={sideA} align="left" />
-        <p className="font-mono text-2xl font-bold tabular-nums text-yellow-400">
+        <p className="font-mono text-2xl font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
           <span style={{ color: sideA?.color ?? undefined }}>{upA}</span>
           <span className="mx-1 text-zinc-700">·</span>
           <span style={{ color: sideB?.color ?? undefined }}>{upB}</span>

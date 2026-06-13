@@ -51,7 +51,7 @@ export default function ConfirmDialog({
   if (typeof window === 'undefined') return null;
 
   const Icon = tone === 'danger' ? AlertTriangle : Info;
-  const iconColor = tone === 'danger' ? 'text-red-400' : 'text-yellow-400';
+  const iconColor = tone === 'danger' ? 'text-red-400' : 'text-yellow-800 dark:text-yellow-400';
   const confirmBtn =
     tone === 'danger'
       ? 'bg-red-500 text-black hover:bg-red-400'

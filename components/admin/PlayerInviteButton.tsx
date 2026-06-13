@@ -78,7 +78,7 @@ export default function PlayerInviteButton({
           e.stopPropagation();
           send();
         }}
-        className="flex items-center gap-1 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+        className="flex items-center gap-1 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
       >
         <Mail size={11} /> Invite
       </button>

@@ -71,8 +71,8 @@ export default async function EventDetailPage({
       <div className="mt-6 flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <Icon size={16} className="text-yellow-500" />
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+            <Icon size={16} className="text-yellow-800 dark:text-yellow-500" />
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
               {eventTypeLabel(event.type)}
             </p>
           </div>
@@ -92,7 +92,7 @@ export default async function EventDetailPage({
       <dl className="mt-8 space-y-5">
         <Row label="When">
           <p className="text-base font-medium">{formatTripDayLong(event.startTime)}</p>
-          <p className="font-mono text-sm tabular-nums text-yellow-400">
+          <p className="font-mono text-sm tabular-nums text-yellow-800 dark:text-yellow-400">
             {formatTripTime(event.startTime)}
             {event.endTime && ` — ${formatTripTime(event.endTime)}`}
           </p>
@@ -119,7 +119,7 @@ export default async function EventDetailPage({
           href={mapsUrl(mapQuery)}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-8 flex w-full items-center justify-center gap-2 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-yellow-300 hover:bg-yellow-500/20"
+          className="mt-8 flex w-full items-center justify-center gap-2 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
         >
           <MapPin size={14} /> Open in Maps
         </a>

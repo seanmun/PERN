@@ -164,7 +164,7 @@ export default async function EditRoundPage({
           </select>
           <Link
             href={`/trips/${slug}/admin/courses/${round.courseId}/edit`}
-            className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-400 hover:text-yellow-300"
+            className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-400 hover:text-yellow-300"
           >
             Edit course holes →
           </Link>
@@ -258,7 +258,7 @@ export default async function EditRoundPage({
           {teeTimesList.length === 0 ? (
             <Link
               href={`/trips/${slug}/admin/tee-times/new?roundId=${round.id}`}
-              className="flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-yellow-500/40 bg-yellow-500/5 px-4 py-6 font-mono text-xs font-bold uppercase tracking-widest text-yellow-300 hover:border-yellow-500/70 hover:bg-yellow-500/10"
+              className="flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-yellow-500/40 bg-yellow-500/5 px-4 py-6 font-mono text-xs font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:border-yellow-500/70 hover:bg-yellow-500/10"
             >
               <Plus size={14} strokeWidth={2.5} /> Add the first group
             </Link>
@@ -274,7 +274,7 @@ export default async function EditRoundPage({
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-mono text-sm font-bold tabular-nums text-yellow-400">
+                      <p className="font-mono text-sm font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
                         {tt.time ? formatTripTime(tt.time) : '—:—'}
                         <span className="ml-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
                           Group {tt.groupNumber}
@@ -347,7 +347,7 @@ export default async function EditRoundPage({
                     )}
                     <Link
                       href={`/trips/${slug}/matches/new?teeTimeId=${tt.id}`}
-                      className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-yellow-500/40 bg-yellow-500/5 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-300 hover:border-yellow-500/70 hover:bg-yellow-500/10"
+                      className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-yellow-500/40 bg-yellow-500/5 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:border-yellow-500/70 hover:bg-yellow-500/10"
                     >
                       <Plus size={12} strokeWidth={2.5} />
                       {tteMatches.length === 0
@@ -363,7 +363,7 @@ export default async function EditRoundPage({
           {teeTimesList.length > 0 && (
             <Link
               href={`/trips/${slug}/admin/tee-times/new?roundId=${round.id}`}
-              className="flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-yellow-500/40 bg-yellow-500/5 px-4 py-3 font-mono text-xs font-bold uppercase tracking-widest text-yellow-300 hover:border-yellow-500/70 hover:bg-yellow-500/10"
+              className="flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-yellow-500/40 bg-yellow-500/5 px-4 py-3 font-mono text-xs font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:border-yellow-500/70 hover:bg-yellow-500/10"
             >
               <Plus size={14} strokeWidth={2.5} /> Add another group (Group {teeTimesList.length + 1})
             </Link>
@@ -396,7 +396,7 @@ function Field({
     <label className="block">
       <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
         {label}
-        {required && <span className="ml-1 text-yellow-500">*</span>}
+        {required && <span className="ml-1 text-yellow-800 dark:text-yellow-500">*</span>}
       </span>
       {children}
       {hint && <p className="mt-1.5 text-[11px] text-zinc-500">{hint}</p>}

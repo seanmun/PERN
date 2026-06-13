@@ -55,7 +55,7 @@ export default function NewTripForm({ kind = 'trip' }: { kind?: Kind }) {
       <section className="space-y-5">
         <div>
           <label htmlFor="trip-name" className={labelCls}>
-            {copy.nameLabel} <span className="text-yellow-500">*</span>
+            {copy.nameLabel} <span className="text-yellow-800 dark:text-yellow-500">*</span>
           </label>
           <input
             id="trip-name"
@@ -72,7 +72,7 @@ export default function NewTripForm({ kind = 'trip' }: { kind?: Kind }) {
 
         <div>
           <label htmlFor="trip-slug" className={labelCls}>
-            URL slug <span className="text-yellow-500">*</span>
+            URL slug <span className="text-yellow-800 dark:text-yellow-500">*</span>
           </label>
           <div className="mt-1.5 flex items-stretch overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 focus-within:border-yellow-500/60 focus-within:ring-1 focus-within:ring-yellow-500/40">
             <span className="flex items-center bg-zinc-100 dark:bg-zinc-900 px-3 font-mono text-[11px] text-zinc-500">

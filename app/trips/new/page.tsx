@@ -52,7 +52,7 @@ export default async function NewTripPage({
       </Link>
 
       <header className="mt-6">
-        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
           {copy.eyebrow}
         </p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">

@@ -31,7 +31,7 @@ export default async function FullLeaderboardPage({
         <ArrowLeft size={12} /> Cup
       </Link>
 
-      <p className="mt-6 font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-500">
+      <p className="mt-6 font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
         Individual leaderboard
       </p>
       <h1 className="mt-1 text-3xl font-bold tracking-tight">{trip.name}</h1>

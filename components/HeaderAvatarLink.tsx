@@ -42,7 +42,7 @@ export default function HeaderAvatarLink({
         <Link
           href={`/trips/${tripSlug}/admin`}
           aria-label="Trip admin"
-          className="flex h-9 items-center gap-1.5 rounded-sm border border-yellow-600/40 bg-yellow-600/10 px-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-yellow-400 hover:bg-yellow-600/20"
+          className="flex h-9 items-center gap-1.5 rounded-sm border border-yellow-600/40 bg-yellow-600/10 px-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-yellow-800 dark:text-yellow-400 hover:bg-yellow-600/20"
         >
           <Cog size={12} strokeWidth={2.5} />
           Admin
