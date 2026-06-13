@@ -4,29 +4,44 @@ import { ArrowLeft } from 'lucide-react';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { getTeeTimeScoringData } from '@/lib/data/tee-time-scoring';
-import { computeStrokes } from '@/lib/scoring/engine';
-import { isIndividualInput, type FormatId } from '@/lib/scoring/formats';
+import { computeStrokes, computeTeamMatch } from '@/lib/scoring/engine';
 import ScoreEntryClient, {
   type ScoreClientPlayer,
   type ScoreClientHole,
   type ScoreClientScore,
+  type ScoreClientTeam,
+  type ScoreClientTeamScore,
 } from '@/components/score-entry/ScoreEntryClient';
 
 /**
- * Foursome-keyed score entry. Step 3 of docs/match-template-spec.md —
- * the new canonical score-entry surface, replacing /matches/[id]/score
- * for individual-input formats.
+ * Foursome-keyed score entry. The canonical score-entry surface as of
+ * step 4 of docs/match-template-spec.md — handles both individual-input
+ * formats (singles, best ball, two-man aggregate, stroke) and
+ * team-input formats (scramble, alternate shot).
  *
- * For now we resolve the tee time to its widest match and reuse the
- * legacy match-scoring loader as a proxy. The same widest-match
- * heuristic the schedule already uses, just relocated. Step 4 will
- * swap in a real foursome-roster loader and add the team-line section
- * for scramble / alt shot.
- *
- * Team-input formats (scramble, alternate_shot) deliberately fall back
- * to the legacy /matches/[id]/score route until step 4 — keeps this PR
- * additive and avoids shipping a half-built team-line surface.
+ * Still a thin proxy over the legacy match-scoring loader: resolves
+ * teeTimeId → widest match in the tee time, then renders that match's
+ * scorecard. Step 5+ swap the loader for a real foursome-roster
+ * resolver so cross-foursome matches and same-tee-time stacked
+ * matches work without the widest-match heuristic.
  */
+function validTeamSetup(data: {
+  match: { format: string };
+  participants: { team: { id: string } }[];
+}): boolean {
+  const byTeam = new Map<string, number>();
+  for (const p of data.participants) {
+    byTeam.set(p.team.id, (byTeam.get(p.team.id) ?? 0) + 1);
+  }
+  if (byTeam.size !== 2) return false;
+  const counts = Array.from(byTeam.values());
+  if (data.match.format === 'alternate_shot') {
+    return counts.every((n) => n === 2);
+  }
+  // scramble — USGA formulas exist for 2 or 4 per side.
+  return counts.every((n) => n === 2 || n === 4);
+}
+
 export default async function TeeTimeScoreEntryPage({
   params,
 }: {
@@ -41,13 +56,6 @@ export default async function TeeTimeScoreEntryPage({
 
   const data = await getTeeTimeScoringData(teeTimeId);
   if (!data) notFound();
-
-  // Step 4 deliverable. Until team-line entry ships on this route, send
-  // scramble/alt-shot users back to the legacy match-keyed surface so
-  // their match remains scoreable through the rollout.
-  if (!isIndividualInput(data.match.format as FormatId)) {
-    redirect(`/trips/${slug}/matches/${data.match.id}/score`);
-  }
 
   const selfTripMemberId = ctx.tripMember?.id ?? null;
   const isAdmin =
@@ -91,6 +99,59 @@ export default async function TeeTimeScoreEntryPage({
     holeNumber: s.holeNumber,
     gross: s.gross,
   }));
+
+  // Team-input formats: collapse the 4 participants into 2 team rows.
+  // Team handicap + per-hole stroke allocation come from the team
+  // engine; the UI renders the result.
+  let teamsForClient: ScoreClientTeam[] = [];
+  let initialTeamScores: ScoreClientTeamScore[] = [];
+  if (
+    data.inputMode === 'team' &&
+    data.engineTeams &&
+    data.engineTeams.length === 2
+  ) {
+    const teamComputed = computeTeamMatch({
+      teams: [data.engineTeams[0], data.engineTeams[1]],
+      holes: data.engineHoles,
+      scores: data.engineTeamScores ?? [],
+    });
+    teamsForClient = data.engineTeams.map((et) => {
+      const teammates = data.participants.filter((p) => p.team.id === et.id);
+      const team = teammates[0]?.team;
+      const memberLine = teammates
+        .map((p) => p.participant.nickname)
+        .join(' & ');
+      const isSelfOnTeam = teammates.some(
+        (p) => p.participant.id === selfTripMemberId,
+      );
+      const strokesByHole: Record<number, number> = {};
+      const strokes = teamComputed.strokesByPlayer.get(et.id);
+      if (strokes) {
+        for (const [holeNum, n] of strokes) strokesByHole[holeNum] = n;
+      }
+      return {
+        teamId: et.id,
+        name: team?.name ?? 'Team',
+        color: team?.color ?? null,
+        memberLine,
+        teamHandicap: et.handicap,
+        isSelfOnTeam,
+        strokesByHole,
+      };
+    });
+    // Non-admins only see their own team's row so a player can't
+    // accidentally enter the opposing team's score. Admins still get
+    // both rows for fix-ups.
+    if (!isAdmin) {
+      teamsForClient = teamsForClient.filter((t) => t.isSelfOnTeam);
+    }
+    initialTeamScores =
+      data.engineTeamScores?.map((s) => ({
+        teamId: s.teamId,
+        holeNumber: s.holeNumber,
+        gross: s.gross,
+      })) ?? [];
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-4">
@@ -140,6 +201,26 @@ export default async function TeeTimeScoreEntryPage({
             </Link>
           )}
         </div>
+      ) : data.inputMode === 'team' && !validTeamSetup(data) ? (
+        <div className="mt-8 rounded-sm border border-yellow-600/30 bg-yellow-500/5 p-6">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.25em] text-yellow-800 dark:text-yellow-400">
+            Roster doesn&apos;t match this format
+          </p>
+          <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
+            {data.match.format === 'scramble'
+              ? 'Scramble needs 2 or 4 players per team (matching teams on both sides).'
+              : 'Alternate shot needs exactly 2 players per team.'}{' '}
+            Edit the matchup so each side has the right number of participants.
+          </p>
+          {isAdmin && (
+            <Link
+              href={`/trips/${slug}/matches/${data.match.id}/edit`}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-sm border border-yellow-500/50 bg-yellow-500/10 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
+            >
+              Edit matchup
+            </Link>
+          )}
+        </div>
       ) : (
         <ScoreEntryClient
           matchId={data.match.id}
@@ -148,7 +229,9 @@ export default async function TeeTimeScoreEntryPage({
           initialScores={initialScores}
           canEdit={isAdmin || selfIsParticipant}
           selfTripMemberId={selfTripMemberId}
-          mode="player"
+          mode={data.inputMode}
+          teams={teamsForClient}
+          initialTeamScores={initialTeamScores}
         />
       )}
     </div>
