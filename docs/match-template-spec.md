@@ -1,6 +1,6 @@
 # Match templates + foursome-first scoring
 
-> Planning doc. **No code lands until the open decisions below are answered.** This shifts the meaning of "match" in the data model, so we want to over-spec before we touch anything.
+> Planning doc. ~~No code lands until the open decisions below are answered.~~ **All five decisions resolved 2026-06-13** — see the [Decisions](#decisions-to-make-before-any-code) section. Implementation order at the bottom is the to-do list.
 
 ## Goal
 
@@ -146,45 +146,44 @@ No data migration scripts needed beyond optional column adds.
 
 ## Decisions to make before any code
 
-### Decision: format metadata location
+### Decision: format metadata location ✅
 
-- [ ] Hardcoded `const FORMAT_META` in `lib/scoring/formats.ts` — fast, no DB round-trip, breaks tests if anyone adds a format without updating the table.
-- [ ] `match_formats` table in DB — admin-editable in theory, more flexible long-term, more code to write.
+- [x] Hardcoded `const FORMAT_META` in `lib/scoring/formats.ts`
+- [ ] ~~`match_formats` table in DB~~
 
-**Recommendation:** hardcoded. Formats change rarely and the engine is already pure functions in `lib/scoring/`. We can promote to a table later if we ever ship a "build your own format" feature.
+**Resolved:** hardcoded. Formats change rarely and the engine is already pure functions in `lib/scoring/`. Promote to a table later only if "build your own format" ever becomes a feature.
 
-### Decision: do we still need `entry_mode`?
+### Decision: do we still need `entry_mode`? ✅
 
-The original derived-match idea was a workaround for tee-time-coupled score entry. Once entry is keyed to the tee time directly, every match is implicitly "derived" — its result comes from the canonical `hole_scores`. So `entry_mode` may be redundant.
+- [x] **Drop it.** All matches are derived. Score entry is per-tee-time, always.
+- [ ] ~~Keep it.~~
 
-- [ ] **Drop it.** All matches are derived. Score entry is per-tee-time, always.
-- [ ] **Keep it.** Some matches might want to record their own team-input scores (scramble) without an individual scorecard underneath. The team-line section of the foursome scorecard handles this, but maybe there's a future case.
+**Resolved:** dropped. The team-input section of the foursome scorecard covers the scramble/alt-shot case. Less schema, fewer concepts.
 
-**Recommendation:** drop it. The team-input section of the foursome scorecard covers the scramble/alt-shot case. Less schema, fewer concepts.
+### Decision: side size as enum vs scalar ✅
 
-### Decision: side size as enum vs scalar
+- [ ] ~~Bake side sizes into the format enum.~~
+- [x] Keep formats abstract, add `template_size_a` / `template_size_b` columns on `matches`.
 
-- [ ] Bake side sizes into the format enum: `scramble_2`, `scramble_4`, `best_ball_2v2`, `best_ball_4v4`, etc.
-- [ ] Keep formats abstract, add `template_size INT` columns.
+**Resolved:** scalar. The engine math is identical for 2v2 and 4v4 best ball — only roster size differs.
 
-**Recommendation:** scalar. The match-play engine math is the same for 2v2 and 4v4 best ball — the only difference is roster size. Doubling the enum is noise.
+### Decision: team-input rendering in the foursome scorecard ✅
 
-### Decision: team-input rendering in the foursome scorecard
+- [x] Render whichever rows have a live match consuming them.
 
-When the foursome's roster matches a 2-man scramble's roster (2 + 2), do we render:
+**Resolved:**
 
-- [ ] Both the individual rows AND the team line (admin enters both)
-- [ ] Only the team line (individual rows hidden because they don't drive any individual-input match)
-- [ ] Only the individual rows when no team-input match exists; team line replaces them when one does
+- Live matches with `inputMode='individual'` (singles, best ball, two-man aggregate, stroke) → render all 4 player rows.
+- Live matches with `inputMode='team'` (scramble, alternate shot) → render two team rows (one per side), no individual rows for that match's players.
+- Foursome has both → render both sections so the admin enters each once.
+- Foursome has no live match at all (rare — admin still building) → fall back to 4 individual rows.
 
-**Recommendation:** **render whichever rows have a live match consuming them.** If a foursome has only a scramble, render team rows only. If it has only individual-input matches, render individual rows only. If it has both, render both — admin will be entering both anyway.
+### Decision: validation strictness on save ✅
 
-### Decision: validation strictness on save
+- [x] Hard block save if validation fails.
+- [ ] ~~Soft warning, allow save.~~
 
-- [ ] Hard block save if validation fails (no broken matches in DB, ever).
-- [ ] Soft warning, allow save (admin can ship a "draft" lineup).
-
-**Recommendation:** hard block. We've already burned ourselves on shipping broken matchup data.
+**Resolved:** hard block. Save button stays disabled, failing reasons render inline above the button. No broken matchups ever in the DB.
 
 ## Out of scope (for this spec)
 
