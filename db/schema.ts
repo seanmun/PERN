@@ -214,6 +214,11 @@ export const matches = pgTable('matches', {
   // side bet in the same foursome. Defaults to the round's format when a new
   // match is created.
   format: roundFormatEnum('format').notNull(),
+  // Per-side roster size. Denormalized from match_participants so the slot
+  // validator doesn't have to recompute on every save. Same size on both
+  // sides for now — no 2v4 asymmetries. See docs/match-template-spec.md.
+  templateSizeA: integer('template_size_a').default(1).notNull(),
+  templateSizeB: integer('template_size_b').default(1).notNull(),
   status: matchStatusEnum('status').default('scheduled').notNull(),
   resultText: text('result_text'),
   winningTeamId: uuid('winning_team_id').references(() => teams.id),
