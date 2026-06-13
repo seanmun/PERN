@@ -12,26 +12,23 @@ import { promises as fs } from 'node:fs';
 
 // Map: dark default → light counterpart. Longest patterns first so partial
 // matches (bg-zinc-950 inside bg-zinc-950/40) don't fire prematurely.
-// Light-mode is intentionally LIGHT — secondary surfaces sit close to the
-// white body so cards don't feel heavy in daylight. Muted text sits at
-// zinc-500 (mid-grey) which is readable but unobtrusive on a white background.
 const SWAPS = [
   // Backgrounds — opacity variants
-  ['bg-zinc-950/40', 'bg-white'],
-  ['bg-zinc-950/60', 'bg-white'],
-  ['bg-zinc-950/20', 'bg-white'],
-  ['bg-zinc-950/30', 'bg-white'],
-  ['bg-zinc-900/40', 'bg-zinc-50'],
-  ['bg-zinc-900/60', 'bg-zinc-50'],
-  ['bg-zinc-900/20', 'bg-zinc-50'],
-  ['bg-zinc-900/30', 'bg-zinc-50'],
+  ['bg-zinc-950/40', 'bg-zinc-50'],
+  ['bg-zinc-950/60', 'bg-zinc-50'],
+  ['bg-zinc-950/20', 'bg-zinc-50'],
+  ['bg-zinc-950/30', 'bg-zinc-50'],
+  ['bg-zinc-900/40', 'bg-zinc-100'],
+  ['bg-zinc-900/60', 'bg-zinc-100'],
+  ['bg-zinc-900/20', 'bg-zinc-100'],
+  ['bg-zinc-900/30', 'bg-zinc-100'],
   // Solid dark surfaces
   ['bg-zinc-950', 'bg-white'],
-  ['bg-zinc-900', 'bg-zinc-50'],
-  ['bg-black/30', 'bg-white'],
-  ['bg-black/40', 'bg-white'],
-  ['bg-black/50', 'bg-white'],
-  ['bg-black/60', 'bg-white'],
+  ['bg-zinc-900', 'bg-zinc-100'],
+  ['bg-black/30', 'bg-zinc-50'],
+  ['bg-black/40', 'bg-zinc-50'],
+  ['bg-black/50', 'bg-zinc-50'],
+  ['bg-black/60', 'bg-zinc-50'],
   ['bg-black/80', 'bg-white/80'],
   ['bg-black/95', 'bg-white/95'],
   ['bg-black', 'bg-white'],
@@ -39,22 +36,23 @@ const SWAPS = [
   ['hover:bg-zinc-900/40', 'hover:bg-zinc-100'],
   ['hover:bg-zinc-900', 'hover:bg-zinc-100'],
   ['hover:bg-zinc-950', 'hover:bg-zinc-50'],
-  // Text — keep muted greys mid-toned, not dark
+  // Text
   ['text-zinc-100', 'text-zinc-900'],
-  ['text-zinc-200', 'text-zinc-600'],
-  ['text-zinc-300', 'text-zinc-500'],
-  ['text-zinc-400', 'text-zinc-500'],
+  ['text-zinc-200', 'text-zinc-800'],
+  ['text-zinc-300', 'text-zinc-700'],
+  ['text-zinc-400', 'text-zinc-600'],
+  // 500/600 sit in the middle — leave alone, they read on both backgrounds
   ['text-white', 'text-zinc-900'],
-  // Borders — keep very subtle in light mode
-  ['border-zinc-950', 'border-zinc-100'],
-  ['border-zinc-900/60', 'border-zinc-100'],
-  ['border-zinc-900', 'border-zinc-100'],
-  ['border-zinc-800', 'border-zinc-200'],
-  ['border-zinc-700', 'border-zinc-300'],
-  ['border-zinc-600', 'border-zinc-400'],
+  // Borders
+  ['border-zinc-950', 'border-zinc-200'],
+  ['border-zinc-900/60', 'border-zinc-200'],
+  ['border-zinc-900', 'border-zinc-200'],
+  ['border-zinc-800', 'border-zinc-300'],
+  ['border-zinc-700', 'border-zinc-400'],
+  ['border-zinc-600', 'border-zinc-500'],
   // divide-y variants
-  ['divide-zinc-900', 'divide-zinc-100'],
-  ['divide-zinc-800', 'divide-zinc-200'],
+  ['divide-zinc-900', 'divide-zinc-200'],
+  ['divide-zinc-800', 'divide-zinc-300'],
 ];
 
 const FILES = process.argv.slice(2);
