@@ -428,13 +428,13 @@ function PlayerHoleRow({
       >
         <span
           className={`font-mono text-3xl font-bold leading-none tabular-nums ${
-            score == null ? 'text-zinc-500' : 'text-zinc-900 dark:text-zinc-100'
+            score == null ? 'text-zinc-300 dark:text-zinc-700' : 'text-zinc-900 dark:text-zinc-100'
           }`}
         >
           {score ?? hole.par}
         </span>
         {score == null && (
-          <span className="mt-0.5 font-mono text-[8px] font-semibold uppercase tracking-widest text-zinc-500">
+          <span className="mt-0.5 font-mono text-[8px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-600">
             Par
           </span>
         )}
@@ -863,13 +863,13 @@ function TeamHoleRow({
       >
         <span
           className={`font-mono text-3xl font-bold leading-none tabular-nums ${
-            score == null ? 'text-zinc-500' : 'text-zinc-900 dark:text-zinc-100'
+            score == null ? 'text-zinc-300 dark:text-zinc-700' : 'text-zinc-900 dark:text-zinc-100'
           }`}
         >
           {score ?? hole.par}
         </span>
         {score == null && (
-          <span className="mt-0.5 font-mono text-[8px] font-semibold uppercase tracking-widest text-zinc-500">
+          <span className="mt-0.5 font-mono text-[8px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-600">
             Par
           </span>
         )}
