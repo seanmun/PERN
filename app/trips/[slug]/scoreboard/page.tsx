@@ -327,33 +327,39 @@ async function OutingLiveBoard({
         </div>
       )}
 
-      {board.playerTotals.length > 0 && (
-        <section className="mt-10">
-          <div className="flex items-baseline justify-between">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
-              Individual leaderboard
-            </p>
-            {lbOverflow > 0 && (
-              <Link
-                href={`/trips/${slug}/scoreboard/leaderboard`}
-                className="font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-400 hover:text-yellow-300"
-              >
-                View all {board.playerTotals.length} →
-              </Link>
-            )}
-          </div>
-          <div className="mt-3 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800">
-            {lbVisible.map((p, i) => (
-              <PlayerRow key={p.tripMemberId} player={p} rank={i + 1} slug={slug} />
-            ))}
-          </div>
+      <section className="mt-10">
+        <div className="flex items-baseline justify-between">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
+            Individual leaderboard
+          </p>
           {lbOverflow > 0 && (
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-zinc-600">
-              +{lbOverflow} more
-            </p>
+            <Link
+              href={`/trips/${slug}/scoreboard/leaderboard`}
+              className="font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-400 hover:text-yellow-300"
+            >
+              View all {board.playerTotals.length} →
+            </Link>
           )}
-        </section>
-      )}
+        </div>
+        {lbVisible.length > 0 ? (
+          <>
+            <div className="mt-3 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800">
+              {lbVisible.map((p, i) => (
+                <PlayerRow key={p.tripMemberId} player={p} rank={i + 1} slug={slug} />
+              ))}
+            </div>
+            {lbOverflow > 0 && (
+              <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-zinc-600">
+                +{lbOverflow} more
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="mt-3 text-sm text-zinc-500">
+            No players in this trip yet.
+          </p>
+        )}
+      </section>
     </div>
   );
 }
