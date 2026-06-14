@@ -68,6 +68,21 @@ export default function MatchBuilder({
   const [sideSize, setSideSize] = useState<number>(
     meta.allowedSideSizes[0] ?? 1,
   );
+  // How the match is RESOLVED (orthogonal to format). Default
+  // match_play; stableford = sum of per-hole points; stroke is reserved
+  // for stroke-play scoring (low total wins).
+  const [scoring, setScoring] = useState<'match_play' | 'stableford' | 'stroke'>(
+    'match_play',
+  );
+  // Stableford point overrides — null per slot = use the default.
+  // Shown only when scoring === 'stableford'.
+  const [pts, setPts] = useState<{
+    eagle: number;
+    birdie: number;
+    par: number;
+    bogey: number;
+    doublePlus: number;
+  }>({ eagle: 4, birdie: 3, par: 2, bogey: 1, doublePlus: 0 });
   const [sideATeamId, setSideATeamId] = useState<string>(
     teams[0]?.id ?? '',
   );
@@ -209,6 +224,14 @@ export default function MatchBuilder({
         <input type="hidden" name="roundId" value={roundId} />
         <input type="hidden" name="tripSlug" value={tripSlug} />
         <input type="hidden" name="state" value={payload} />
+        <input type="hidden" name="scoring" value={scoring} />
+        {scoring === 'stableford' && (
+          <input
+            type="hidden"
+            name="stablefordPoints"
+            value={JSON.stringify(pts)}
+          />
+        )}
         {/* The URL's teeTimeId is the admin's explicit "this match
             belongs to this foursome" choice. Posted so the action can
             override the derived teeTimeId, which is null when this is
@@ -255,6 +278,60 @@ export default function MatchBuilder({
             </label>
           )}
         </div>
+
+        {/* Scoring picker — orthogonal to format. Match play is the
+            default; stableford sums per-hole points (admin can tweak
+            the point scale below). */}
+        <label className="block">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+            Scoring
+          </span>
+          <select
+            value={scoring}
+            onChange={(e) => setScoring(e.target.value as 'match_play' | 'stableford' | 'stroke')}
+            className="mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
+          >
+            <option value="match_play">Match Play (1 UP / 2 &amp; 1)</option>
+            <option value="stableford">Stableford (point system)</option>
+          </select>
+        </label>
+
+        {scoring === 'stableford' && (
+          <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+              Stableford points
+            </p>
+            <p className="mt-1 text-[11px] text-zinc-500">
+              Standard scale below. For Modified Stableford set
+              5/2/0/−1/−3.
+            </p>
+            <div className="mt-3 grid grid-cols-5 gap-2">
+              {(
+                [
+                  ['eagle', 'Eagle'],
+                  ['birdie', 'Birdie'],
+                  ['par', 'Par'],
+                  ['bogey', 'Bogey'],
+                  ['doublePlus', 'Dbl+'],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="block">
+                  <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
+                    {label}
+                  </span>
+                  <input
+                    type="number"
+                    value={pts[key]}
+                    onChange={(e) =>
+                      setPts((prev) => ({ ...prev, [key]: Number(e.target.value) }))
+                    }
+                    className="mt-1 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2 py-1.5 text-right font-mono text-sm tabular-nums focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Format hint */}
         <p className="text-[11px] text-zinc-500">

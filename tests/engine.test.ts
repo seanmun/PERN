@@ -16,6 +16,9 @@ import {
   computeMatch,
   computeTeamMatch,
   computeTeamHandicap,
+  computeStableford,
+  pointsForNetVsPar,
+  DEFAULT_STABLEFORD_POINTS,
   formatStatus,
   winnerSide,
   type EnginePlayer,
@@ -465,5 +468,124 @@ describe('Match closure logic', () => {
     });
     expect(winnerSide(computed.status)).toBe('A');
     expect(formatStatus(computed.status)).toBe('10 & 8');
+  });
+});
+
+
+describe('pointsForNetVsPar', () => {
+  it('eagle, birdie, par, bogey, double+ → default scale', () => {
+    expect(pointsForNetVsPar(-2)).toBe(4); // eagle (or better)
+    expect(pointsForNetVsPar(-3)).toBe(4); // albatross still scores eagle pts on default
+    expect(pointsForNetVsPar(-1)).toBe(3); // birdie
+    expect(pointsForNetVsPar(0)).toBe(2);  // par
+    expect(pointsForNetVsPar(1)).toBe(1);  // bogey
+    expect(pointsForNetVsPar(2)).toBe(0);  // double bogey
+    expect(pointsForNetVsPar(5)).toBe(0);  // quad+ — still bottom bucket
+  });
+
+  it('Modified Stableford (5 / 2 / 0 / -1 / -3) maps correctly', () => {
+    const mod = { eagle: 5, birdie: 2, par: 0, bogey: -1, doublePlus: -3 };
+    expect(pointsForNetVsPar(-2, mod)).toBe(5);
+    expect(pointsForNetVsPar(-1, mod)).toBe(2);
+    expect(pointsForNetVsPar(0, mod)).toBe(0);
+    expect(pointsForNetVsPar(1, mod)).toBe(-1);
+    expect(pointsForNetVsPar(2, mod)).toBe(-3);
+  });
+});
+
+describe('computeStableford', () => {
+  it('scratch player makes par all 18 → 36 points (default scale)', () => {
+    const players: EnginePlayer[] = [
+      { id: 'Scratch', handicap: 0, teamSide: 'A' },
+      { id: 'Opp', handicap: 0, teamSide: 'B' },
+    ];
+    const scores: EngineScore[] = [];
+    for (let h = 1; h <= 18; h++) {
+      scores.push({ playerId: 'Scratch', holeNumber: h, gross: 4 });
+      scores.push({ playerId: 'Opp', holeNumber: h, gross: 5 });
+    }
+    const result = computeStableford({ players, holes: HOLES_18, scores });
+    expect(result.aPoints).toBe(36); // 18 pars × 2
+    expect(result.bPoints).toBe(18); // 18 bogeys × 1
+    expect(result.status.kind).toBe('final');
+    if (result.status.kind === 'final') {
+      expect(result.status.winner).toBe('A');
+    }
+  });
+
+  it('strokes received bump a gross-bogey into a net-par (= more points)', () => {
+    // Munley (29) gets strokes on every hole. Gross 5 on SI 1 (par 4) = bogey
+    // before strokes (1 pt), but Munley gets 2 strokes on SI 1 → net 3 = birdie (3 pts).
+    const players: EnginePlayer[] = [
+      { id: 'Eric', handicap: 9, teamSide: 'A' },
+      { id: 'Munley', handicap: 29, teamSide: 'B' },
+    ];
+    const scores: EngineScore[] = [
+      { playerId: 'Munley', holeNumber: 1, gross: 5 },
+    ];
+    const result = computeStableford({ players, holes: HOLES_18, scores });
+    expect(result.bPoints).toBe(3); // net 3 vs par 4 = birdie
+  });
+
+  it('in_progress until every hole has at least one gross', () => {
+    const players: EnginePlayer[] = [
+      { id: 'A', handicap: 0, teamSide: 'A' },
+      { id: 'B', handicap: 0, teamSide: 'B' },
+    ];
+    const half: EngineScore[] = [];
+    for (let h = 1; h <= 9; h++) {
+      half.push({ playerId: 'A', holeNumber: h, gross: 4 });
+    }
+    const inFlight = computeStableford({ players, holes: HOLES_18, scores: half });
+    expect(inFlight.status.kind).toBe('in_progress');
+    expect(inFlight.holesPlayed).toBe(9);
+  });
+
+  it('tie after 18 → halved final', () => {
+    const players: EnginePlayer[] = [
+      { id: 'A', handicap: 0, teamSide: 'A' },
+      { id: 'B', handicap: 0, teamSide: 'B' },
+    ];
+    const scores: EngineScore[] = [];
+    for (let h = 1; h <= 18; h++) {
+      scores.push({ playerId: 'A', holeNumber: h, gross: 4 });
+      scores.push({ playerId: 'B', holeNumber: h, gross: 4 });
+    }
+    const result = computeStableford({ players, holes: HOLES_18, scores });
+    expect(result.status.kind).toBe('final');
+    if (result.status.kind === 'final') {
+      expect(result.status.winner).toBe('halved');
+      expect(result.status.aPoints).toBe(36);
+      expect(result.status.bPoints).toBe(36);
+    }
+  });
+
+  it('per-match point override flows through', () => {
+    // Modified Stableford: par = 0 pts, birdie = 2.
+    const mod = { eagle: 5, birdie: 2, par: 0, bogey: -1, doublePlus: -3 };
+    const players: EnginePlayer[] = [
+      { id: 'A', handicap: 0, teamSide: 'A' },
+      { id: 'B', handicap: 0, teamSide: 'B' },
+    ];
+    const scores: EngineScore[] = [];
+    for (let h = 1; h <= 18; h++) {
+      scores.push({ playerId: 'A', holeNumber: h, gross: 3 }); // birdie
+      scores.push({ playerId: 'B', holeNumber: h, gross: 4 }); // par
+    }
+    const result = computeStableford({ players, holes: HOLES_18, scores, points: mod });
+    expect(result.aPoints).toBe(36); // 18 × 2
+    expect(result.bPoints).toBe(0);  // 18 × 0
+  });
+});
+
+describe('DEFAULT_STABLEFORD_POINTS', () => {
+  it('is the standard 4/3/2/1/0 scale', () => {
+    expect(DEFAULT_STABLEFORD_POINTS).toEqual({
+      eagle: 4,
+      birdie: 3,
+      par: 2,
+      bogey: 1,
+      doublePlus: 0,
+    });
   });
 });

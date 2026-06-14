@@ -490,3 +490,136 @@ export function computeTeamMatch(input: {
     strokesByPlayer,
   };
 }
+
+// ───────────────────────── STABLEFORD ─────────────────────────
+//
+// Stableford = sum of per-hole points based on net score vs par:
+//   net ≤ par-2  → eagle points       (default 4)
+//   net = par-1  → birdie points      (default 3)
+//   net = par    → par points         (default 2)
+//   net = par+1  → bogey points       (default 1)
+//   net ≥ par+2  → double+ points     (default 0)
+//
+// Modified Stableford (PGA Reno-Tahoe style) reaches via per-match
+// override: 5 / 2 / 0 / -1 / -3. Any custom scale works too — we
+// don't ship two distinct algorithms.
+
+export type StablefordPoints = {
+  eagle: number;
+  birdie: number;
+  par: number;
+  bogey: number;
+  doublePlus: number;
+};
+
+export const DEFAULT_STABLEFORD_POINTS: StablefordPoints = {
+  eagle: 4,
+  birdie: 3,
+  par: 2,
+  bogey: 1,
+  doublePlus: 0,
+};
+
+/**
+ * Map a net-vs-par differential to stableford points using the supplied
+ * point scale. `diff` is `net - par`; -1 = birdie, +2 = double bogey.
+ */
+export function pointsForNetVsPar(
+  diff: number,
+  pts: StablefordPoints = DEFAULT_STABLEFORD_POINTS,
+): number {
+  if (diff <= -2) return pts.eagle;
+  if (diff === -1) return pts.birdie;
+  if (diff === 0) return pts.par;
+  if (diff === 1) return pts.bogey;
+  return pts.doublePlus;
+}
+
+export type StablefordPlayerTotal = {
+  playerId: string;
+  side: 'A' | 'B';
+  pointsByHole: Map<number, number>;
+  total: number;
+};
+
+export type StablefordStatus =
+  | { kind: 'not_started' }
+  | { kind: 'in_progress'; aPoints: number; bPoints: number; holesPlayed: number }
+  | { kind: 'final'; winner: 'A' | 'B' | 'halved'; aPoints: number; bPoints: number };
+
+export type ComputedStableford = {
+  status: StablefordStatus;
+  holesPlayed: number;
+  totalHoles: number;
+  aPoints: number;
+  bPoints: number;
+  players: StablefordPlayerTotal[];
+  strokesByPlayer: Map<string, Map<number, number>>;
+};
+
+export function computeStableford(input: {
+  players: EnginePlayer[];
+  holes: EngineHole[];
+  scores: EngineScore[];
+  points?: StablefordPoints;
+}): ComputedStableford {
+  const pts = input.points ?? DEFAULT_STABLEFORD_POINTS;
+  const strokesByPlayer = computeStrokes(input.players, input.holes);
+
+  const grossByPH = new Map<string, number>();
+  for (const s of input.scores) {
+    grossByPH.set(`${s.playerId}:${s.holeNumber}`, s.gross);
+  }
+
+  const players: StablefordPlayerTotal[] = input.players.map((p) => {
+    const pointsByHole = new Map<number, number>();
+    let total = 0;
+    for (const h of input.holes) {
+      const gross = grossByPH.get(`${p.id}:${h.number}`);
+      if (gross == null) continue;
+      const strokes = strokesByPlayer.get(p.id)?.get(h.number) ?? 0;
+      const net = gross - strokes;
+      const diff = net - h.par;
+      const got = pointsForNetVsPar(diff, pts);
+      pointsByHole.set(h.number, got);
+      total += got;
+    }
+    return { playerId: p.id, side: p.teamSide, pointsByHole, total };
+  });
+
+  let aPoints = 0;
+  let bPoints = 0;
+  for (const p of players) {
+    if (p.side === 'A') aPoints += p.total;
+    else bPoints += p.total;
+  }
+
+  // Holes played = the count of unique holes that any player has
+  // scored on. Used by the status branch so we know if the match is
+  // finished or in flight.
+  const scoredHoles = new Set<number>();
+  for (const s of input.scores) scoredHoles.add(s.holeNumber);
+  const holesPlayed = scoredHoles.size;
+  const totalHoles = input.holes.length;
+
+  let status: StablefordStatus;
+  if (holesPlayed === 0) {
+    status = { kind: 'not_started' };
+  } else if (holesPlayed < totalHoles) {
+    status = { kind: 'in_progress', aPoints, bPoints, holesPlayed };
+  } else {
+    const winner: 'A' | 'B' | 'halved' =
+      aPoints > bPoints ? 'A' : bPoints > aPoints ? 'B' : 'halved';
+    status = { kind: 'final', winner, aPoints, bPoints };
+  }
+
+  return {
+    status,
+    holesPlayed,
+    totalHoles,
+    aPoints,
+    bPoints,
+    players,
+    strokesByPlayer,
+  };
+}

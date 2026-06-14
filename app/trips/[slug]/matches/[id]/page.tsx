@@ -24,8 +24,11 @@ import {
 import { getMatchScoringData } from '@/lib/data/match-scoring';
 import {
   computeMatch,
+  computeStableford,
   computeTeamMatch,
+  DEFAULT_STABLEFORD_POINTS,
   formatStatus,
+  type ComputedStableford,
   type HoleResult,
   type PlayerInputFormat,
 } from '@/lib/scoring/engine';
@@ -127,11 +130,28 @@ export default async function MatchDetailPage({
   const canEdit =
     isPlatformAdmin(ctx) || isTripAdminOf(ctx, match.round.tripId);
 
-  // Live status from the scoring engine — branch on team vs player input.
+  // Live status from the scoring engine. Branches on the match's
+  // scoring mode (match_play vs stableford), then on team vs player
+  // input. Only one of liveMatch / liveStableford is populated.
   const scoringData = await getMatchScoringData(id);
   let liveMatch = null;
+  let liveStableford: ComputedStableford | null = null;
   if (scoringData) {
-    if (
+    if (scoringData.match.scoring === 'stableford') {
+      liveStableford = computeStableford({
+        players: scoringData.enginePlayers,
+        holes: scoringData.engineHoles,
+        scores: scoringData.engineScores,
+        points: {
+          eagle: scoringData.match.ptsEagle ?? DEFAULT_STABLEFORD_POINTS.eagle,
+          birdie: scoringData.match.ptsBirdie ?? DEFAULT_STABLEFORD_POINTS.birdie,
+          par: scoringData.match.ptsPar ?? DEFAULT_STABLEFORD_POINTS.par,
+          bogey: scoringData.match.ptsBogey ?? DEFAULT_STABLEFORD_POINTS.bogey,
+          doublePlus:
+            scoringData.match.ptsDoublePlus ?? DEFAULT_STABLEFORD_POINTS.doublePlus,
+        },
+      });
+    } else if (
       scoringData.inputMode === 'team' &&
       scoringData.engineTeams &&
       scoringData.engineTeams.length === 2
@@ -256,8 +276,27 @@ export default async function MatchDetailPage({
       <div className="mt-6 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
           Status
+          {scoringData?.match.scoring === 'stableford' && (
+            <span className="ml-2 text-yellow-800 dark:text-yellow-500">· Stableford</span>
+          )}
         </p>
-        {liveMatch && liveMatch.holesPlayed > 0 ? (
+        {liveStableford && liveStableford.holesPlayed > 0 ? (
+          <>
+            <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
+              {liveStableford.aPoints}
+              <span className="mx-1 text-zinc-700">·</span>
+              {liveStableford.bPoints}
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+              {liveStableford.holesPlayed} of {liveStableford.totalHoles} holes
+              {liveStableford.status.kind === 'final' &&
+                ' · ' +
+                  (liveStableford.status.winner === 'halved'
+                    ? 'Halved'
+                    : 'Final')}
+            </p>
+          </>
+        ) : liveMatch && liveMatch.holesPlayed > 0 ? (
           <>
             <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
               {liveStatusText}
@@ -280,6 +319,14 @@ export default async function MatchDetailPage({
           bTeamName={scoringData.participants.find((p) => p.side === 'B')?.team.name ?? 'B'}
           aTeamColor={scoringData.participants.find((p) => p.side === 'A')?.team.color ?? null}
           bTeamColor={scoringData.participants.find((p) => p.side === 'B')?.team.color ?? null}
+        />
+      )}
+
+      {liveStableford && liveStableford.holesPlayed > 0 && scoringData && (
+        <StablefordScorecard
+          stableford={liveStableford}
+          participants={scoringData.participants}
+          holes={scoringData.engineHoles}
         />
       )}
 
@@ -669,6 +716,95 @@ function HoleScorecard({
             </div>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Stableford scorecard. Renders each player's per-hole points table
+ * with their total, grouped by side. Highest per-side total wins; the
+ * final winner cell glows in the team color.
+ */
+function StablefordScorecard({
+  stableford,
+  participants,
+  holes,
+}: {
+  stableford: ComputedStableford;
+  participants: { participant: { id: string; nickname: string }; team: { id: string; name: string; color: string | null }; side: 'A' | 'B' }[];
+  holes: { number: number; par: number }[];
+}) {
+  const memberById = new Map(participants.map((p) => [p.participant.id, p]));
+  const aPlayers = stableford.players.filter((p) => p.side === 'A');
+  const bPlayers = stableford.players.filter((p) => p.side === 'B');
+
+  function renderSide(
+    label: string,
+    sidePlayers: typeof stableford.players,
+    color: string,
+  ) {
+    if (!sidePlayers.length) return null;
+    return (
+      <div className="border-b border-zinc-200 dark:border-zinc-900 last:border-b-0">
+        <div className="border-b border-zinc-200 dark:border-zinc-900 bg-zinc-100 dark:bg-zinc-900/30 px-3 py-1.5">
+          <p
+            className="font-mono text-[10px] font-semibold uppercase tracking-widest"
+            style={{ color }}
+          >
+            {label}
+          </p>
+        </div>
+        {sidePlayers.map((p) => {
+          const meta = memberById.get(p.playerId);
+          return (
+            <div
+              key={p.playerId}
+              className="flex items-center justify-between gap-3 px-3 py-2 font-mono text-xs tabular-nums"
+            >
+              <span className="truncate text-zinc-700 dark:text-zinc-300">
+                {meta?.participant.nickname ?? 'Player'}
+              </span>
+              <span className="font-bold text-yellow-800 dark:text-yellow-400">
+                {p.total} pts
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const aColor =
+    participants.find((p) => p.side === 'A')?.team.color ?? '#71717a';
+  const bColor =
+    participants.find((p) => p.side === 'B')?.team.color ?? '#71717a';
+  const aName = participants.find((p) => p.side === 'A')?.team.name ?? 'Side A';
+  const bName = participants.find((p) => p.side === 'B')?.team.name ?? 'Side B';
+
+  return (
+    <section className="mt-6 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
+      <div className="border-b border-zinc-200 dark:border-zinc-900 px-3 py-2.5">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+          Stableford · {holes.length}-hole points
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 divide-x divide-zinc-200 dark:divide-zinc-900">
+        <div>
+          {renderSide(aName, aPlayers, aColor)}
+          <div className="flex items-center justify-between gap-3 border-t border-zinc-300 dark:border-zinc-800 px-3 py-2 font-mono text-xs font-bold tabular-nums">
+            <span className="uppercase tracking-widest text-zinc-500">Total</span>
+            <span style={{ color: aColor }}>{stableford.aPoints}</span>
+          </div>
+        </div>
+        <div>
+          {renderSide(bName, bPlayers, bColor)}
+          <div className="flex items-center justify-between gap-3 border-t border-zinc-300 dark:border-zinc-800 px-3 py-2 font-mono text-xs font-bold tabular-nums">
+            <span className="uppercase tracking-widest text-zinc-500">Total</span>
+            <span style={{ color: bColor }}>{stableford.bPoints}</span>
+          </div>
+        </div>
       </div>
     </section>
   );

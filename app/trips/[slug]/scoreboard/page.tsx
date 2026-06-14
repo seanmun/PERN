@@ -9,7 +9,9 @@ import { getLeaderboard, type PlayerTotal, type TeamTotal } from '@/lib/data/lea
 import { getMatchScoringData } from '@/lib/data/match-scoring';
 import {
   computeMatch,
+  computeStableford,
   computeTeamMatch,
+  DEFAULT_STABLEFORD_POINTS,
   formatStatus,
   type PlayerInputFormat,
 } from '@/lib/scoring/engine';
@@ -388,6 +390,48 @@ function humanizeStatus({
 async function computeLive(matchId: string) {
   const data = await getMatchScoringData(matchId);
   if (!data) return null;
+
+  const aTeamId =
+    data.participants.find((p) => p.side === 'A')?.team.id ?? null;
+  const bTeamId =
+    data.participants.find((p) => p.side === 'B')?.team.id ?? null;
+
+  // Stableford: surface point totals instead of match-play UP/DOWN.
+  // upA/upB are repurposed as the cumulative point totals so the
+  // MatchLiveRow's existing "A · B" big-number renderer reads correctly.
+  if (data.match.scoring === 'stableford') {
+    const sb = computeStableford({
+      players: data.enginePlayers,
+      holes: data.engineHoles,
+      scores: data.engineScores,
+      points: {
+        eagle: data.match.ptsEagle ?? DEFAULT_STABLEFORD_POINTS.eagle,
+        birdie: data.match.ptsBirdie ?? DEFAULT_STABLEFORD_POINTS.birdie,
+        par: data.match.ptsPar ?? DEFAULT_STABLEFORD_POINTS.par,
+        bogey: data.match.ptsBogey ?? DEFAULT_STABLEFORD_POINTS.bogey,
+        doublePlus: data.match.ptsDoublePlus ?? DEFAULT_STABLEFORD_POINTS.doublePlus,
+      },
+    });
+    const statusText =
+      sb.status.kind === 'final'
+        ? sb.status.winner === 'halved'
+          ? 'Halved · pts'
+          : 'Final · pts'
+        : sb.status.kind === 'in_progress'
+          ? 'pts'
+          : 'Not started';
+    return {
+      upA: sb.aPoints,
+      upB: sb.bPoints,
+      aTeamId,
+      bTeamId,
+      holesPlayed: sb.holesPlayed,
+      totalHoles: sb.totalHoles,
+      statusText,
+      scoring: 'stableford' as const,
+    };
+  }
+
   let computed;
   if (
     data.inputMode === 'team' &&
@@ -411,14 +455,6 @@ async function computeLive(matchId: string) {
     });
   }
 
-  // The engine pins side A/B by team UUID sort order. The display order
-  // ("which team shows up on the left") is independent — we have to map
-  // upA/upB to the correct team UUIDs and let the renderer reorder, or
-  // we'd show the right magnitude next to the wrong nickname.
-  const aTeamId =
-    data.participants.find((p) => p.side === 'A')?.team.id ?? null;
-  const bTeamId =
-    data.participants.find((p) => p.side === 'B')?.team.id ?? null;
   return {
     upA: computed.upA,
     upB: computed.upB,
@@ -427,6 +463,7 @@ async function computeLive(matchId: string) {
     holesPlayed: computed.holesPlayed,
     totalHoles: computed.totalHoles,
     statusText: formatStatus(computed.status),
+    scoring: 'match_play' as const,
   };
 }
 

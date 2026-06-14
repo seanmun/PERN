@@ -22,9 +22,12 @@ import { getTripSlugById } from '@/lib/auth/trip-context';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
 import {
   computeMatch,
+  computeStableford,
   computeTeamMatch,
+  DEFAULT_STABLEFORD_POINTS,
   formatStatus,
   type PlayerInputFormat,
+  type StablefordPoints,
 } from '@/lib/scoring/engine';
 
 /**
@@ -45,32 +48,6 @@ async function recomputeMatchStatus(matchId: string): Promise<void> {
   const data = await getMatchScoringData(matchId);
   if (!data) return;
 
-  // Team-input formats run a different engine that compares one team gross
-  // per hole. Player-input formats (best_ball, singles, aggregate, plus
-  // anything unrecognized) fall back to the player engine.
-  let computed;
-  if (
-    data.inputMode === 'team' &&
-    data.engineTeams &&
-    data.engineTeams.length === 2
-  ) {
-    computed = computeTeamMatch({
-      teams: [data.engineTeams[0], data.engineTeams[1]],
-      holes: data.engineHoles,
-      scores: data.engineTeamScores ?? [],
-    });
-  } else {
-    const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
-      ? (data.match.format as PlayerInputFormat)
-      : 'best_ball';
-    computed = computeMatch({
-      players: data.enginePlayers,
-      holes: data.engineHoles,
-      scores: data.engineScores,
-      format: fmt,
-    });
-  }
-
   // Map A/B back to the actual team IDs. data.participants carries the side.
   const teamIdByside = new Map<'A' | 'B', string>();
   for (const p of data.participants) {
@@ -82,25 +59,89 @@ async function recomputeMatchStatus(matchId: string): Promise<void> {
   let isHalved = false;
   let resultText: string | null = null;
 
-  switch (computed.status.kind) {
-    case 'not_started':
-      nextStatus = 'scheduled';
-      break;
-    case 'in_progress':
-    case 'dormie':
-      nextStatus = 'in_progress';
-      resultText = formatStatus(computed.status);
-      break;
-    case 'closed':
-      nextStatus = 'completed';
-      winningTeamId = teamIdByside.get(computed.status.winner) ?? null;
-      resultText = formatStatus(computed.status);
-      break;
-    case 'halved':
-      nextStatus = 'completed';
-      isHalved = true;
-      resultText = formatStatus(computed.status);
-      break;
+  // Stableford branches off the match-play resolution entirely — high
+  // total wins, not "X UP." Team-input formats (scramble, alt shot)
+  // recorded the team gross on every teammate's hole_score via fan-out,
+  // so the player-keyed stableford engine works for both.
+  if (data.match.scoring === 'stableford') {
+    const pts: StablefordPoints = {
+      eagle: data.match.ptsEagle ?? DEFAULT_STABLEFORD_POINTS.eagle,
+      birdie: data.match.ptsBirdie ?? DEFAULT_STABLEFORD_POINTS.birdie,
+      par: data.match.ptsPar ?? DEFAULT_STABLEFORD_POINTS.par,
+      bogey: data.match.ptsBogey ?? DEFAULT_STABLEFORD_POINTS.bogey,
+      doublePlus: data.match.ptsDoublePlus ?? DEFAULT_STABLEFORD_POINTS.doublePlus,
+    };
+    const sb = computeStableford({
+      players: data.enginePlayers,
+      holes: data.engineHoles,
+      scores: data.engineScores,
+      points: pts,
+    });
+    switch (sb.status.kind) {
+      case 'not_started':
+        nextStatus = 'scheduled';
+        break;
+      case 'in_progress':
+        nextStatus = 'in_progress';
+        resultText = `${sb.aPoints}–${sb.bPoints} pts · thru ${sb.holesPlayed}`;
+        break;
+      case 'final':
+        nextStatus = 'completed';
+        if (sb.status.winner === 'halved') {
+          isHalved = true;
+          resultText = `Halved · ${sb.aPoints}–${sb.bPoints} pts`;
+        } else {
+          winningTeamId = teamIdByside.get(sb.status.winner) ?? null;
+          resultText = `${sb.aPoints}–${sb.bPoints} pts`;
+        }
+        break;
+    }
+  } else {
+    // Match-play (default) or any other unrecognised scoring falls back
+    // to the original computeMatch / computeTeamMatch flow.
+    let computed;
+    if (
+      data.inputMode === 'team' &&
+      data.engineTeams &&
+      data.engineTeams.length === 2
+    ) {
+      computed = computeTeamMatch({
+        teams: [data.engineTeams[0], data.engineTeams[1]],
+        holes: data.engineHoles,
+        scores: data.engineTeamScores ?? [],
+      });
+    } else {
+      const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
+        ? (data.match.format as PlayerInputFormat)
+        : 'best_ball';
+      computed = computeMatch({
+        players: data.enginePlayers,
+        holes: data.engineHoles,
+        scores: data.engineScores,
+        format: fmt,
+      });
+    }
+
+    switch (computed.status.kind) {
+      case 'not_started':
+        nextStatus = 'scheduled';
+        break;
+      case 'in_progress':
+      case 'dormie':
+        nextStatus = 'in_progress';
+        resultText = formatStatus(computed.status);
+        break;
+      case 'closed':
+        nextStatus = 'completed';
+        winningTeamId = teamIdByside.get(computed.status.winner) ?? null;
+        resultText = formatStatus(computed.status);
+        break;
+      case 'halved':
+        nextStatus = 'completed';
+        isHalved = true;
+        resultText = formatStatus(computed.status);
+        break;
+    }
   }
 
   await db

@@ -321,6 +321,40 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
       ? explicitTeeTimeId
       : derivedTeeTimeId;
 
+  // Optional scoring + stableford point overrides off the builder form.
+  // Defaults to 'match_play' if not posted (legacy callers, etc).
+  const scoringRaw = String(formData.get('scoring') ?? 'match_play').trim();
+  const scoring: 'match_play' | 'stableford' | 'stroke' =
+    scoringRaw === 'stableford' || scoringRaw === 'stroke'
+      ? scoringRaw
+      : 'match_play';
+  let stablefordPts: {
+    eagle?: number;
+    birdie?: number;
+    par?: number;
+    bogey?: number;
+    doublePlus?: number;
+  } = {};
+  if (scoring === 'stableford') {
+    const rawPts = String(formData.get('stablefordPoints') ?? '').trim();
+    if (rawPts) {
+      try {
+        const parsed = JSON.parse(rawPts) as Record<string, unknown>;
+        const num = (v: unknown) =>
+          typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+        stablefordPts = {
+          eagle: num(parsed.eagle),
+          birdie: num(parsed.birdie),
+          par: num(parsed.par),
+          bogey: num(parsed.bogey),
+          doublePlus: num(parsed.doublePlus),
+        };
+      } catch {
+        // Malformed JSON — fall back to defaults rather than fail save.
+      }
+    }
+  }
+
   const [match] = await db
     .insert(matches)
     .values({
@@ -329,6 +363,12 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
       format: state.format as RoundFormat,
       templateSizeA: state.sideSize,
       templateSizeB: state.sideSize,
+      scoring,
+      ptsEagle: stablefordPts.eagle ?? null,
+      ptsBirdie: stablefordPts.birdie ?? null,
+      ptsPar: stablefordPts.par ?? null,
+      ptsBogey: stablefordPts.bogey ?? null,
+      ptsDoublePlus: stablefordPts.doublePlus ?? null,
       status: 'scheduled',
     })
     .returning();

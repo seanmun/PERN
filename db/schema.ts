@@ -37,6 +37,16 @@ export const matchStatusEnum = pgEnum('match_status', [
   'completed',
 ]);
 
+// How a match is RESOLVED, separate from how it's PLAYED (format). The same
+// 2v2 best-ball can be scored match-play (UP/DOWN per hole), stroke (low
+// total wins), or stableford (sum of per-hole points). Default match_play
+// keeps every existing match unchanged.
+export const matchScoringEnum = pgEnum('match_scoring', [
+  'match_play',
+  'stableford',
+  'stroke',
+]);
+
 export const mediaTypeEnum = pgEnum('media_type', ['image', 'video']);
 
 export const moderationStatusEnum = pgEnum('moderation_status', [
@@ -219,6 +229,18 @@ export const matches = pgTable('matches', {
   // sides for now — no 2v4 asymmetries. See docs/match-template-spec.md.
   templateSizeA: integer('template_size_a').default(1).notNull(),
   templateSizeB: integer('template_size_b').default(1).notNull(),
+  // Resolution mode — independent of format. Defaults to match_play so
+  // every existing match keeps its current behavior.
+  scoring: matchScoringEnum('scoring').default('match_play').notNull(),
+  // Per-match stableford point overrides. Null = use the global default
+  // (eagle=4, birdie=3, par=2, bogey=1, double+=0). Admin can dial these
+  // per match to get Modified Stableford (5/2/0/-1/-3) or any custom
+  // scale without us shipping a second algorithm.
+  ptsEagle: integer('pts_eagle'),
+  ptsBirdie: integer('pts_birdie'),
+  ptsPar: integer('pts_par'),
+  ptsBogey: integer('pts_bogey'),
+  ptsDoublePlus: integer('pts_double_plus'),
   status: matchStatusEnum('status').default('scheduled').notNull(),
   resultText: text('result_text'),
   winningTeamId: uuid('winning_team_id').references(() => teams.id),
