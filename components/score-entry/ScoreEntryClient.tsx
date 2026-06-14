@@ -690,13 +690,25 @@ function SaveStatus({
   gross: number | null;
 }) {
   const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const lastSent = useRef<string>('');
+  // Sync (holeNumber, gross) so we can distinguish "user actually
+  // changed the score for this hole" from "user just navigated to a
+  // different hole that already has a persisted value." The latter
+  // shouldn't fire a save — nothing has changed server-side.
+  const lastSeen = useRef<{ holeNumber: number; gross: string } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const key = String(gross ?? '');
-    if (lastSent.current === key) return;
-    lastSent.current = key;
+    const prev = lastSeen.current;
+
+    // First mount or hole changed: adopt whatever's on the screen as
+    // the already-persisted value and skip the save.
+    if (!prev || prev.holeNumber !== holeNumber) {
+      lastSeen.current = { holeNumber, gross: key };
+      return;
+    }
+    if (prev.gross === key) return;
+    lastSeen.current = { holeNumber, gross: key };
 
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
@@ -1062,13 +1074,22 @@ function TeamSaveStatus({
   gross: number | null;
 }) {
   const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const lastSent = useRef<string>('');
+  // See SaveStatus above for the (holeNumber, gross) tracking pattern —
+  // navigating between holes shouldn't fire a save when the value on
+  // screen is already persisted.
+  const lastSeen = useRef<{ holeNumber: number; gross: string } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const key = String(gross ?? '');
-    if (lastSent.current === key) return;
-    lastSent.current = key;
+    const prev = lastSeen.current;
+
+    if (!prev || prev.holeNumber !== holeNumber) {
+      lastSeen.current = { holeNumber, gross: key };
+      return;
+    }
+    if (prev.gross === key) return;
+    lastSeen.current = { holeNumber, gross: key };
 
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
