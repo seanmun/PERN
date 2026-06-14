@@ -136,6 +136,7 @@ export default async function NewMatchPage({
       nickname: m.nickname,
       teamId: m.teamId!,
       teeTimeId: memberTeeTimeById.get(m.id) ?? null,
+      avatarUrl: m.avatarUrl,
     }));
   const builderTeams = allTeams.map((t) => ({
     id: t.id,

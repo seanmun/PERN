@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import {
   DndContext,
+  DragOverlay,
   useDraggable,
   useDroppable,
   type DragEndEvent,
@@ -43,6 +44,9 @@ type Member = {
   nickname: string;
   teamId: string;
   teeTimeId: string | null;
+  // Used in the drag overlay (and the placed chip) so the admin sees the
+  // player they're moving instead of a bare name. Null = monogram fallback.
+  avatarUrl: string | null;
 };
 type TeeTimeSummary = { id: string; groupNumber: number };
 
@@ -153,11 +157,12 @@ export default function MatchBuilder({
   const teamById = new Map(teams.map((t) => [t.id, t]));
   const memberById = new Map(members.map((m) => [m.id, m]));
 
-  // dnd-kit needs both pointer (desktop) and touch (mobile) sensors —
-  // the latter blocks scroll while dragging so the chip actually moves.
+  // dnd-kit needs both pointer (desktop) and touch (mobile) sensors. The
+  // long-press delay on touch keeps the page scrollable; the tight
+  // tolerance + small pointer distance make the drag feel responsive.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 5 } }),
   );
 
   function onDragStart(e: DragStartEvent) {
@@ -405,7 +410,89 @@ export default function MatchBuilder({
           </button>
         </div>
       </form>
+
+      {/* DragOverlay renders the player chip directly under the user's
+          finger / cursor during a drag — without this dnd-kit produces
+          no visible ghost on mobile, which is the #1 reason the prior
+          drag felt broken. The chip mirrors the roster style so it
+          reads instantly. */}
+      <DragOverlay dropAnimation={{ duration: 150, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
+        {activeDrag
+          ? (() => {
+              const m = memberById.get(activeDrag);
+              if (!m) return null;
+              const color = teamById.get(m.teamId)?.color ?? '#71717a';
+              return <FloatingChip member={m} color={color} />;
+            })()
+          : null}
+      </DragOverlay>
     </DndContext>
+  );
+}
+
+/** Floating "ghost" rendered inside DragOverlay while a chip is in flight. */
+function FloatingChip({
+  member,
+  color,
+}: {
+  member: Member;
+  color: string;
+}) {
+  return (
+    <div
+      className="flex items-center gap-2 rounded-sm border px-3 py-2 font-mono text-sm font-bold shadow-[0_8px_28px_rgba(0,0,0,0.45)]"
+      style={{
+        borderColor: color,
+        background: `linear-gradient(135deg, ${color}33 0%, #0a0a0a 110%)`,
+        color: 'white',
+      }}
+    >
+      <Avatar member={member} color={color} size={28} />
+      <span className="whitespace-nowrap">{member.nickname}</span>
+    </div>
+  );
+}
+
+/** Small avatar — uses the member's PFP if present, otherwise a colored
+    monogram of their nickname's first letter. */
+function Avatar({
+  member,
+  color,
+  size,
+}: {
+  member: Member;
+  color: string;
+  size: number;
+}) {
+  const initial = member.nickname.charAt(0).toUpperCase();
+  if (member.avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={member.avatarUrl}
+        alt={member.nickname}
+        width={size}
+        height={size}
+        className="rounded-full object-cover"
+        style={{ width: size, height: size, boxShadow: `0 0 0 1px ${color}` }}
+      />
+    );
+  }
+  return (
+    <span
+      aria-hidden
+      className="flex items-center justify-center rounded-full font-bold uppercase"
+      style={{
+        width: size,
+        height: size,
+        background: `${color}33`,
+        color,
+        fontSize: size * 0.45,
+        boxShadow: `0 0 0 1px ${color}`,
+      }}
+    >
+      {initial}
+    </span>
   );
 }
 
@@ -546,8 +633,7 @@ function Slot({
     >
       {playerId && member ? (
         <PlacedChip
-          playerId={playerId}
-          nickname={member.nickname}
+          member={member}
           color={color}
           onRemove={() => onRemove(playerId)}
         />
@@ -561,18 +647,16 @@ function Slot({
 }
 
 function PlacedChip({
-  playerId,
-  nickname,
+  member,
   color,
   onRemove,
 }: {
-  playerId: string;
-  nickname: string;
+  member: Member;
   color: string;
   onRemove: () => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: playerId,
+    id: member.id,
   });
   return (
     <div className="flex w-full items-center justify-between gap-2">
@@ -586,18 +670,14 @@ function PlacedChip({
         }`}
         style={{ color }}
       >
-        <span
-          aria-hidden
-          className="inline-block h-2 w-2 rounded-full"
-          style={{ background: color }}
-        />
-        {nickname}
+        <Avatar member={member} color={color} size={28} />
+        <span className="truncate">{member.nickname}</span>
       </button>
       <button
         type="button"
         onClick={onRemove}
         className="rounded-sm border border-zinc-300 dark:border-zinc-700 p-1 text-zinc-500 hover:border-red-500/50 hover:text-red-500"
-        aria-label={`Remove ${nickname}`}
+        aria-label={`Remove ${member.nickname}`}
       >
         <X size={12} />
       </button>
@@ -691,17 +771,13 @@ function RosterChip({
       type="button"
       {...listeners}
       {...attributes}
-      className={`flex items-center gap-1.5 rounded-sm border px-2.5 py-1.5 text-xs font-semibold transition-opacity ${
+      className={`flex touch-none select-none items-center gap-1.5 rounded-sm border px-2 py-1 text-xs font-semibold transition-opacity ${
         isDragging ? 'opacity-30' : ''
       }`}
       style={{ borderColor: `${color}55`, color, background: `${color}0a` }}
     >
-      <span
-        aria-hidden
-        className="inline-block h-2 w-2 rounded-full"
-        style={{ background: color }}
-      />
-      {member.nickname}
+      <Avatar member={member} color={color} size={22} />
+      <span className="max-w-[110px] truncate">{member.nickname}</span>
     </button>
   );
 }
