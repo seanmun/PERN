@@ -64,8 +64,6 @@ export function validateBuilderState(
     return { ok: false, errors };
   }
 
-  const twoSided = meta.sides === 2;
-
   if (!isSideSizeAllowed(state.format, state.sideSize)) {
     errors.push(
       `${meta.label} doesn't support ${state.sideSize}-player sides. ` +
@@ -76,23 +74,21 @@ export function validateBuilderState(
   if (state.sideAPlayerIds.length !== state.sideSize) {
     errors.push('Side A slot count must match the chosen side size.');
   }
-  if (twoSided && state.sideBPlayerIds.length !== state.sideSize) {
+  if (state.sideBPlayerIds.length !== state.sideSize) {
     errors.push('Side B slot count must match the chosen side size.');
   }
 
-  if (twoSided && state.sideATeamId === state.sideBTeamId) {
+  if (state.sideATeamId === state.sideBTeamId) {
     errors.push('Side A and Side B must be different teams.');
   }
 
   // All slots filled.
   const aFilled = state.sideAPlayerIds.filter((id): id is string => !!id);
-  const bFilled = twoSided
-    ? state.sideBPlayerIds.filter((id): id is string => !!id)
-    : [];
+  const bFilled = state.sideBPlayerIds.filter((id): id is string => !!id);
   if (aFilled.length !== state.sideSize) {
     errors.push(`Side A has ${state.sideSize - aFilled.length} empty slot(s).`);
   }
-  if (twoSided && bFilled.length !== state.sideSize) {
+  if (bFilled.length !== state.sideSize) {
     errors.push(`Side B has ${state.sideSize - bFilled.length} empty slot(s).`);
   }
 
@@ -100,19 +96,17 @@ export function validateBuilderState(
   if (new Set(aFilled).size !== aFilled.length) {
     errors.push('Side A has a player in multiple slots.');
   }
-  if (twoSided && new Set(bFilled).size !== bFilled.length) {
+  if (new Set(bFilled).size !== bFilled.length) {
     errors.push('Side B has a player in multiple slots.');
   }
 
-  // No player on both sides (2-sided only).
-  if (twoSided) {
-    const overlap = aFilled.filter((id) => bFilled.includes(id));
-    if (overlap.length) {
-      errors.push(`A player can't be on both sides (${overlap.length} overlap).`);
-    }
+  // No player on both sides.
+  const overlap = aFilled.filter((id) => bFilled.includes(id));
+  if (overlap.length) {
+    errors.push(`A player can't be on both sides (${overlap.length} overlap).`);
   }
 
-  // Each player on Side A belongs to Side A's team; same for B (if 2-sided).
+  // Each player on Side A belongs to Side A's team; same for B.
   for (const id of aFilled) {
     const team = ctx.memberTeamById.get(id);
     if (!team) {
@@ -122,24 +116,28 @@ export function validateBuilderState(
       break;
     }
   }
-  if (twoSided) {
-    for (const id of bFilled) {
-      const team = ctx.memberTeamById.get(id);
-      if (!team) {
-        errors.push(`Side B player ${id} isn't a trip member.`);
-      } else if (team !== state.sideBTeamId) {
-        errors.push(`Side B has a player from the wrong team.`);
-        break;
-      }
+  for (const id of bFilled) {
+    const team = ctx.memberTeamById.get(id);
+    if (!team) {
+      errors.push(`Side B player ${id} isn't a trip member.`);
+    } else if (team !== state.sideBTeamId) {
+      errors.push(`Side B has a player from the wrong team.`);
+      break;
     }
   }
 
-  // Same-foursome-per-side: for scramble / alt shot / 2-man aggregate
-  // every player on a given side must share one tee time. The two
-  // sides (if there are two) don't need to share one.
+  // Same-foursome-per-side: for team-input formats (scramble, alt shot)
+  // and two-man aggregate, every player on a given side must share one
+  // tee time. The two sides do NOT need to share a tee time — a 4-man
+  // scramble can be Foursome 1 vs Foursome 2.
   if (meta.requiresSameFoursomePerSide) {
     const aTees = new Set(
       aFilled
+        .map((id) => ctx.memberTeeTimeById.get(id))
+        .filter((t): t is string => !!t),
+    );
+    const bTees = new Set(
+      bFilled
         .map((id) => ctx.memberTeeTimeById.get(id))
         .filter((t): t is string => !!t),
     );
@@ -148,23 +146,16 @@ export function validateBuilderState(
         `${meta.label} requires all of Side A to share one foursome.`,
       );
     }
+    if (bTees.size > 1) {
+      errors.push(
+        `${meta.label} requires all of Side B to share one foursome.`,
+      );
+    }
     if (aFilled.length && aTees.size === 0) {
       errors.push(`Side A players aren't assigned to any foursome yet.`);
     }
-    if (twoSided) {
-      const bTees = new Set(
-        bFilled
-          .map((id) => ctx.memberTeeTimeById.get(id))
-          .filter((t): t is string => !!t),
-      );
-      if (bTees.size > 1) {
-        errors.push(
-          `${meta.label} requires all of Side B to share one foursome.`,
-        );
-      }
-      if (bFilled.length && bTees.size === 0) {
-        errors.push(`Side B players aren't assigned to any foursome yet.`);
-      }
+    if (bFilled.length && bTees.size === 0) {
+      errors.push(`Side B players aren't assigned to any foursome yet.`);
     }
   }
 
