@@ -45,32 +45,13 @@ export default async function ScoreboardPage({
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
 
-  // Match kind: there's only one match. Skip the standings concept entirely
-  // and drop the user straight into the match page.
-  if (trip.kind === 'match') {
-    const [m] = await db
-      .select({ id: matches.id })
-      .from(matches)
-      .innerJoin(rounds, eq(matches.roundId, rounds.id))
-      .where(eq(rounds.tripId, trip.id))
-      .limit(1);
-    if (m) redirect(`/trips/${slug}/matches/${m.id}`);
-    // No match yet — fall through to a stub.
-    return (
-      <div className="mx-auto max-w-md px-4 pt-10">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
-          No match yet
-        </p>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Add a match from the admin page to start keeping score.
-        </p>
-      </div>
-    );
-  }
-
-  // Outing kind: one day, multiple groups, no season standings. Show live
-  // status of every match in the field.
-  if (trip.kind === 'outing') {
+  // Match + Outing kinds: render the live board so every match shows up
+  // with its current status, leaderboard underneath. The previous
+  // match-kind redirect dropped users straight into a single match's
+  // hero page — which was wrong any time a "match" trip ended up with
+  // more than one match underneath, which happens whenever the admin
+  // layers side games.
+  if (trip.kind === 'outing' || trip.kind === 'match') {
     return <OutingLiveBoard tripId={trip.id} tripName={trip.name} slug={slug} />;
   }
 
@@ -364,6 +345,46 @@ async function OutingLiveBoard({
   );
 }
 
+/**
+ * Replace the engine's match-play shorthand ("1 UP", "2 & 1", "DORMIE")
+ * with team-named, plain-English status text so a casual reader can
+ * tell who's winning at a glance.
+ */
+function humanizeStatus({
+  statusText,
+  sideAName,
+  sideBName,
+  upA,
+  upB,
+  holesPlayed,
+  remaining,
+}: {
+  statusText: string;
+  sideAName?: string;
+  sideBName?: string;
+  upA: number;
+  upB: number;
+  holesPlayed: number;
+  remaining: number;
+}): string {
+  const leader = upA > upB ? sideAName : upB > upA ? sideBName : null;
+  const thru = `thru ${holesPlayed}`;
+  if (statusText === 'AS') return `All square · ${thru}`;
+  if (statusText === 'DORMIE') {
+    return `${leader ?? 'Side'} dormie · ${thru}`;
+  }
+  // "X UP" — match in progress
+  if (statusText.endsWith(' UP') && leader) {
+    return `${leader} ${statusText} · ${thru}${remaining > 0 ? ` · ${remaining} to play` : ''}`;
+  }
+  // "X & Y" — match closed (won by X with Y to play)
+  if (statusText.includes(' & ') && leader) {
+    const [up, left] = statusText.split(' & ');
+    return `${leader} won ${up} up, ${left} to play`;
+  }
+  return `${statusText} · ${thru}${remaining > 0 ? ` · ${remaining} to play` : ''}`;
+}
+
 async function computeLive(matchId: string) {
   const data = await getMatchScoringData(matchId);
   if (!data) return null;
@@ -463,7 +484,15 @@ function MatchLiveRow({
         <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
           {holesPlayed === 0
             ? 'Not started'
-            : `${statusText} · thru ${holesPlayed}${remaining > 0 ? ` · ${remaining} to play` : ''}`}
+            : humanizeStatus({
+                statusText,
+                sideAName: sideA?.name,
+                sideBName: sideB?.name,
+                upA,
+                upB,
+                holesPlayed,
+                remaining,
+              })}
         </p>
       </div>
 
