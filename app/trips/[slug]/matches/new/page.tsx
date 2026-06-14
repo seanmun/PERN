@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { eq, asc, inArray } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   teeTimes,
@@ -9,22 +9,29 @@ import {
   courses,
   tripMembers,
   teams,
+  matches,
+  matchParticipants,
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
-import { createMatch } from '@/lib/actions/matches';
-import {
-  formatTripTime,
-  formatTripDayLong,
-  roundFormatLabel,
-} from '@/lib/format';
+import MatchBuilder from '@/components/admin/MatchBuilder';
+import { type FormatId } from '@/lib/scoring/formats';
 
+/**
+ * New-match flow. Per docs/match-template-spec.md the entry point is now
+ * the round — admin picks a round, then a format, then drags players
+ * from foursomes into slot templates. The roundId query param drives
+ * everything.
+ *
+ * Existing links that pass teeTimeId still work — we resolve that to a
+ * roundId and pre-pick the format from the round.
+ */
 export default async function NewMatchPage({
   params,
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ teeTimeId?: string }>;
+  searchParams: Promise<{ teeTimeId?: string; roundId?: string }>;
 }) {
   const { slug } = await params;
   const trip = await getTripBySlug(slug);
@@ -33,33 +40,47 @@ export default async function NewMatchPage({
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
 
-  const { teeTimeId } = await searchParams;
-  if (!teeTimeId) {
+  const sp = await searchParams;
+
+  // Resolve roundId: explicit param wins; else fall back to the tee
+  // time's round; else error out.
+  let roundId = sp.roundId ?? null;
+  if (!roundId && sp.teeTimeId) {
+    const [tt] = await db
+      .select({ roundId: teeTimes.roundId })
+      .from(teeTimes)
+      .where(eq(teeTimes.id, sp.teeTimeId))
+      .limit(1);
+    roundId = tt?.roundId ?? null;
+  }
+
+  if (!roundId) {
     return (
       <div className="mx-auto max-w-md px-4 pt-16">
-        <p className="text-zinc-600 dark:text-zinc-400">Missing teeTimeId.</p>
+        <p className="text-zinc-600 dark:text-zinc-400">
+          Missing roundId or teeTimeId.
+        </p>
       </div>
     );
   }
 
-  const [teeTime] = await db
-    .select({ teeTime: teeTimes, round: rounds, course: courses })
-    .from(teeTimes)
-    .innerJoin(rounds, eq(teeTimes.roundId, rounds.id))
+  const [round] = await db
+    .select({ round: rounds, course: courses })
+    .from(rounds)
     .innerJoin(courses, eq(rounds.courseId, courses.id))
-    .where(eq(teeTimes.id, teeTimeId))
+    .where(eq(rounds.id, roundId))
     .limit(1);
 
-  if (!teeTime) notFound();
+  if (!round) notFound();
 
   const canEdit =
-    isPlatformAdmin(ctx) || isTripAdminOf(ctx, teeTime.round.tripId);
+    isPlatformAdmin(ctx) || isTripAdminOf(ctx, round.round.tripId);
   if (!canEdit) redirect(`/trips/${slug}/schedule`);
 
   const allTeams = await db
     .select()
     .from(teams)
-    .where(eq(teams.tripId, teeTime.round.tripId))
+    .where(eq(teams.tripId, round.round.tripId))
     .orderBy(asc(teams.name));
 
   const allMembers = allTeams.length
@@ -70,8 +91,64 @@ export default async function NewMatchPage({
         .orderBy(asc(tripMembers.nickname))
     : [];
 
+  const allTeeTimes = await db
+    .select()
+    .from(teeTimes)
+    .where(eq(teeTimes.roundId, roundId))
+    .orderBy(asc(teeTimes.groupNumber));
+
+  // Derive each member's tee time for this round. Today there's no
+  // explicit tee_time_participants table — instead a member's tee time
+  // is whichever round's tee time has at least one match they're a
+  // participant in. Step 8+ of the spec promotes this to an explicit
+  // join table. For now derive it on the fly so the builder can show
+  // foursome groupings.
+  const roundMatches = await db
+    .select({ matchId: matches.id, teeTimeId: matches.teeTimeId })
+    .from(matches)
+    .where(eq(matches.roundId, roundId));
+
+  const matchToTee = new Map(
+    roundMatches.map((m) => [m.matchId, m.teeTimeId]),
+  );
+  const participants = roundMatches.length
+    ? await db
+        .select()
+        .from(matchParticipants)
+        .where(
+          inArray(
+            matchParticipants.matchId,
+            roundMatches.map((m) => m.matchId),
+          ),
+        )
+    : [];
+  const memberTeeTimeById = new Map<string, string | null>();
+  for (const p of participants) {
+    if (memberTeeTimeById.get(p.tripMemberId)) continue;
+    const tee = matchToTee.get(p.matchId);
+    if (tee) memberTeeTimeById.set(p.tripMemberId, tee);
+  }
+
+  const builderMembers = allMembers
+    .filter((m) => m.teamId)
+    .map((m) => ({
+      id: m.id,
+      nickname: m.nickname,
+      teamId: m.teamId!,
+      teeTimeId: memberTeeTimeById.get(m.id) ?? null,
+    }));
+  const builderTeams = allTeams.map((t) => ({
+    id: t.id,
+    name: t.name,
+    color: t.color,
+  }));
+  const builderTeeTimes = allTeeTimes.map((t) => ({
+    id: t.id,
+    groupNumber: t.groupNumber,
+  }));
+
   return (
-    <div className="mx-auto max-w-md px-4 pb-24 pt-6">
+    <div className="mx-auto max-w-3xl px-4 pb-24 pt-6">
       <Link
         href={`/trips/${slug}/schedule`}
         className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500 hover:text-yellow-400"
@@ -81,95 +158,20 @@ export default async function NewMatchPage({
 
       <h1 className="mt-6 text-2xl font-bold tracking-tight">New matchup</h1>
       <p className="mt-1 text-xs text-zinc-500">
-        Round {teeTime.round.order} · {roundFormatLabel(teeTime.round.format)} · {teeTime.course.name}
+        Round {round.round.order} · {round.course.name}
       </p>
-      {teeTime.teeTime.time && (
-        <p className="mt-0.5 font-mono text-xs text-zinc-500">
-          {formatTripDayLong(teeTime.teeTime.time)} · {formatTripTime(teeTime.teeTime.time)} · Group {teeTime.teeTime.groupNumber}
-        </p>
-      )}
 
-      <form action={createMatch} className="mt-8 space-y-6">
-        <input type="hidden" name="teeTimeId" value={teeTime.teeTime.id} />
-
-        <label className="block">
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
-            Format
-          </span>
-          <select
-            name="format"
-            defaultValue={teeTime.round.format}
-            className="mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
-          >
-            <option value="best_ball">Best Ball — 2v2 (lowest net per side)</option>
-            <option value="two_man_aggregate">Two-Man Aggregate — 2v2 (sum of nets)</option>
-            <option value="singles">Singles — 1v1 match play</option>
-            <option value="scramble">Scramble</option>
-            <option value="stroke">Stroke play</option>
-          </select>
-          <p className="mt-1.5 text-[11px] text-zinc-500">
-            How this match is scored. Defaults to the round&apos;s format; stack a different format here for a side match.
-          </p>
-        </label>
-
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
-          Players
-        </p>
-
-        {allTeams.map((team) => {
-          const teamMembers = allMembers.filter((m) => m.teamId === team.id);
-          const color = team.color ?? '#71717a';
-          return (
-            <section
-              key={team.id}
-              className="rounded-sm border p-4"
-              style={{ borderColor: `${color}55`, background: `${color}0a` }}
-            >
-              <p
-                className="font-mono text-[10px] font-semibold uppercase tracking-widest"
-                style={{ color }}
-              >
-                {team.name}
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {teamMembers.map((m) => (
-                  <label
-                    key={m.id}
-                    className="flex cursor-pointer items-center gap-2 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-3 py-2 text-sm hover:border-zinc-600 has-checked:border-yellow-500/60 has-checked:bg-yellow-500/10"
-                  >
-                    <input
-                      type="checkbox"
-                      name="participants"
-                      value={m.id}
-                      className="h-4 w-4 accent-yellow-500"
-                    />
-                    <span className="truncate">{m.nickname}</span>
-                  </label>
-                ))}
-              </div>
-            </section>
-          );
-        })}
-
-        <p className="text-[11px] text-zinc-500">
-          Tip: pick 1 from each team for singles, 2 from each for 2v2.
-        </p>
-
-        <div className="flex items-center gap-3 pt-2">
-          <button
-            type="submit"
-            className="flex-1 rounded-sm bg-yellow-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400"
-          >
-            Create matchup
-          </button>
-          <Link
-            href={`/trips/${slug}/schedule`}
-            className="rounded-sm border border-zinc-400 dark:border-zinc-700 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-200"
-          >
-            Cancel
-          </Link>
-        </div>
-      </form>
+      <div className="mt-8">
+        <MatchBuilder
+          tripSlug={slug}
+          roundId={roundId}
+          teams={builderTeams}
+          members={builderMembers}
+          teeTimes={builderTeeTimes}
+          defaultFormat={round.round.format as FormatId}
+          defaultTeeTimeId={sp.teeTimeId ?? null}
+        />
+      </div>
     </div>
   );
 }

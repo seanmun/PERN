@@ -20,6 +20,13 @@ import {
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
 import type { AuthContext } from '@/lib/auth/current-user';
+import {
+  validateBuilderState,
+  getMatchTeeTimeId,
+  type BuilderState,
+  type BuilderContext,
+} from '@/lib/validation/match-builder';
+import { FORMAT_META, type FormatId } from '@/lib/scoring/formats';
 
 function requireMatchAdmin(ctx: AuthContext, tripId: string): void {
   if (isPlatformAdmin(ctx)) return;
@@ -169,6 +176,167 @@ export async function createMatch(formData: FormData): Promise<void> {
   }
 
   const tripSlug = await getTripSlugById(teeTime.round.tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  redirect(`/trips/${tripSlug}/matches/${match.id}`);
+}
+
+/**
+ * Builder-style match create. Takes a single `state` field that's the
+ * JSON-encoded BuilderState (format, sideSize, sideATeamId,
+ * sideBTeamId, sideAPlayerIds, sideBPlayerIds) plus roundId + tripSlug.
+ *
+ * Runs the same validateBuilderState the client used to gate its Save
+ * button, so a hand-crafted POST can't bypass the rules. Sets
+ * template_size_a/b on the new row, derives tee_time_id from
+ * getMatchTeeTimeId (null if cross-foursome).
+ */
+export async function createMatchFromBuilder(formData: FormData): Promise<void> {
+  const ctx = await getGlobalAuthContext();
+  if (!ctx) throw new AuthorizationError('Authentication required');
+
+  const roundId = String(formData.get('roundId') ?? '').trim();
+  const tripSlug = String(formData.get('tripSlug') ?? '').trim();
+  const rawState = String(formData.get('state') ?? '').trim();
+  if (!roundId || !tripSlug || !rawState) {
+    throw new Error('roundId, tripSlug, state required');
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawState);
+  } catch {
+    throw new Error('Invalid state payload');
+  }
+  const state = parsed as BuilderState;
+  if (
+    !state ||
+    typeof state.format !== 'string' ||
+    typeof state.sideSize !== 'number' ||
+    !FORMAT_META[state.format as FormatId] ||
+    !Array.isArray(state.sideAPlayerIds) ||
+    !Array.isArray(state.sideBPlayerIds)
+  ) {
+    throw new Error('Malformed builder state');
+  }
+
+  const [round] = await db
+    .select()
+    .from(rounds)
+    .where(eq(rounds.id, roundId))
+    .limit(1);
+  if (!round) throw new Error('Round not found');
+
+  requireMatchAdmin(ctx, round.tripId);
+
+  const allTeeTimes = await db
+    .select()
+    .from(teeTimes)
+    .where(eq(teeTimes.roundId, roundId));
+
+  const allMemberIds = [
+    ...state.sideAPlayerIds,
+    ...state.sideBPlayerIds,
+  ].filter((id): id is string => !!id);
+
+  const members = allMemberIds.length
+    ? await db
+        .select()
+        .from(tripMembers)
+        .where(inArray(tripMembers.id, allMemberIds))
+    : [];
+
+  // Build context the same way the client did. memberTeamById comes
+  // from trip_members; memberTeeTimeById is derived by intersecting
+  // the round's tee times with any match.tee_time_id the member is in.
+  // For now (steps 1–7 of the spec), tee-time membership is implicit:
+  // a player's tee time is whichever round's tee time has at least one
+  // match they participate in. Step 8+ promotes this to an explicit
+  // tee_time_participants table.
+  const existingMatches = await db
+    .select({ matchId: matches.id, teeTimeId: matches.teeTimeId })
+    .from(matches)
+    .where(eq(matches.roundId, roundId));
+  const matchIds = existingMatches.map((m) => m.matchId);
+  const participantRows = matchIds.length
+    ? await db
+        .select()
+        .from(matchParticipants)
+        .where(inArray(matchParticipants.matchId, matchIds))
+    : [];
+  const matchToTee = new Map(
+    existingMatches.map((m) => [m.matchId, m.teeTimeId]),
+  );
+  const memberTeeTimeById = new Map<string, string | null>();
+  for (const m of members) memberTeeTimeById.set(m.id, null);
+  for (const p of participantRows) {
+    if (!memberTeeTimeById.has(p.tripMemberId)) continue;
+    if (memberTeeTimeById.get(p.tripMemberId)) continue; // first wins
+    const tee = matchToTee.get(p.matchId);
+    if (tee) memberTeeTimeById.set(p.tripMemberId, tee);
+  }
+
+  const memberTeamById = new Map<string, string>();
+  for (const m of members) {
+    if (m.teamId) memberTeamById.set(m.id, m.teamId);
+  }
+
+  const builderCtx: BuilderContext = { memberTeamById, memberTeeTimeById };
+  const validation = validateBuilderState(state, builderCtx);
+  if (!validation.ok) {
+    throw new Error(
+      `Lineup is invalid: ${validation.errors.join(' · ')}`,
+    );
+  }
+
+  // Verify each side's team_id actually belongs to this trip.
+  const tripTeams = await db
+    .select()
+    .from(teams)
+    .where(eq(teams.tripId, round.tripId));
+  const tripTeamIds = new Set(tripTeams.map((t) => t.id));
+  if (
+    !tripTeamIds.has(state.sideATeamId) ||
+    !tripTeamIds.has(state.sideBTeamId)
+  ) {
+    throw new Error('Side team is not part of this trip');
+  }
+
+  // Verify the tee-times referenced by the validation exist on this round.
+  const roundTeeIds = new Set(allTeeTimes.map((t) => t.id));
+  for (const [memberId, teeId] of memberTeeTimeById) {
+    if (teeId && !roundTeeIds.has(teeId)) {
+      throw new Error(`Player ${memberId} has a tee time not on this round`);
+    }
+  }
+
+  const teeTimeId = getMatchTeeTimeId(state, builderCtx);
+
+  const [match] = await db
+    .insert(matches)
+    .values({
+      roundId,
+      teeTimeId,
+      format: state.format as RoundFormat,
+      templateSizeA: state.sideSize,
+      templateSizeB: state.sideSize,
+      status: 'scheduled',
+    })
+    .returning();
+
+  // Persist participants. Side A → sideATeamId, Side B → sideBTeamId.
+  const rows: { matchId: string; tripMemberId: string; teamId: string }[] = [];
+  for (const id of state.sideAPlayerIds) {
+    if (!id) continue;
+    rows.push({ matchId: match.id, tripMemberId: id, teamId: state.sideATeamId });
+  }
+  for (const id of state.sideBPlayerIds) {
+    if (!id) continue;
+    rows.push({ matchId: match.id, tripMemberId: id, teamId: state.sideBTeamId });
+  }
+  if (rows.length) {
+    await db.insert(matchParticipants).values(rows);
+  }
+
   revalidatePath(`/trips/${tripSlug}/schedule`);
   redirect(`/trips/${tripSlug}/matches/${match.id}`);
 }
