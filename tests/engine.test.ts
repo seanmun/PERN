@@ -287,6 +287,32 @@ describe('formatStatus — match-play status text', () => {
   it('halved when 18 holes played and tied', () => {
     expect(statusOf(9, 9, 18)).toBe('AS');
   });
+
+  it('all 18 played with a lead → closes with winner (regression guard)', () => {
+    // Without this case the engine returned in_progress after hole 18,
+    // which left winningTeamId NULL on the match row and the cup tab
+    // showed "1 UP" instead of a final result.
+    const players: EnginePlayer[] = [
+      { id: 'A', handicap: 0, teamSide: 'A' },
+      { id: 'B', handicap: 0, teamSide: 'B' },
+    ];
+    const scores: EngineScore[] = [];
+    // A wins hole 18 only; holes 1–17 halved at par 4. Match goes to
+    // the final hole and A takes it → closed, A 1 UP.
+    for (let h = 1; h <= 18; h++) {
+      const aGross = h === 18 ? 3 : 4;
+      const bGross = 4;
+      scores.push({ playerId: 'A', holeNumber: h, gross: aGross });
+      scores.push({ playerId: 'B', holeNumber: h, gross: bGross });
+    }
+    const result = computeMatch({ players, holes: HOLES_18, scores, format: 'singles' });
+    expect(result.status.kind).toBe('closed');
+    if (result.status.kind === 'closed') {
+      expect(result.status.winner).toBe('A');
+      expect(result.status.up).toBe(1);
+    }
+    expect(winnerSide(result.status)).toBe('A');
+  });
 });
 
 describe('winnerSide', () => {

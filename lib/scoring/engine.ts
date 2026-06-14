@@ -249,9 +249,12 @@ function buildStatus(args: {
 
   if (holesPlayed === totalHoles) {
     if (lead === 0) return { kind: 'halved' };
+    // All holes played + a lead = match closed. Previously this
+    // returned `in_progress` which meant the action layer never set
+    // winningTeamId after the 18th hole.
     return {
-      kind: 'in_progress',
-      leader: lead > 0 ? 'A' : 'B',
+      kind: 'closed',
+      winner: lead > 0 ? 'A' : 'B',
       up: Math.abs(lead),
       remaining: 0,
     };
