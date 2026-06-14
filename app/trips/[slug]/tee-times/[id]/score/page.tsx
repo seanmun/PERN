@@ -98,6 +98,7 @@ export default async function TeeTimeScoreEntryPage({
     tripMemberId: s.tripMemberId,
     holeNumber: s.holeNumber,
     gross: s.gross,
+    enteredByLabel: s.enteredByLabel,
   }));
 
   // Team-input formats: collapse the 4 participants into 2 team rows.
@@ -145,11 +146,26 @@ export default async function TeeTimeScoreEntryPage({
     if (!isAdmin) {
       teamsForClient = teamsForClient.filter((t) => t.isSelfOnTeam);
     }
+    // Team-level enteredByLabel: pull the label off any one teammate's
+    // hole_score row — fan-out keeps them all identical.
+    const teamHoleLabel = new Map<string, string | null>();
+    for (const s of data.scores) {
+      const p = data.participants.find(
+        (pp) => pp.participant.id === s.tripMemberId,
+      );
+      if (!p) continue;
+      const key = `${p.team.id}:${s.holeNumber}`;
+      if (!teamHoleLabel.has(key)) {
+        teamHoleLabel.set(key, s.enteredByLabel);
+      }
+    }
     initialTeamScores =
       data.engineTeamScores?.map((s) => ({
         teamId: s.teamId,
         holeNumber: s.holeNumber,
         gross: s.gross,
+        enteredByLabel:
+          teamHoleLabel.get(`${s.teamId}:${s.holeNumber}`) ?? null,
       })) ?? [];
   }
 

@@ -99,6 +99,7 @@ export default async function ScoreEntryPage({
     tripMemberId: s.tripMemberId,
     holeNumber: s.holeNumber,
     gross: s.gross,
+    enteredByLabel: s.enteredByLabel,
   }));
 
   // Team-input formats (scramble, alt shot): collapse the 4 participants into
@@ -148,11 +149,24 @@ export default async function ScoreEntryPage({
     if (!isAdmin) {
       teamsForClient = teamsForClient.filter((t) => t.isSelfOnTeam);
     }
+    const teamHoleLabel = new Map<string, string | null>();
+    for (const s of data.scores) {
+      const p = data.participants.find(
+        (pp) => pp.participant.id === s.tripMemberId,
+      );
+      if (!p) continue;
+      const key = `${p.team.id}:${s.holeNumber}`;
+      if (!teamHoleLabel.has(key)) {
+        teamHoleLabel.set(key, s.enteredByLabel);
+      }
+    }
     initialTeamScores =
       data.engineTeamScores?.map((s) => ({
         teamId: s.teamId,
         holeNumber: s.holeNumber,
         gross: s.gross,
+        enteredByLabel:
+          teamHoleLabel.get(`${s.teamId}:${s.holeNumber}`) ?? null,
       })) ?? [];
   }
 

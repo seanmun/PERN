@@ -1,4 +1,4 @@
-import { eq, asc, and } from 'drizzle-orm';
+import { eq, asc, and, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   matches,
@@ -12,6 +12,7 @@ import {
   tripMembers,
   teams,
   holeScores,
+  users,
 } from '@/db/schema';
 import {
   computeTeamHandicap,
@@ -34,7 +35,13 @@ type Course = typeof courses.$inferSelect;
 type TeeTime = typeof teeTimes.$inferSelect;
 type TripMember = typeof tripMembers.$inferSelect;
 type Team = typeof teams.$inferSelect;
-type HoleScore = typeof holeScores.$inferSelect;
+type HoleScore = typeof holeScores.$inferSelect & {
+  // Display name of the user who entered this score. Resolved server-side
+  // via tripMembers.nickname for users on this trip; falls back to the
+  // global user.firstName when scored by someone outside the trip
+  // (a platform admin, for instance). Null only when enteredBy was null.
+  enteredByLabel: string | null;
+};
 type CourseHole = typeof courseHoles.$inferSelect;
 type CourseTee = typeof courseTees.$inferSelect;
 
@@ -157,10 +164,54 @@ export async function getMatchScoringData(
     side: sideByTeam.get(p.team.id) ?? 'A',
   }));
 
-  const scores = await db
+  const rawScores = await db
     .select()
     .from(holeScores)
     .where(eq(holeScores.matchId, matchId));
+
+  // Resolve enteredBy (a users.id) to a display name. Prefer the
+  // tripMembers.nickname scoped to this trip; fall back to users.firstName
+  // (or email if that's also missing) for users not on the trip.
+  const entererIds = Array.from(
+    new Set(rawScores.map((s) => s.enteredBy).filter((id): id is string => !!id)),
+  );
+  const labelByUserId = new Map<string, string>();
+  if (entererIds.length) {
+    const memberLabels = await db
+      .select({ userId: tripMembers.userId, nickname: tripMembers.nickname })
+      .from(tripMembers)
+      .where(
+        and(
+          eq(tripMembers.tripId, row.round.tripId),
+          inArray(tripMembers.userId, entererIds),
+        ),
+      );
+    for (const m of memberLabels) {
+      if (m.userId) labelByUserId.set(m.userId, m.nickname);
+    }
+    const missing = entererIds.filter((id) => !labelByUserId.has(id));
+    if (missing.length) {
+      const userRows = await db
+        .select({
+          id: users.id,
+          displayName: users.displayName,
+          fullName: users.fullName,
+          email: users.email,
+        })
+        .from(users)
+        .where(inArray(users.id, missing));
+      for (const u of userRows) {
+        const label =
+          u.displayName ?? u.fullName ?? u.email.split('@')[0] ?? 'Unknown';
+        labelByUserId.set(u.id, label);
+      }
+    }
+  }
+
+  const scores: HoleScore[] = rawScores.map((s) => ({
+    ...s,
+    enteredByLabel: s.enteredBy ? labelByUserId.get(s.enteredBy) ?? null : null,
+  }));
 
   const engineHoles: EngineHole[] = holes.map((h) => ({
     number: h.holeNumber,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -8,6 +8,7 @@ import {
   Square,
   CheckCircle2,
   Loader2,
+  Pencil,
 } from 'lucide-react';
 import { upsertHoleScore, upsertTeamHoleScore } from '@/lib/actions/scores';
 
@@ -32,6 +33,10 @@ export type ScoreClientScore = {
   tripMemberId: string;
   holeNumber: number;
   gross: number | null;
+  // Display name (nickname for trip members, displayName for outsiders) of
+  // whoever last saved this score. Shown muted under the score buttons so
+  // it's obvious who entered what. Null if no one's saved this hole yet.
+  enteredByLabel: string | null;
 };
 
 // Team-input formats (scramble, alternate shot): one row per team, one
@@ -51,6 +56,7 @@ export type ScoreClientTeamScore = {
   teamId: string;
   holeNumber: number;
   gross: number | null;
+  enteredByLabel: string | null;
 };
 
 const VIEW_KEY = 'cup_score_view';
@@ -90,7 +96,19 @@ export default function ScoreEntryClient({
 
   const [view, setView] = useState<'hole' | 'card'>('hole');
   const [restored, setRestored] = useState(false);
-  const [activeHole, setActiveHole] = useState(1);
+  // Auto-jump to the first hole that's missing a player score on open.
+  // If every hole already has a complete set of scores, land on the
+  // last hole instead of bouncing back to 1.
+  const [activeHole, setActiveHole] = useState(() => {
+    const have = new Set<string>();
+    for (const s of initialScores) {
+      if (s.gross != null) have.add(`${s.tripMemberId}:${s.holeNumber}`);
+    }
+    for (let h = 1; h <= holes.length; h++) {
+      if (!players.every((p) => have.has(`${p.tripMemberId}:${h}`))) return h;
+    }
+    return Math.max(1, holes.length);
+  });
   const [activePlayerId, setActivePlayerId] = useState<string>(
     selfTripMemberId ?? players[0]?.tripMemberId ?? ''
   );
@@ -101,6 +119,24 @@ export default function ScoreEntryClient({
     }
     return m;
   });
+  // Static record of who entered each gross — keyed `${tripMemberId}:${hole}`.
+  // We only need this for display ("Entered by X") under the score buttons.
+  // It doesn't update on save (no server round-trip without a reload), which
+  // is fine — the user knows they themselves just saved it.
+  const enteredByMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of initialScores) {
+      if (s.enteredByLabel) {
+        m.set(`${s.tripMemberId}:${s.holeNumber}`, s.enteredByLabel);
+      }
+    }
+    return m;
+  }, [initialScores]);
+  // Holes the user has explicitly tapped "Edit" on. Past holes start
+  // locked; unlocking is per-hole and resets on page reload.
+  const [unlockedHoles, setUnlockedHoles] = useState<Set<number>>(
+    () => new Set(),
+  );
 
   useEffect(() => {
     const v = localStorage.getItem(VIEW_KEY);
@@ -116,8 +152,34 @@ export default function ScoreEntryClient({
   const activePlayer =
     players.find((p) => p.tripMemberId === activePlayerId) ?? players[0];
 
+  // The "frontier" is the first hole where any player is missing a
+  // score. Anything strictly before the frontier is considered past
+  // and locked unless the user explicitly unlocks it.
+  const frontierHole = useMemo(() => {
+    for (let h = 1; h <= holes.length; h++) {
+      const allHave = players.every(
+        (p) => scores.get(`${p.tripMemberId}:${h}`) != null,
+      );
+      if (!allHave) return h;
+    }
+    return holes.length;
+  }, [scores, holes.length, players]);
+
+  const activeHoleLocked =
+    activeHole !== frontierHole && !unlockedHoles.has(activeHole);
+
+  function unlockActiveHole() {
+    setUnlockedHoles((prev) => {
+      const next = new Set(prev);
+      next.add(activeHole);
+      return next;
+    });
+  }
+
   const getScore = (tripMemberId: string, holeNumber: number) =>
     scores.get(`${tripMemberId}:${holeNumber}`) ?? null;
+  const getEnteredBy = (tripMemberId: string, holeNumber: number) =>
+    enteredByMap.get(`${tripMemberId}:${holeNumber}`) ?? null;
 
   const setScore = (
     tripMemberId: string,
@@ -174,7 +236,10 @@ export default function ScoreEntryClient({
           holes={holes}
           players={players}
           canEdit={canEdit}
+          locked={activeHoleLocked}
+          onUnlock={unlockActiveHole}
           getScore={(tripMemberId) => getScore(tripMemberId, activeHole)}
+          getEnteredBy={(tripMemberId) => getEnteredBy(tripMemberId, activeHole)}
           onScoreChange={(tripMemberId, g) =>
             setScore(tripMemberId, activeHole, g)
           }
@@ -235,7 +300,10 @@ function HoleByHole({
   holes,
   players,
   canEdit,
+  locked,
+  onUnlock,
   getScore,
+  getEnteredBy,
   onScoreChange,
   onPrev,
   onNext,
@@ -247,7 +315,12 @@ function HoleByHole({
   holes: ScoreClientHole[];
   players: ScoreClientPlayer[];
   canEdit: boolean;
+  // True when the user has navigated back to a past hole. Score buttons
+  // render disabled until they tap Edit (onUnlock).
+  locked: boolean;
+  onUnlock: () => void;
   getScore: (tripMemberId: string) => number | null;
+  getEnteredBy: (tripMemberId: string) => string | null;
   onScoreChange: (tripMemberId: string, g: number | null) => void;
   onPrev: () => void;
   onNext: () => void;
@@ -292,6 +365,21 @@ function HoleByHole({
         </div>
       </div>
 
+      {locked && (
+        <div className="mt-2 flex items-center justify-between gap-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900/40 px-3 py-2">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+            Hole locked
+          </p>
+          <button
+            type="button"
+            onClick={onUnlock}
+            className="inline-flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
+          >
+            <Pencil size={11} strokeWidth={2.5} /> Edit
+          </button>
+        </div>
+      )}
+
       <div className="mt-2 space-y-1.5">
         {players.map((p) => (
           <PlayerHoleRow
@@ -300,8 +388,9 @@ function HoleByHole({
             hole={hole}
             player={p}
             score={getScore(p.tripMemberId)}
+            enteredBy={getEnteredBy(p.tripMemberId)}
             onScoreChange={(g) => onScoreChange(p.tripMemberId, g)}
-            disabled={!canEdit && !p.isSelf}
+            disabled={(!canEdit && !p.isSelf) || locked}
           />
         ))}
       </div>
@@ -333,6 +422,7 @@ function PlayerHoleRow({
   hole,
   player,
   score,
+  enteredBy,
   onScoreChange,
   disabled,
 }: {
@@ -340,6 +430,7 @@ function PlayerHoleRow({
   hole: ScoreClientHole;
   player: ScoreClientPlayer;
   score: number | null;
+  enteredBy: string | null;
   onScoreChange: (g: number | null) => void;
   disabled: boolean;
 }) {
@@ -401,6 +492,11 @@ function PlayerHoleRow({
             gross={score}
           />
         </div>
+        {score != null && enteredBy && (
+          <p className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-zinc-400 dark:text-zinc-600">
+            Entered by {enteredBy}
+          </p>
+        )}
       </div>
 
       <button
@@ -666,7 +762,16 @@ function TeamScoreEntry({
   initialTeamScores: ScoreClientTeamScore[];
   canEdit: boolean;
 }) {
-  const [activeHole, setActiveHole] = useState(1);
+  const [activeHole, setActiveHole] = useState(() => {
+    const have = new Set<string>();
+    for (const s of initialTeamScores) {
+      if (s.gross != null) have.add(`${s.teamId}:${s.holeNumber}`);
+    }
+    for (let h = 1; h <= holes.length; h++) {
+      if (!teams.every((t) => have.has(`${t.teamId}:${h}`))) return h;
+    }
+    return Math.max(1, holes.length);
+  });
   const [scores, setScores] = useState<Map<string, number | null>>(() => {
     const m = new Map<string, number | null>();
     for (const s of initialTeamScores) {
@@ -674,11 +779,46 @@ function TeamScoreEntry({
     }
     return m;
   });
+  const enteredByMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of initialTeamScores) {
+      if (s.enteredByLabel) {
+        m.set(`${s.teamId}:${s.holeNumber}`, s.enteredByLabel);
+      }
+    }
+    return m;
+  }, [initialTeamScores]);
+  const [unlockedHoles, setUnlockedHoles] = useState<Set<number>>(
+    () => new Set(),
+  );
 
   const activeHoleData = holes.find((h) => h.number === activeHole) ?? holes[0];
 
+  const frontierHole = useMemo(() => {
+    for (let h = 1; h <= holes.length; h++) {
+      const allHave = teams.every(
+        (t) => scores.get(`${t.teamId}:${h}`) != null,
+      );
+      if (!allHave) return h;
+    }
+    return holes.length;
+  }, [scores, holes.length, teams]);
+
+  const activeHoleLocked =
+    activeHole !== frontierHole && !unlockedHoles.has(activeHole);
+
+  function unlockActiveHole() {
+    setUnlockedHoles((prev) => {
+      const next = new Set(prev);
+      next.add(activeHole);
+      return next;
+    });
+  }
+
   const getScore = (teamId: string, holeNumber: number) =>
     scores.get(`${teamId}:${holeNumber}`) ?? null;
+  const getEnteredBy = (teamId: string, holeNumber: number) =>
+    enteredByMap.get(`${teamId}:${holeNumber}`) ?? null;
 
   const setScore = (
     teamId: string,
@@ -724,6 +864,21 @@ function TeamScoreEntry({
         </div>
       </div>
 
+      {activeHoleLocked && (
+        <div className="mt-2 flex items-center justify-between gap-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900/40 px-3 py-2">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+            Hole locked
+          </p>
+          <button
+            type="button"
+            onClick={unlockActiveHole}
+            className="inline-flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
+          >
+            <Pencil size={11} strokeWidth={2.5} /> Edit
+          </button>
+        </div>
+      )}
+
       <div className="mt-2 space-y-1.5">
         {teams.map((t) => (
           <TeamHoleRow
@@ -732,8 +887,9 @@ function TeamScoreEntry({
             hole={activeHoleData}
             team={t}
             score={getScore(t.teamId, activeHole)}
+            enteredBy={getEnteredBy(t.teamId, activeHole)}
             onScoreChange={(g) => setScore(t.teamId, activeHole, g)}
-            disabled={!canEdit}
+            disabled={!canEdit || activeHoleLocked}
           />
         ))}
       </div>
@@ -765,6 +921,7 @@ function TeamHoleRow({
   hole,
   team,
   score,
+  enteredBy,
   onScoreChange,
   disabled,
 }: {
@@ -772,6 +929,7 @@ function TeamHoleRow({
   hole: ScoreClientHole;
   team: ScoreClientTeam;
   score: number | null;
+  enteredBy: string | null;
   onScoreChange: (g: number | null) => void;
   disabled: boolean;
 }) {
@@ -836,6 +994,11 @@ function TeamHoleRow({
             gross={score}
           />
         </div>
+        {score != null && enteredBy && (
+          <p className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-zinc-400 dark:text-zinc-600">
+            Entered by {enteredBy}
+          </p>
+        )}
       </div>
 
       <button
