@@ -26,6 +26,7 @@ import {
   computeMatch,
   computeTeamMatch,
   formatStatus,
+  type HoleResult,
   type PlayerInputFormat,
 } from '@/lib/scoring/engine';
 
@@ -271,6 +272,16 @@ export default async function MatchDetailPage({
           </p>
         )}
       </div>
+
+      {liveMatch && liveMatch.holesPlayed > 0 && scoringData && (
+        <HoleScorecard
+          holeResults={liveMatch.holeResults}
+          aTeamName={scoringData.participants.find((p) => p.side === 'A')?.team.name ?? 'A'}
+          bTeamName={scoringData.participants.find((p) => p.side === 'B')?.team.name ?? 'B'}
+          aTeamColor={scoringData.participants.find((p) => p.side === 'A')?.team.color ?? null}
+          bTeamColor={scoringData.participants.find((p) => p.side === 'B')?.team.color ?? null}
+        />
+      )}
 
       {canEnterScores && (
         <Link
@@ -538,4 +549,127 @@ function handicapToRating(tripHandicap: string | null): number {
   if (h < 25) return 60;
   if (h < 30) return 50;
   return 20;
+}
+
+/**
+ * Hole-by-hole scorecard. Renders every hole with the par, each side's
+ * best net score, and which side won (filled cell in the team color).
+ * Halved holes get a neutral grey indicator. The running match-play
+ * state ("1 UP", "AS") sits in the rightmost column so you can trace
+ * momentum hole-by-hole.
+ */
+function HoleScorecard({
+  holeResults,
+  aTeamName,
+  bTeamName,
+  aTeamColor,
+  bTeamColor,
+}: {
+  holeResults: HoleResult[];
+  aTeamName: string;
+  bTeamName: string;
+  aTeamColor: string | null;
+  bTeamColor: string | null;
+}) {
+  const colorA = aTeamColor ?? '#71717a';
+  const colorB = bTeamColor ?? '#71717a';
+
+  function runningStatus(upA: number, upB: number): string {
+    if (upA === upB) return 'AS';
+    if (upA > upB) return `${upA - upB} UP`;
+    return `${upB - upA} DN`;
+  }
+
+  return (
+    <section className="mt-6 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
+      <div className="border-b border-zinc-200 dark:border-zinc-900 px-3 py-2.5">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+          Scorecard
+        </p>
+      </div>
+
+      <div className="grid grid-cols-[28px_28px_1fr_1fr_42px] items-center gap-2 border-b border-zinc-200 dark:border-zinc-900 bg-zinc-100 dark:bg-zinc-900/30 px-3 py-2 font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
+        <span>#</span>
+        <span>Par</span>
+        <span
+          className="truncate"
+          style={{ color: colorA }}
+          title={aTeamName}
+        >
+          {aTeamName}
+        </span>
+        <span
+          className="truncate text-right"
+          style={{ color: colorB }}
+          title={bTeamName}
+        >
+          {bTeamName}
+        </span>
+        <span className="text-right">Result</span>
+      </div>
+
+      <div className="divide-y divide-zinc-200 dark:divide-zinc-900">
+        {holeResults.map((r) => {
+          const aWon = r.winner === 'A';
+          const bWon = r.winner === 'B';
+          const halved = r.winner === 'halved';
+          const status = runningStatus(r.statusAfter.upA, r.statusAfter.upB);
+          return (
+            <div
+              key={r.holeNumber}
+              className="grid grid-cols-[28px_28px_1fr_1fr_42px] items-center gap-2 px-3 py-2 font-mono text-xs tabular-nums"
+            >
+              <span className="font-semibold text-zinc-700 dark:text-zinc-300">{r.holeNumber}</span>
+              <span className="text-zinc-600 dark:text-zinc-400">{r.par}</span>
+              <span
+                className={`rounded-sm px-2 py-1 text-center font-bold ${
+                  aWon ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-500'
+                }`}
+                style={
+                  aWon
+                    ? { background: `${colorA}33`, boxShadow: `inset 0 0 0 1px ${colorA}` }
+                    : undefined
+                }
+              >
+                {r.aBestNet ?? '—'}
+              </span>
+              <span
+                className={`rounded-sm px-2 py-1 text-center font-bold ${
+                  bWon ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-500'
+                }`}
+                style={
+                  bWon
+                    ? { background: `${colorB}33`, boxShadow: `inset 0 0 0 1px ${colorB}` }
+                    : undefined
+                }
+              >
+                {r.bBestNet ?? '—'}
+              </span>
+              <span
+                className={`text-right ${
+                  halved
+                    ? 'text-zinc-500'
+                    : r.statusAfter.upA > r.statusAfter.upB
+                      ? ''
+                      : r.statusAfter.upA < r.statusAfter.upB
+                        ? ''
+                        : 'text-zinc-500'
+                }`}
+                style={{
+                  color:
+                    r.statusAfter.upA > r.statusAfter.upB
+                      ? colorA
+                      : r.statusAfter.upA < r.statusAfter.upB
+                        ? colorB
+                        : undefined,
+                }}
+              >
+                {status}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
