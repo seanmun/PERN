@@ -209,6 +209,13 @@ export default function MatchBuilder({
         <input type="hidden" name="roundId" value={roundId} />
         <input type="hidden" name="tripSlug" value={tripSlug} />
         <input type="hidden" name="state" value={payload} />
+        {/* The URL's teeTimeId is the admin's explicit "this match
+            belongs to this foursome" choice. Posted so the action can
+            override the derived teeTimeId, which is null when this is
+            the first match in a round. */}
+        {defaultTeeTimeId && (
+          <input type="hidden" name="explicitTeeTimeId" value={defaultTeeTimeId} />
+        )}
 
         {/* Format + side size pickers */}
         <div className="grid gap-3 sm:grid-cols-2">

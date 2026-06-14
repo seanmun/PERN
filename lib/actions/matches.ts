@@ -309,7 +309,17 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
     }
   }
 
-  const teeTimeId = getMatchTeeTimeId(state, builderCtx);
+  // Prefer the explicit teeTimeId from the URL/form — that's the admin
+  // saying "this matchup belongs to THIS foursome." Falls back to the
+  // derived value from existing match participants, which is null on
+  // the first match in a round (chicken-and-egg) and would hide the
+  // match from the schedule's tee-time-keyed queries.
+  const explicitTeeTimeId = String(formData.get('explicitTeeTimeId') ?? '').trim();
+  const derivedTeeTimeId = getMatchTeeTimeId(state, builderCtx);
+  const teeTimeId =
+    explicitTeeTimeId && roundTeeIds.has(explicitTeeTimeId)
+      ? explicitTeeTimeId
+      : derivedTeeTimeId;
 
   const [match] = await db
     .insert(matches)
