@@ -42,6 +42,83 @@ function makeCtx(overrides?: Partial<BuilderContext>): BuilderContext {
   return { memberTeamById, memberTeeTimeById, ...overrides };
 }
 
+describe('validateBuilderState — 1-sided formats', () => {
+  it('4-man scramble, one team, same foursome — ok', () => {
+    const state: BuilderState = {
+      format: 'scramble',
+      sideSize: 4,
+      sideATeamId: TEAM_A,
+      sideBTeamId: '', // unused — 1-sided
+      sideAPlayerIds: [
+        PLAYERS.A1.id,
+        PLAYERS.A2.id,
+        // Two extra A-team players in tee 1 only — make them up for the test.
+        'extra-a-tee1-1',
+        'extra-a-tee1-2',
+      ],
+      sideBPlayerIds: [],
+    };
+    const ctx = makeCtx();
+    ctx.memberTeamById.set('extra-a-tee1-1', TEAM_A);
+    ctx.memberTeamById.set('extra-a-tee1-2', TEAM_A);
+    ctx.memberTeeTimeById.set('extra-a-tee1-1', TEE_1);
+    ctx.memberTeeTimeById.set('extra-a-tee1-2', TEE_1);
+    expect(validateBuilderState(state, ctx).ok).toBe(true);
+  });
+
+  it('2-man scramble — one side empty, 1-sided so OK to skip side B', () => {
+    const state: BuilderState = {
+      format: 'scramble',
+      sideSize: 2,
+      sideATeamId: TEAM_A,
+      sideBTeamId: '',
+      sideAPlayerIds: [PLAYERS.A1.id, PLAYERS.A2.id],
+      sideBPlayerIds: [],
+    };
+    expect(validateBuilderState(state, makeCtx()).ok).toBe(true);
+  });
+
+  it('scramble rejects players from two foursomes', () => {
+    const state: BuilderState = {
+      format: 'scramble',
+      sideSize: 2,
+      sideATeamId: TEAM_A,
+      sideBTeamId: '',
+      sideAPlayerIds: [PLAYERS.A1.id, PLAYERS.A3.id], // tee 1 + tee 2
+      sideBPlayerIds: [],
+    };
+    const res = validateBuilderState(state, makeCtx());
+    expect(res.ok).toBe(false);
+    expect(res.errors.some((e) => e.toLowerCase().includes('foursome'))).toBe(true);
+  });
+
+  it('stroke play — single player, ok', () => {
+    const state: BuilderState = {
+      format: 'stroke',
+      sideSize: 1,
+      sideATeamId: TEAM_A,
+      sideBTeamId: '',
+      sideAPlayerIds: [PLAYERS.A1.id],
+      sideBPlayerIds: [],
+    };
+    expect(validateBuilderState(state, makeCtx()).ok).toBe(true);
+  });
+
+  it('scramble doesnt require a side B team', () => {
+    // Same team in both side IDs would normally fail for 2-sided,
+    // but 1-sided ignores side B entirely.
+    const state: BuilderState = {
+      format: 'scramble',
+      sideSize: 2,
+      sideATeamId: TEAM_A,
+      sideBTeamId: TEAM_A, // wouldn't fail — sideBTeamId is ignored
+      sideAPlayerIds: [PLAYERS.A1.id, PLAYERS.A2.id],
+      sideBPlayerIds: [],
+    };
+    expect(validateBuilderState(state, makeCtx()).ok).toBe(true);
+  });
+});
+
 describe('validateBuilderState — happy paths', () => {
   it('1v1 singles, opposing teams, anywhere — ok', () => {
     const state: BuilderState = {

@@ -311,6 +311,7 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
 
   const teeTimeId = getMatchTeeTimeId(state, builderCtx);
 
+  const meta = FORMAT_META[state.format as FormatId];
   const [match] = await db
     .insert(matches)
     .values({
@@ -318,7 +319,9 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
       teeTimeId,
       format: state.format as RoundFormat,
       templateSizeA: state.sideSize,
-      templateSizeB: state.sideSize,
+      // 1-sided formats (scramble, stroke) don't have a Side B —
+      // store size 0 so leaderboard / score-entry can branch on this.
+      templateSizeB: meta.sides === 2 ? state.sideSize : 0,
       status: 'scheduled',
     })
     .returning();

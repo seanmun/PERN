@@ -15,6 +15,8 @@ import {
   isIndividualInput,
   requiresSameFoursomePerSide,
   isSideSizeAllowed,
+  isOneSided,
+  isTwoSided,
 } from '@/lib/scoring/formats';
 
 describe('FORMAT_META', () => {
@@ -31,15 +33,17 @@ describe('FORMAT_META', () => {
     );
   });
 
-  it('singles is 1v1, no foursome constraint, individual input', () => {
+  it('singles is 1v1, 2-sided, no foursome constraint, individual input', () => {
     const f = getFormatMeta('singles');
+    expect(f.sides).toBe(2);
     expect(f.allowedSideSizes).toEqual([1]);
     expect(f.requiresSameFoursomePerSide).toBe(false);
     expect(f.inputMode).toBe('individual');
   });
 
-  it('best ball supports 2v2 / 3v3 / 4v4, no foursome constraint, individual input', () => {
+  it('best ball is 2-sided, supports 2v2 / 3v3 / 4v4, no foursome constraint', () => {
     const f = getFormatMeta('best_ball');
+    expect(f.sides).toBe(2);
     expect(f.allowedSideSizes).toEqual([2, 3, 4]);
     expect(f.requiresSameFoursomePerSide).toBe(false);
     expect(f.inputMode).toBe('individual');
@@ -47,28 +51,34 @@ describe('FORMAT_META', () => {
 
   it('two-man aggregate is 2v2, foursome-locked per side, individual input', () => {
     const f = getFormatMeta('two_man_aggregate');
+    expect(f.sides).toBe(2);
     expect(f.allowedSideSizes).toEqual([2]);
     expect(f.requiresSameFoursomePerSide).toBe(true);
     expect(f.inputMode).toBe('individual');
   });
 
-  it('scramble supports 2/3/4-man, foursome-locked per side, team input', () => {
+  it('scramble is 1-sided, 2/3/4-man teams, foursome-locked, team input', () => {
+    // One team plays one ball — the opposing team plays their own
+    // scramble in their own match. Leaderboard sorts team strokes.
     const f = getFormatMeta('scramble');
+    expect(f.sides).toBe(1);
     expect(f.allowedSideSizes).toEqual([2, 3, 4]);
     expect(f.requiresSameFoursomePerSide).toBe(true);
     expect(f.inputMode).toBe('team');
   });
 
-  it('alternate shot is 2v2, foursome-locked per side, team input', () => {
+  it('alternate shot is 2v2 head-to-head, foursome-locked per side, team input', () => {
     const f = getFormatMeta('alternate_shot');
+    expect(f.sides).toBe(2);
     expect(f.allowedSideSizes).toEqual([2]);
     expect(f.requiresSameFoursomePerSide).toBe(true);
     expect(f.inputMode).toBe('team');
   });
 
-  it('stroke supports 1..4 side, no foursome constraint, individual input', () => {
+  it('stroke is 1-sided per match (one player, leaderboard sorts)', () => {
     const f = getFormatMeta('stroke');
-    expect(f.allowedSideSizes).toEqual([1, 2, 3, 4]);
+    expect(f.sides).toBe(1);
+    expect(f.allowedSideSizes).toEqual([1]);
     expect(f.requiresSameFoursomePerSide).toBe(false);
     expect(f.inputMode).toBe('individual');
   });
@@ -108,6 +118,25 @@ describe('FORMAT_META invariants', () => {
     for (const id of FORMAT_IDS) {
       expect(FORMAT_META[id].id).toBe(id);
     }
+  });
+});
+
+describe('side-count helpers', () => {
+  it('isOneSided / isTwoSided agree with FORMAT_META.sides', () => {
+    for (const id of FORMAT_IDS) {
+      const sides = FORMAT_META[id].sides;
+      expect(isOneSided(id)).toBe(sides === 1);
+      expect(isTwoSided(id)).toBe(sides === 2);
+    }
+  });
+
+  it('scramble and stroke are 1-sided; the rest are 2-sided', () => {
+    expect(isOneSided('scramble')).toBe(true);
+    expect(isOneSided('stroke')).toBe(true);
+    expect(isTwoSided('singles')).toBe(true);
+    expect(isTwoSided('best_ball')).toBe(true);
+    expect(isTwoSided('two_man_aggregate')).toBe(true);
+    expect(isTwoSided('alternate_shot')).toBe(true);
   });
 });
 

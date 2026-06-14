@@ -17,6 +17,7 @@ import {
   FORMAT_META,
   type FormatId,
   isIndividualInput,
+  isOneSided,
 } from '@/lib/scoring/formats';
 
 // alternate_shot is defined in FORMAT_META but the DB's round_format
@@ -75,15 +76,17 @@ export default function MatchBuilder({
     teams[1]?.id ?? teams[0]?.id ?? '',
   );
   const [sideAPlayerIds, setSideAPlayerIds] = useState<(string | null)[]>(
-    () => Array(sideSize).fill(null),
+    () => Array(meta.allowedSideSizes[0] ?? 1).fill(null),
   );
   const [sideBPlayerIds, setSideBPlayerIds] = useState<(string | null)[]>(
-    () => Array(sideSize).fill(null),
+    () =>
+      meta.sides === 2 ? Array(meta.allowedSideSizes[0] ?? 1).fill(null) : [],
   );
   const [activeDrag, setActiveDrag] = useState<string | null>(null);
 
   // Re-init slot arrays when sideSize changes — preserve existing
-  // selections up to the new size, drop overflow.
+  // selections up to the new size, drop overflow. 1-sided formats keep
+  // side B empty.
   function changeSideSize(n: number) {
     setSideSize(n);
     setSideAPlayerIds((prev) => {
@@ -91,20 +94,27 @@ export default function MatchBuilder({
       for (let i = 0; i < Math.min(n, prev.length); i++) next[i] = prev[i];
       return next;
     });
-    setSideBPlayerIds((prev) => {
-      const next = Array(n).fill(null) as (string | null)[];
-      for (let i = 0; i < Math.min(n, prev.length); i++) next[i] = prev[i];
-      return next;
-    });
+    if (FORMAT_META[format].sides === 2) {
+      setSideBPlayerIds((prev) => {
+        const next = Array(n).fill(null) as (string | null)[];
+        for (let i = 0; i < Math.min(n, prev.length); i++) next[i] = prev[i];
+        return next;
+      });
+    } else {
+      setSideBPlayerIds([]);
+    }
   }
 
-  // When format changes, reset the side size to the format's first
-  // allowed value if the current one isn't supported.
+  // When format changes, reset side size if current isn't supported,
+  // and clear side B if the new format is 1-sided.
   function changeFormat(f: FormatId) {
     setFormat(f);
     const nextMeta = FORMAT_META[f];
     if (!nextMeta.allowedSideSizes.includes(sideSize)) {
       changeSideSize(nextMeta.allowedSideSizes[0]);
+    }
+    if (nextMeta.sides === 1) {
+      setSideBPlayerIds([]);
     }
   }
 
@@ -260,39 +270,61 @@ export default function MatchBuilder({
             : ' Any combination of players from any foursome.'}
         </p>
 
-        {/* Side A / Side B slot template */}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <SidePanel
-            label="Side A"
-            teams={teams}
-            teamId={sideATeamId}
-            onTeamChange={setSideATeamId}
-            slotIds={sideAPlayerIds}
-            side="A"
-            members={members}
-            memberById={memberById}
-            teamById={teamById}
-            onRemove={removeFromAnySlot}
-            activeDrag={activeDrag}
-            state={state}
-            ctx={ctx}
-          />
-          <SidePanel
-            label="Side B"
-            teams={teams}
-            teamId={sideBTeamId}
-            onTeamChange={setSideBTeamId}
-            slotIds={sideBPlayerIds}
-            side="B"
-            members={members}
-            memberById={memberById}
-            teamById={teamById}
-            onRemove={removeFromAnySlot}
-            activeDrag={activeDrag}
-            state={state}
-            ctx={ctx}
-          />
-        </div>
+        {/* Slot template. 1-sided formats (scramble, stroke) render
+            ONE team panel — the opposing team's match is created
+            separately. 2-sided formats render head-to-head panels. */}
+        {isOneSided(format) ? (
+          <div className="grid gap-3">
+            <SidePanel
+              label="Team"
+              teams={teams}
+              teamId={sideATeamId}
+              onTeamChange={setSideATeamId}
+              slotIds={sideAPlayerIds}
+              side="A"
+              members={members}
+              memberById={memberById}
+              teamById={teamById}
+              onRemove={removeFromAnySlot}
+              activeDrag={activeDrag}
+              state={state}
+              ctx={ctx}
+            />
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SidePanel
+              label="Side A"
+              teams={teams}
+              teamId={sideATeamId}
+              onTeamChange={setSideATeamId}
+              slotIds={sideAPlayerIds}
+              side="A"
+              members={members}
+              memberById={memberById}
+              teamById={teamById}
+              onRemove={removeFromAnySlot}
+              activeDrag={activeDrag}
+              state={state}
+              ctx={ctx}
+            />
+            <SidePanel
+              label="Side B"
+              teams={teams}
+              teamId={sideBTeamId}
+              onTeamChange={setSideBTeamId}
+              slotIds={sideBPlayerIds}
+              side="B"
+              members={members}
+              memberById={memberById}
+              teamById={teamById}
+              onRemove={removeFromAnySlot}
+              activeDrag={activeDrag}
+              state={state}
+              ctx={ctx}
+            />
+          </div>
+        )}
 
         {/* Roster grouped by foursome */}
         <RosterPanel

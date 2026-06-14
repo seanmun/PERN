@@ -25,13 +25,22 @@ export type InputMode = 'individual' | 'team';
 export type FormatMeta = {
   id: FormatId;
   label: string;
+  // Number of opposing sides this format produces:
+  //   1 — solo entry, scored vs other matches via the leaderboard
+  //       (scramble: 1 team plays 1 ball; stroke: 1 player plays).
+  //       Builder shows ONE slot panel. Opposing teams create their
+  //       own separate matches.
+  //   2 — head-to-head match play (singles, best ball, aggregate,
+  //       alt shot). Builder shows TWO slot panels.
+  sides: 1 | 2;
   // Allowed side sizes (per side, not total). Admin picks one at match
   // create time. Same size applies to both sides — no 2v4 asymmetries.
   allowedSideSizes: readonly number[];
   // Per-SIDE same-foursome constraint. True = every slot on a side must
   // be drawn from one tee time. The two sides do NOT need to share a
-  // tee time. This is what lets a 4-man scramble be Foursome 1 vs
-  // Foursome 2, while a 1v1 singles can pull from anywhere.
+  // tee time. For 1-sided formats this just means "the one side shares
+  // a foursome" — which is always true for tee-time-scoped match
+  // creation but the validator still enforces it.
   requiresSameFoursomePerSide: boolean;
   // How scores are recorded for this format:
   //   'individual' — each player records their own gross per hole.
@@ -45,6 +54,7 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
   singles: {
     id: 'singles',
     label: 'Singles',
+    sides: 2,
     allowedSideSizes: [1],
     requiresSameFoursomePerSide: false,
     inputMode: 'individual',
@@ -52,6 +62,7 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
   best_ball: {
     id: 'best_ball',
     label: 'Best Ball',
+    sides: 2,
     allowedSideSizes: [2, 3, 4],
     requiresSameFoursomePerSide: false,
     inputMode: 'individual',
@@ -59,6 +70,7 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
   two_man_aggregate: {
     id: 'two_man_aggregate',
     label: 'Two-Man Aggregate',
+    sides: 2,
     allowedSideSizes: [2],
     requiresSameFoursomePerSide: true,
     inputMode: 'individual',
@@ -66,6 +78,7 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
   scramble: {
     id: 'scramble',
     label: 'Scramble',
+    sides: 1,
     allowedSideSizes: [2, 3, 4],
     requiresSameFoursomePerSide: true,
     inputMode: 'team',
@@ -73,6 +86,7 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
   alternate_shot: {
     id: 'alternate_shot',
     label: 'Alternate Shot',
+    sides: 2,
     allowedSideSizes: [2],
     requiresSameFoursomePerSide: true,
     inputMode: 'team',
@@ -80,7 +94,8 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
   stroke: {
     id: 'stroke',
     label: 'Stroke Play',
-    allowedSideSizes: [1, 2, 3, 4],
+    sides: 1,
+    allowedSideSizes: [1],
     requiresSameFoursomePerSide: false,
     inputMode: 'individual',
   },
@@ -106,4 +121,12 @@ export function requiresSameFoursomePerSide(id: FormatId): boolean {
 
 export function isSideSizeAllowed(id: FormatId, size: number): boolean {
   return FORMAT_META[id].allowedSideSizes.includes(size);
+}
+
+export function isOneSided(id: FormatId): boolean {
+  return FORMAT_META[id].sides === 1;
+}
+
+export function isTwoSided(id: FormatId): boolean {
+  return FORMAT_META[id].sides === 2;
 }
