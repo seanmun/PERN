@@ -55,6 +55,11 @@ export type ClientGolfItem = {
   kind: 'golf';
   startTimeISO: string;
   teeTimeId: string;
+  // Round the foursome belongs to. Used for "round-level" actions like
+  // "+ Add cross-foursome match" which open the match builder scoped
+  // to the round (not the tee time) so the admin can draw from any
+  // player on the trip, not just the 4 in this foursome.
+  roundId: string;
   groupNumber: number;
   roundOrder: number;
   roundLabel: string | null;
@@ -583,6 +588,31 @@ function GolfRow({
             className="flex w-full items-center justify-center gap-2 rounded-sm bg-yellow-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400"
           >
             Enter scores
+          </Link>
+        </div>
+      )}
+
+      {/* Admin-only "Add matchup" footer.
+          Two buttons here because a round has two scopes of matchups:
+            1. Foursome matchup  — restricted to the 4 players in THIS
+               tee time (singles, 2v2, in-group scramble, etc).
+            2. Round-wide matchup — pulls from every player on the
+               trip, so a 4v4 best ball spanning two foursomes (or a
+               1v1 across two foursomes) becomes the obvious action,
+               not a "where the fuck do I add this" mystery. */}
+      {canEdit && (
+        <div className="grid grid-cols-2 gap-2 border-t border-yellow-600/15 bg-zinc-50 dark:bg-black/30 p-3">
+          <Link
+            href={`/trips/${tripSlug}/matches/new?teeTimeId=${item.teeTimeId}`}
+            className="flex items-center justify-center gap-1.5 rounded-sm border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:border-yellow-500/40 hover:text-yellow-400"
+          >
+            <Plus size={11} strokeWidth={2.5} /> Foursome match
+          </Link>
+          <Link
+            href={`/trips/${tripSlug}/matches/new?roundId=${item.roundId}`}
+            className="flex items-center justify-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
+          >
+            <Plus size={11} strokeWidth={2.5} /> Round-wide match
           </Link>
         </div>
       )}
