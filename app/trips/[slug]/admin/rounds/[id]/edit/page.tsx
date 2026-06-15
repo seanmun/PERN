@@ -404,6 +404,19 @@ export default async function EditRoundPage({
             <div className="mt-3 space-y-2">
               {crossFoursomeMatches.map((m) => {
                 const parts = participantsRows.filter((p) => p.participant.matchId === m.id);
+                // Group participants by team so we can render the two
+                // sides distinctly — same visual convention the
+                // schedule + match-detail cards use.
+                const byTeam = new Map<
+                  string,
+                  { team: typeof teams.$inferSelect; nicknames: string[] }
+                >();
+                for (const p of parts) {
+                  const entry = byTeam.get(p.team.id) ?? { team: p.team, nicknames: [] };
+                  entry.nicknames.push(p.member.nickname);
+                  byTeam.set(p.team.id, entry);
+                }
+                const teamGroups = Array.from(byTeam.values());
                 return (
                   <Link
                     key={m.id}
@@ -419,13 +432,30 @@ export default async function EditRoundPage({
                           {m.templateSizeA}v{m.templateSizeB}
                         </span>
                       </div>
-                      <p className="mt-1.5 truncate text-xs text-zinc-700 dark:text-zinc-300">
-                        {parts.length > 0 ? (
-                          parts.map((p) => p.member.nickname).join(' · ')
-                        ) : (
-                          <span className="text-zinc-500">No participants</span>
-                        )}
-                      </p>
+                      {teamGroups.length === 0 ? (
+                        <p className="mt-1.5 text-xs text-zinc-500">No participants</p>
+                      ) : (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                          {teamGroups.map((g, i) => {
+                            const color = g.team.color ?? '#71717a';
+                            return (
+                              <span key={g.team.id} className="flex items-center gap-1.5">
+                                {i > 0 && (
+                                  <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">
+                                    vs
+                                  </span>
+                                )}
+                                <span
+                                  className="font-semibold"
+                                  style={{ color }}
+                                >
+                                  {g.nicknames.join(' · ')}
+                                </span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                     <Pencil size={10} className="shrink-0 text-zinc-600" />
                   </Link>
