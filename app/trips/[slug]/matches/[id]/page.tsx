@@ -735,52 +735,42 @@ function StablefordScorecard({
   participants: { participant: { id: string; nickname: string }; team: { id: string; name: string; color: string | null }; side: 'A' | 'B' }[];
   holes: { number: number; par: number }[];
 }) {
-  const memberById = new Map(participants.map((p) => [p.participant.id, p]));
   const aPlayers = stableford.players.filter((p) => p.side === 'A');
   const bPlayers = stableford.players.filter((p) => p.side === 'B');
-
-  function renderSide(
-    label: string,
-    sidePlayers: typeof stableford.players,
-    color: string,
-  ) {
-    if (!sidePlayers.length) return null;
-    return (
-      <div className="border-b border-zinc-200 dark:border-zinc-900 last:border-b-0">
-        <div className="border-b border-zinc-200 dark:border-zinc-900 bg-zinc-100 dark:bg-zinc-900/30 px-3 py-1.5">
-          <p
-            className="font-mono text-[10px] font-semibold uppercase tracking-widest"
-            style={{ color }}
-          >
-            {label}
-          </p>
-        </div>
-        {sidePlayers.map((p) => {
-          const meta = memberById.get(p.playerId);
-          return (
-            <div
-              key={p.playerId}
-              className="flex items-center justify-between gap-3 px-3 py-2 font-mono text-xs tabular-nums"
-            >
-              <span className="truncate text-zinc-700 dark:text-zinc-300">
-                {meta?.participant.nickname ?? 'Player'}
-              </span>
-              <span className="font-bold text-yellow-800 dark:text-yellow-400">
-                {p.total} pts
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
   const aColor =
     participants.find((p) => p.side === 'A')?.team.color ?? '#71717a';
   const bColor =
     participants.find((p) => p.side === 'B')?.team.color ?? '#71717a';
   const aName = participants.find((p) => p.side === 'A')?.team.name ?? 'Side A';
   const bName = participants.find((p) => p.side === 'B')?.team.name ?? 'Side B';
+
+  // Per-hole running totals + side totals. Side total per hole = sum of
+  // each player's points on that hole (same shape as the cumulative
+  // aPoints / bPoints totals).
+  let aRunning = 0;
+  let bRunning = 0;
+  const rows = holes.map((h) => {
+    const aHolePts = aPlayers.reduce(
+      (sum, p) => sum + (p.pointsByHole.get(h.number) ?? 0),
+      0,
+    );
+    const bHolePts = bPlayers.reduce(
+      (sum, p) => sum + (p.pointsByHole.get(h.number) ?? 0),
+      0,
+    );
+    const aScored = aPlayers.some((p) => p.pointsByHole.has(h.number));
+    const bScored = bPlayers.some((p) => p.pointsByHole.has(h.number));
+    if (aScored) aRunning += aHolePts;
+    if (bScored) bRunning += bHolePts;
+    return {
+      hole: h.number,
+      par: h.par,
+      aHolePts: aScored ? aHolePts : null,
+      bHolePts: bScored ? bHolePts : null,
+      aRunning,
+      bRunning,
+    };
+  });
 
   return (
     <section className="mt-6 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
@@ -790,21 +780,64 @@ function StablefordScorecard({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 divide-x divide-zinc-200 dark:divide-zinc-900">
-        <div>
-          {renderSide(aName, aPlayers, aColor)}
-          <div className="flex items-center justify-between gap-3 border-t border-zinc-300 dark:border-zinc-800 px-3 py-2 font-mono text-xs font-bold tabular-nums">
-            <span className="uppercase tracking-widest text-zinc-500">Total</span>
-            <span style={{ color: aColor }}>{stableford.aPoints}</span>
-          </div>
-        </div>
-        <div>
-          {renderSide(bName, bPlayers, bColor)}
-          <div className="flex items-center justify-between gap-3 border-t border-zinc-300 dark:border-zinc-800 px-3 py-2 font-mono text-xs font-bold tabular-nums">
-            <span className="uppercase tracking-widest text-zinc-500">Total</span>
-            <span style={{ color: bColor }}>{stableford.bPoints}</span>
-          </div>
-        </div>
+      {/* Header */}
+      <div className="grid grid-cols-[28px_28px_1fr_1fr] items-center gap-2 border-b border-zinc-200 dark:border-zinc-900 bg-zinc-100 dark:bg-zinc-900/30 px-3 py-2 font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
+        <span>#</span>
+        <span>Par</span>
+        <span className="truncate" style={{ color: aColor }} title={aName}>
+          {aName}
+        </span>
+        <span className="truncate text-right" style={{ color: bColor }} title={bName}>
+          {bName}
+        </span>
+      </div>
+
+      {/* Per-hole rows */}
+      <div className="divide-y divide-zinc-200 dark:divide-zinc-900">
+        {rows.map((r) => {
+          const aWin = r.aHolePts != null && r.bHolePts != null && r.aHolePts > r.bHolePts;
+          const bWin = r.aHolePts != null && r.bHolePts != null && r.bHolePts > r.aHolePts;
+          return (
+            <div
+              key={r.hole}
+              className="grid grid-cols-[28px_28px_1fr_1fr] items-center gap-2 px-3 py-2 font-mono text-xs tabular-nums"
+            >
+              <span className="font-semibold text-zinc-700 dark:text-zinc-300">{r.hole}</span>
+              <span className="text-zinc-600 dark:text-zinc-400">{r.par}</span>
+              <span
+                className={`rounded-sm px-2 py-1 text-center font-bold ${
+                  aWin ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-500'
+                }`}
+                style={
+                  aWin
+                    ? { background: `${aColor}33`, boxShadow: `inset 0 0 0 1px ${aColor}` }
+                    : undefined
+                }
+              >
+                {r.aHolePts ?? '—'}
+              </span>
+              <span
+                className={`rounded-sm px-2 py-1 text-center font-bold ${
+                  bWin ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-500'
+                }`}
+                style={
+                  bWin
+                    ? { background: `${bColor}33`, boxShadow: `inset 0 0 0 1px ${bColor}` }
+                    : undefined
+                }
+              >
+                {r.bHolePts ?? '—'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Totals footer */}
+      <div className="grid grid-cols-[28px_28px_1fr_1fr] items-center gap-2 border-t-2 border-zinc-400 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900/30 px-3 py-2.5 font-mono text-sm font-bold tabular-nums">
+        <span className="col-span-2 uppercase tracking-widest text-zinc-500 text-[10px]">Total</span>
+        <span className="text-center" style={{ color: aColor }}>{stableford.aPoints}</span>
+        <span className="text-center" style={{ color: bColor }}>{stableford.bPoints}</span>
       </div>
     </section>
   );
