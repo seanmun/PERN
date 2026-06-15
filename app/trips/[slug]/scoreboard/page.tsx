@@ -609,9 +609,14 @@ function SideNicknames({
   }
   return (
     <div className={align === 'right' ? 'text-right' : ''}>
-      <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-        {side.nicknames.join(' & ')}
-      </p>
+      {side.nicknames.map((n) => (
+        <p
+          key={n}
+          className="truncate text-sm font-semibold leading-tight text-zinc-900 dark:text-zinc-100"
+        >
+          {n}
+        </p>
+      ))}
     </div>
   );
 }
