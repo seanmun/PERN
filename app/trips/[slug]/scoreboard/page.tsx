@@ -607,12 +607,27 @@ function SideNicknames({
   if (!side) {
     return <p className={`text-xs text-zinc-600 ${align === 'right' ? 'text-right' : ''}`}>—</p>;
   }
+  // 1v1 / 2v2: keep names inline with " & ", one line each. Mobile-
+  // friendly and reads naturally for the common case.
+  // 4-player sides (4v4 best ball, 4-man scramble): names get their
+  // own line so "Yong & Jamison & Munley & Eric" doesn't smash into
+  // one truncated string. Compact text-[11px] so 4 stacked names
+  // don't blow up the card height on phones.
+  if (side.nicknames.length <= 2) {
+    return (
+      <div className={align === 'right' ? 'text-right' : ''}>
+        <p className="truncate text-sm font-semibold leading-tight text-zinc-900 dark:text-zinc-100">
+          {side.nicknames.join(' & ')}
+        </p>
+      </div>
+    );
+  }
   return (
     <div className={align === 'right' ? 'text-right' : ''}>
       {side.nicknames.map((n) => (
         <p
           key={n}
-          className="truncate text-sm font-semibold leading-tight text-zinc-900 dark:text-zinc-100"
+          className="truncate text-[11px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100"
         >
           {n}
         </p>
