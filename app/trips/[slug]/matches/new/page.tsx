@@ -11,6 +11,7 @@ import {
   teams,
   matches,
   matchParticipants,
+  users,
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
@@ -83,10 +84,21 @@ export default async function NewMatchPage({
     .where(eq(teams.tripId, round.round.tripId))
     .orderBy(asc(teams.name));
 
+  // Pull each member's arcade portrait + global avatar off the linked
+  // users row so the builder's drag chips can use the NBA-Jam image
+  // when one's been generated. Falls back to nickname monogram.
   const allMembers = allTeams.length
     ? await db
-        .select()
+        .select({
+          id: tripMembers.id,
+          teamId: tripMembers.teamId,
+          nickname: tripMembers.nickname,
+          memberAvatarUrl: tripMembers.avatarUrl,
+          userAvatarUrl: users.avatarUrl,
+          arcadePortraitUrl: users.arcadePortraitUrl,
+        })
         .from(tripMembers)
+        .leftJoin(users, eq(tripMembers.userId, users.id))
         .where(inArray(tripMembers.teamId, allTeams.map((t) => t.id)))
         .orderBy(asc(tripMembers.nickname))
     : [];
@@ -136,7 +148,11 @@ export default async function NewMatchPage({
       nickname: m.nickname,
       teamId: m.teamId!,
       teeTimeId: memberTeeTimeById.get(m.id) ?? null,
-      avatarUrl: m.avatarUrl,
+      // Avatar priority: NBA-Jam arcade portrait > trip-scoped avatar
+      // > global user avatar > monogram. The drag chip and slot both
+      // pick from the same field.
+      arcadePortraitUrl: m.arcadePortraitUrl,
+      avatarUrl: m.memberAvatarUrl ?? m.userAvatarUrl,
     }));
   const builderTeams = allTeams.map((t) => ({
     id: t.id,

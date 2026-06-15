@@ -44,8 +44,11 @@ type Member = {
   nickname: string;
   teamId: string;
   teeTimeId: string | null;
-  // Used in the drag overlay (and the placed chip) so the admin sees the
-  // player they're moving instead of a bare name. Null = monogram fallback.
+  // Avatar priority for the drag chip + slot:
+  //   arcadePortraitUrl > avatarUrl > nickname monogram.
+  // The NBA-Jam arcade portrait when present makes the builder
+  // immediately readable — you see the face you're moving.
+  arcadePortraitUrl: string | null;
   avatarUrl: string | null;
 };
 type TeeTimeSummary = { id: string; groupNumber: number };
@@ -504,11 +507,12 @@ function Avatar({
   size: number;
 }) {
   const initial = member.nickname.charAt(0).toUpperCase();
-  if (member.avatarUrl) {
+  const src = member.arcadePortraitUrl ?? member.avatarUrl;
+  if (src) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={member.avatarUrl}
+        src={src}
         alt={member.nickname}
         width={size}
         height={size}
