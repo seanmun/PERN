@@ -159,21 +159,24 @@ export default function ScoreEntryClient({
   const activePlayer =
     players.find((p) => p.tripMemberId === activePlayerId) ?? players[0];
 
-  // The "frontier" is the first hole where any player is missing a
-  // score. Anything strictly before the frontier is considered past
-  // and locked unless the user explicitly unlocks it.
-  const frontierHole = useMemo(() => {
-    for (let h = 1; h <= holes.length; h++) {
-      const allHave = players.every(
-        (p) => scores.get(`${p.tripMemberId}:${h}`) != null,
-      );
-      if (!allHave) return h;
+  // A hole locks only after the user has navigated AWAY from it via
+  // Next/Prev — not the moment all 4 scores land. Otherwise tapping +
+  // the second time on the last player to score gets blocked.
+  const [leftHoles, setLeftHoles] = useState<Set<number>>(() => new Set());
+  const prevActiveHoleRef = useRef(activeHole);
+  useEffect(() => {
+    if (prevActiveHoleRef.current !== activeHole) {
+      setLeftHoles((prev) => {
+        const next = new Set(prev);
+        next.add(prevActiveHoleRef.current);
+        return next;
+      });
+      prevActiveHoleRef.current = activeHole;
     }
-    return holes.length;
-  }, [scores, holes.length, players]);
+  }, [activeHole]);
 
   const activeHoleLocked =
-    activeHole !== frontierHole && !unlockedHoles.has(activeHole);
+    leftHoles.has(activeHole) && !unlockedHoles.has(activeHole);
 
   function unlockActiveHole() {
     setUnlockedHoles((prev) => {
@@ -816,18 +819,24 @@ function TeamScoreEntry({
 
   const activeHoleData = holes.find((h) => h.number === activeHole) ?? holes[0];
 
-  const frontierHole = useMemo(() => {
-    for (let h = 1; h <= holes.length; h++) {
-      const allHave = teams.every(
-        (t) => scores.get(`${t.teamId}:${h}`) != null,
-      );
-      if (!allHave) return h;
+  // Same locking rule as the player-input flow: locks on navigation,
+  // not on score completion. Otherwise the team can't tap + a second
+  // time on the last team to enter a gross.
+  const [leftHoles, setLeftHoles] = useState<Set<number>>(() => new Set());
+  const prevActiveHoleRef = useRef(activeHole);
+  useEffect(() => {
+    if (prevActiveHoleRef.current !== activeHole) {
+      setLeftHoles((prev) => {
+        const next = new Set(prev);
+        next.add(prevActiveHoleRef.current);
+        return next;
+      });
+      prevActiveHoleRef.current = activeHole;
     }
-    return holes.length;
-  }, [scores, holes.length, teams]);
+  }, [activeHole]);
 
   const activeHoleLocked =
-    activeHole !== frontierHole && !unlockedHoles.has(activeHole);
+    leftHoles.has(activeHole) && !unlockedHoles.has(activeHole);
 
   function unlockActiveHole() {
     setUnlockedHoles((prev) => {
