@@ -175,7 +175,11 @@ async function OutingLiveBoard({
     liveByMatch.set(m.match.id, await computeLive(m.match.id));
   }
 
-  // Group by tee time id (or "ungrouped" for matches without a tee time)
+  // Group by tee time id (or "ungrouped" for matches without a tee time).
+  // Round-wide / cross-foursome matches (no tee_time_id) render at the
+  // TOP because they're the trip-level headline matchup (e.g. 4v4 best
+  // ball across both foursomes) — foursome stacks render below as
+  // detail.
   const byTeeTime = new Map<
     string,
     { teeTime: typeof allMatches[number]['teeTime']; rows: typeof allMatches }
@@ -186,6 +190,13 @@ async function OutingLiveBoard({
     entry.rows.push(row);
     byTeeTime.set(key, entry);
   }
+  const sortedTeeTimeEntries = Array.from(byTeeTime.entries()).sort((a, b) => {
+    if (a[0] === 'ungrouped') return -1;
+    if (b[0] === 'ungrouped') return 1;
+    const aGroup = a[1].teeTime?.groupNumber ?? 99;
+    const bGroup = b[1].teeTime?.groupNumber ?? 99;
+    return aGroup - bGroup;
+  });
 
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6 pb-24">
@@ -200,7 +211,7 @@ async function OutingLiveBoard({
         </p>
       ) : (
         <div className="mt-8 space-y-3">
-          {Array.from(byTeeTime.entries()).map(([key, { teeTime, rows }]) => {
+          {sortedTeeTimeEntries.map(([key, { teeTime, rows }]) => {
             // The two teams playing in this group. We derive them from the
             // first match's participants (all matches in a group are between
             // the same two teams) and sort by UUID so display A/B match
@@ -235,7 +246,7 @@ async function OutingLiveBoard({
                 <div className="border-b border-zinc-200 dark:border-zinc-900 px-3 py-2.5">
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
-                      Group {teeTime?.groupNumber ?? '—'}
+                      {teeTime ? `Group ${teeTime.groupNumber}` : 'Round-wide'}
                     </p>
                     <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-600">
                       {rows.length} match{rows.length === 1 ? '' : 'es'}
