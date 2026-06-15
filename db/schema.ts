@@ -247,6 +247,18 @@ export const matches = pgTable('matches', {
   isHalved: boolean('is_halved').default(false).notNull(),
 });
 
+// Explicit foursome roster — who's physically in this tee time. Decoupled
+// from match participation so a player only in a round-wide cross-foursome
+// match still shows on the foursome's scorecard.
+export const teeTimeParticipants = pgTable(
+  'tee_time_participants',
+  {
+    teeTimeId: uuid('tee_time_id').references(() => teeTimes.id, { onDelete: 'cascade' }).notNull(),
+    tripMemberId: uuid('trip_member_id').references(() => tripMembers.id, { onDelete: 'cascade' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.teeTimeId, t.tripMemberId] })]
+);
+
 export const matchParticipants = pgTable(
   'match_participants',
   {

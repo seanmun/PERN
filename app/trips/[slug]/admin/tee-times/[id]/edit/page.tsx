@@ -1,12 +1,19 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { eq } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { teeTimes, rounds, courses } from '@/db/schema';
+import {
+  teeTimes,
+  rounds,
+  courses,
+  tripMembers,
+  teams,
+  teeTimeParticipants,
+} from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
-import { updateTeeTime } from '@/lib/actions/tee-times';
+import { updateTeeTime, updateTeeTimeRoster } from '@/lib/actions/tee-times';
 
 const TRIP_TZ = 'America/New_York';
 
@@ -65,7 +72,9 @@ export default async function EditTeeTimePage({
         Round {row.round.order} · {row.course.name}
       </p>
 
-      <form action={updateTeeTime} className="mt-8 space-y-5">
+      <RosterEditor teeTimeId={row.teeTime.id} tripId={row.round.tripId} />
+
+      <form action={updateTeeTime} className="mt-10 space-y-5">
         <input type="hidden" name="id" value={row.teeTime.id} />
 
         <Field label="Time" required>
@@ -129,5 +138,97 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+/**
+ * Foursome roster checkbox group. Persists to tee_time_participants
+ * via updateTeeTimeRoster. Renders all trip members grouped by team
+ * with the current foursome members pre-checked.
+ */
+async function RosterEditor({
+  teeTimeId,
+  tripId,
+}: {
+  teeTimeId: string;
+  tripId: string;
+}) {
+  const tripTeams = await db
+    .select()
+    .from(teams)
+    .where(eq(teams.tripId, tripId))
+    .orderBy(asc(teams.name));
+
+  const allMembers = tripTeams.length
+    ? await db
+        .select()
+        .from(tripMembers)
+        .where(inArray(tripMembers.teamId, tripTeams.map((t) => t.id)))
+        .orderBy(asc(tripMembers.nickname))
+    : [];
+
+  const existing = await db
+    .select({ tripMemberId: teeTimeParticipants.tripMemberId })
+    .from(teeTimeParticipants)
+    .where(eq(teeTimeParticipants.teeTimeId, teeTimeId));
+  const checked = new Set(existing.map((e) => e.tripMemberId));
+
+  return (
+    <section className="mt-8">
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
+        Foursome roster ({existing.length})
+      </p>
+      <p className="mt-1 text-[11px] text-zinc-500">
+        Who's physically in this group. Every checked player shows on
+        the scorecard regardless of which matches they're in.
+      </p>
+
+      <form action={updateTeeTimeRoster} className="mt-4 space-y-3">
+        <input type="hidden" name="teeTimeId" value={teeTimeId} />
+
+        {tripTeams.map((team) => {
+          const teamMembers = allMembers.filter((m) => m.teamId === team.id);
+          const color = team.color ?? '#71717a';
+          return (
+            <section
+              key={team.id}
+              className="rounded-sm border p-3"
+              style={{ borderColor: `${color}55`, background: `${color}0a` }}
+            >
+              <p
+                className="font-mono text-[10px] font-semibold uppercase tracking-widest"
+                style={{ color }}
+              >
+                {team.name}
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-1.5">
+                {teamMembers.map((m) => (
+                  <label
+                    key={m.id}
+                    className="flex cursor-pointer items-center gap-2 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-2.5 py-1.5 text-sm hover:border-zinc-600 has-checked:border-yellow-500/60 has-checked:bg-yellow-500/10"
+                  >
+                    <input
+                      type="checkbox"
+                      name="memberIds"
+                      value={m.id}
+                      defaultChecked={checked.has(m.id)}
+                      className="h-4 w-4 accent-yellow-500"
+                    />
+                    <span className="truncate">{m.nickname}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+          );
+        })}
+
+        <button
+          type="submit"
+          className="w-full rounded-sm bg-yellow-500 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400"
+        >
+          Save roster
+        </button>
+      </form>
+    </section>
   );
 }

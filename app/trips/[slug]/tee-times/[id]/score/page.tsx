@@ -60,14 +60,26 @@ export default async function TeeTimeScoreEntryPage({
   const selfTripMemberId = ctx.tripMember?.id ?? null;
   const isAdmin =
     isPlatformAdmin(ctx) || isTripAdminOf(ctx, data.round.tripId);
-  const selfIsParticipant = data.participants.some(
-    (p) => p.participant.id === selfTripMemberId,
+  // Authorization now keys off the foursome's explicit roster, not the
+  // primary match's participants. A player physically in this foursome
+  // can score even if they're not in the match the primary data came
+  // from (common: they're only in a round-wide cross-foursome match).
+  const selfIsInRoster = data.rosterPlayers.some(
+    (p) => p.member.id === selfTripMemberId,
   );
-  if (!isAdmin && !selfIsParticipant) {
+  if (!isAdmin && !selfIsInRoster) {
     redirect(`/trips/${slug}/schedule`);
   }
 
-  const strokesMap = computeStrokes(data.enginePlayers, data.engineHoles);
+  // Build engine players from the FULL foursome roster so stroke
+  // allocation includes everyone on the scorecard, not just the
+  // primary match's participants.
+  const engineRoster = data.rosterPlayers.map((p) => ({
+    id: p.member.id,
+    handicap: p.member.tripHandicap ? Number(p.member.tripHandicap) : 18,
+    teamSide: p.side,
+  }));
+  const strokesMap = computeStrokes(engineRoster, data.engineHoles);
 
   const holes: ScoreClientHole[] = data.engineHoles.map((h) => ({
     number: h.number,
@@ -77,19 +89,19 @@ export default async function TeeTimeScoreEntryPage({
     handicapIndex: h.handicapIndex,
   }));
 
-  const players: ScoreClientPlayer[] = data.participants.map((p) => {
+  const players: ScoreClientPlayer[] = data.rosterPlayers.map((p) => {
     const strokesByHole: Record<number, number> = {};
-    const playerStrokes = strokesMap.get(p.participant.id);
+    const playerStrokes = strokesMap.get(p.member.id);
     if (playerStrokes) {
       for (const [holeNum, n] of playerStrokes) strokesByHole[holeNum] = n;
     }
     return {
-      tripMemberId: p.participant.id,
-      nickname: p.participant.nickname,
-      avatarUrl: p.participant.avatarUrl,
+      tripMemberId: p.member.id,
+      nickname: p.member.nickname,
+      avatarUrl: p.member.avatarUrl,
       teamId: p.team.id,
       teamColor: p.team.color,
-      isSelf: p.participant.id === selfTripMemberId,
+      isSelf: p.member.id === selfTripMemberId,
       strokesByHole,
     };
   });
@@ -240,10 +252,11 @@ export default async function TeeTimeScoreEntryPage({
       ) : (
         <ScoreEntryClient
           matchId={data.match.id}
+          matchIdByPlayer={data.matchIdByPlayer}
           holes={holes}
           players={players}
           initialScores={initialScores}
-          canEdit={isAdmin || selfIsParticipant}
+          canEdit={isAdmin || selfIsInRoster}
           selfTripMemberId={selfTripMemberId}
           mode={data.inputMode}
           teams={teamsForClient}

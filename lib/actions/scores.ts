@@ -202,30 +202,27 @@ export async function upsertHoleScore(formData: FormData): Promise<void> {
 
   const gross = parseGross(formData.get('gross'));
 
-  // Stacked matches: a single tee time can have multiple matches (e.g. a 2v2
-  // best ball PLUS a 1v1 singles within the same group). The player plays
-  // one ball per round, so one entered score must fan out to every match in
-  // the same tee time this player participates in. We deliberately scope by
-  // tee time (not round) — two groups in the same round are physically
-  // separate balls; they should never share a score.
-  const teeTimeId = target.match.teeTimeId;
-  let participatingMatchIds: string[] = [matchId];
-  if (teeTimeId) {
-    const fanout = await db
-      .select({ id: matches.id })
-      .from(matches)
-      .innerJoin(
-        matchParticipants,
-        eq(matchParticipants.matchId, matches.id)
+  // Fan-out scope = ROUND. A player only walks one foursome per round
+  // and plays one ball, so a single gross must propagate to every
+  // match in the round they're a participant of — including cross-
+  // foursome round-wide matches with tee_time_id = NULL that a per-
+  // tee-time fan-out would have missed.
+  const fanout = await db
+    .select({ id: matches.id })
+    .from(matches)
+    .innerJoin(
+      matchParticipants,
+      eq(matchParticipants.matchId, matches.id)
+    )
+    .where(
+      and(
+        eq(matches.roundId, target.round.id),
+        eq(matchParticipants.tripMemberId, tripMemberId)
       )
-      .where(
-        and(
-          eq(matches.teeTimeId, teeTimeId),
-          eq(matchParticipants.tripMemberId, tripMemberId)
-        )
-      );
-    participatingMatchIds = fanout.map((m) => m.id);
-  }
+    );
+  const participatingMatchIds: string[] = fanout.length
+    ? fanout.map((m) => m.id)
+    : [matchId];
 
   if (gross == null) {
     // Empty input: delete the score row from every fan-out match.

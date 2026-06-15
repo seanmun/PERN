@@ -63,6 +63,7 @@ const VIEW_KEY = 'cup_score_view';
 
 export default function ScoreEntryClient({
   matchId,
+  matchIdByPlayer,
   holes,
   players,
   initialScores,
@@ -73,6 +74,12 @@ export default function ScoreEntryClient({
   initialTeamScores = [],
 }: {
   matchId: string;
+  /** Optional per-player override of `matchId`. When the foursome roster
+   * spans multiple matches (e.g. some players are only in a round-wide
+   * cross-foursome match), score writes for each player are attributed
+   * to one of their participating matches. Fan-out propagates the
+   * gross to every other match in the round they're in. */
+  matchIdByPlayer?: Record<string, string>;
   holes: ScoreClientHole[];
   players: ScoreClientPlayer[];
   initialScores: ScoreClientScore[];
@@ -232,6 +239,7 @@ export default function ScoreEntryClient({
       {view === 'hole' ? (
         <HoleByHole
           matchId={matchId}
+          matchIdByPlayer={matchIdByPlayer}
           hole={activeHoleData}
           holes={holes}
           players={players}
@@ -296,6 +304,7 @@ function ViewToggle({
 
 function HoleByHole({
   matchId,
+  matchIdByPlayer,
   hole,
   holes,
   players,
@@ -311,6 +320,7 @@ function HoleByHole({
   canNext,
 }: {
   matchId: string;
+  matchIdByPlayer?: Record<string, string>;
   hole: ScoreClientHole;
   holes: ScoreClientHole[];
   players: ScoreClientPlayer[];
@@ -384,7 +394,7 @@ function HoleByHole({
         {players.map((p) => (
           <PlayerHoleRow
             key={p.tripMemberId}
-            matchId={matchId}
+            matchId={matchIdByPlayer?.[p.tripMemberId] ?? matchId}
             hole={hole}
             player={p}
             score={getScore(p.tripMemberId)}

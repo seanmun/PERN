@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { teeTimes, rounds } from '@/db/schema';
+import { teeTimes, rounds, teeTimeParticipants } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
@@ -96,6 +96,49 @@ export async function updateTeeTime(formData: FormData): Promise<void> {
   revalidatePath(`/trips/${tripSlug}/schedule`);
   revalidatePath(`/trips/${tripSlug}/admin/rounds/${existing.teeTime.roundId}/edit`);
   redirect(`/trips/${tripSlug}/admin/rounds/${existing.teeTime.roundId}/edit`);
+}
+
+/**
+ * Replace the foursome's roster (tee_time_participants) with the
+ * selected set. Wipes the existing rows and inserts whatever the form
+ * sends. This is the explicit "who's physically in this group" list,
+ * decoupled from match participation.
+ */
+export async function updateTeeTimeRoster(formData: FormData): Promise<void> {
+  const ctx = await getGlobalAuthContext();
+  if (!ctx) throw new AuthorizationError('Authentication required');
+
+  const teeTimeId = String(formData.get('teeTimeId') ?? '').trim();
+  if (!teeTimeId) throw new Error('teeTimeId required');
+
+  const [row] = await db
+    .select({ teeTime: teeTimes, round: rounds })
+    .from(teeTimes)
+    .innerJoin(rounds, eq(teeTimes.roundId, rounds.id))
+    .where(eq(teeTimes.id, teeTimeId))
+    .limit(1);
+  if (!row) throw new Error('Tee time not found');
+
+  requireTeeTimeAdmin(ctx, row.round.tripId);
+
+  const memberIds = formData.getAll('memberIds').map((v) => String(v)).filter(Boolean);
+
+  await db
+    .delete(teeTimeParticipants)
+    .where(eq(teeTimeParticipants.teeTimeId, teeTimeId));
+
+  if (memberIds.length) {
+    await db
+      .insert(teeTimeParticipants)
+      .values(memberIds.map((id) => ({ teeTimeId, tripMemberId: id })));
+  }
+
+  const tripSlug = await getTripSlugById(row.round.tripId);
+  revalidatePath(`/trips/${tripSlug}/admin/rounds/${row.round.id}/edit`);
+  revalidatePath(`/trips/${tripSlug}/admin/tee-times/${teeTimeId}/edit`);
+  revalidatePath(`/trips/${tripSlug}/tee-times/${teeTimeId}/score`);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  redirect(`/trips/${tripSlug}/admin/tee-times/${teeTimeId}/edit`);
 }
 
 export async function deleteTeeTime(formData: FormData): Promise<void> {
