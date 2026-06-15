@@ -349,6 +349,45 @@ export default function MatchBuilder({
             : ' Any combination of players from any foursome.'}
         </p>
 
+        {/* Auto-fill presets. The "Fill from teams" button is the
+            critical UX for the 4v4-across-two-foursomes case — instead
+            of dragging 8 chips manually, snap each side's slots to
+            that side's full team roster in one click. The slots clamp
+            to sideSize; extra players (e.g. team has 5, sideSize=4)
+            keep the first N and admin can swap by drag if needed. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const teamAMembers = members
+                .filter((m) => m.teamId === sideATeamId)
+                .slice(0, sideSize);
+              const teamBMembers = members
+                .filter((m) => m.teamId === sideBTeamId)
+                .slice(0, sideSize);
+              setSideAPlayerIds(
+                Array.from({ length: sideSize }, (_, i) => teamAMembers[i]?.id ?? null),
+              );
+              setSideBPlayerIds(
+                Array.from({ length: sideSize }, (_, i) => teamBMembers[i]?.id ?? null),
+              );
+            }}
+            className="inline-flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
+          >
+            Fill: Team A vs Team B
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSideAPlayerIds(Array(sideSize).fill(null));
+              setSideBPlayerIds(Array(sideSize).fill(null));
+            }}
+            className="inline-flex items-center gap-1.5 rounded-sm border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+          >
+            Clear slots
+          </button>
+        </div>
+
         {/* Side A / Side B slot template */}
         <div className="grid gap-3 sm:grid-cols-2">
           <SidePanel
