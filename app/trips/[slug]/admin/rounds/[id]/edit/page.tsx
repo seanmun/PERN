@@ -361,12 +361,24 @@ export default async function EditRoundPage({
           )}
 
           {teeTimesList.length > 0 && (
-            <Link
-              href={`/trips/${slug}/admin/tee-times/new?roundId=${round.id}`}
-              className="flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-yellow-500/40 bg-yellow-500/5 px-4 py-3 font-mono text-xs font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:border-yellow-500/70 hover:bg-yellow-500/10"
-            >
-              <Plus size={14} strokeWidth={2.5} /> Add another group (Group {teeTimesList.length + 1})
-            </Link>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Link
+                href={`/trips/${slug}/admin/tee-times/new?roundId=${round.id}`}
+                className="flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-yellow-500/40 bg-yellow-500/5 px-4 py-3 font-mono text-xs font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:border-yellow-500/70 hover:bg-yellow-500/10"
+              >
+                <Plus size={14} strokeWidth={2.5} /> Add another group (Group {teeTimesList.length + 1})
+              </Link>
+              {/* Round-wide match = the cross-foursome case (e.g. 4v4
+                  best ball drawing from every foursome). Same builder
+                  as the per-tee-time link above, just scoped to the
+                  round so the roster shows every player on the trip. */}
+              <Link
+                href={`/trips/${slug}/matches/new?roundId=${round.id}`}
+                className="flex w-full items-center justify-center gap-2 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 font-mono text-xs font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
+              >
+                <Plus size={14} strokeWidth={2.5} /> Round-wide match (cross-foursome)
+              </Link>
+            </div>
           )}
         </div>
       </section>
