@@ -102,6 +102,23 @@ export default async function EditMatchPage({
           </p>
         </label>
 
+        <label className="block">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+            Scoring
+          </span>
+          <select
+            name="scoring"
+            defaultValue={match.match.scoring}
+            className="mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
+          >
+            <option value="match_play">Match Play (1 UP / 2 &amp; 1)</option>
+            <option value="stableford">Stableford (point system)</option>
+          </select>
+          <p className="mt-1.5 text-[11px] text-zinc-500">
+            How the match is resolved. Stableford sums per-hole points; default scale is 4/3/2/1/0 (eagle / birdie / par / bogey / double+).
+          </p>
+        </label>
+
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
           Players
         </p>

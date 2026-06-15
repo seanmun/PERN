@@ -75,17 +75,29 @@ export async function updateMatchParticipants(formData: FormData): Promise<void>
     throw new Error('Pick at least one player');
   }
 
-  // Format change: if the edit form submitted a value and it differs, update.
-  // Bumping the format wipes the match status/result so it recomputes against
-  // the new format on the next score entry — otherwise old result text would
-  // leak across formats (e.g. a closed best-ball result hanging on an
-  // aggregate match).
+  // Format / scoring change: bump either if the form submitted a new
+  // value and it differs. Bumping wipes the match status/result so it
+  // recomputes against the new rules on the next score entry —
+  // otherwise old result text would leak across formats (e.g. a closed
+  // best-ball result hanging on an aggregate match).
   const newFormat = parseFormat(formData.get('format'));
+  const rawScoring = String(formData.get('scoring') ?? '').trim();
+  const newScoring: 'match_play' | 'stableford' | 'stroke' | null =
+    rawScoring === 'match_play' || rawScoring === 'stableford' || rawScoring === 'stroke'
+      ? rawScoring
+      : null;
+  const wipeUpdate: Partial<typeof matches.$inferInsert> = {};
   if (newFormat && newFormat !== match.match.format) {
+    wipeUpdate.format = newFormat;
+  }
+  if (newScoring && newScoring !== match.match.scoring) {
+    wipeUpdate.scoring = newScoring;
+  }
+  if (Object.keys(wipeUpdate).length > 0) {
     await db
       .update(matches)
       .set({
-        format: newFormat,
+        ...wipeUpdate,
         status: 'scheduled',
         resultText: null,
         winningTeamId: null,
