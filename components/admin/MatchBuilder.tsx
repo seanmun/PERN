@@ -296,8 +296,8 @@ export default function MatchBuilder({
             onChange={(e) => setScoring(e.target.value as 'match_play' | 'stableford' | 'stroke')}
             className="mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
           >
-            <option value="match_play">Match Play (1 UP / 2 &amp; 1)</option>
-            <option value="stableford">Stableford (point system)</option>
+            <option value="match_play">Match Play — win holes vs opponent</option>
+            <option value="stableford">Stableford — points per hole</option>
           </select>
         </label>
 
