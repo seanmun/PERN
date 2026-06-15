@@ -69,12 +69,14 @@ export default async function EditRoundPage({
 
   const teeTimeIds = teeTimesList.map((tt) => tt.id);
 
-  const roundMatches = teeTimeIds.length
-    ? await db
-        .select()
-        .from(matches)
-        .where(inArray(matches.teeTimeId, teeTimeIds))
-    : [];
+  // Load EVERY match attached to this round, including cross-foursome
+  // matches (tee_time_id = NULL) that the schedule's "Round-wide match"
+  // button creates. Filtering by teeTimeIds alone hid those rows from
+  // admin even though they exist and score correctly.
+  const roundMatches = await db
+    .select()
+    .from(matches)
+    .where(eq(matches.roundId, id));
 
   const matchIds = roundMatches.map((m) => m.id);
   const participantsRows = matchIds.length
@@ -382,6 +384,57 @@ export default async function EditRoundPage({
           )}
         </div>
       </section>
+
+      {/* Cross-foursome (round-wide) matches — tee_time_id = NULL. Listed
+          separately because they don't belong under any single
+          foursome. Common case: 4v4 best ball across two foursomes. */}
+      {(() => {
+        const crossFoursomeMatches = roundMatches.filter((m) => m.teeTimeId == null);
+        if (crossFoursomeMatches.length === 0) return null;
+        return (
+          <section className="mt-10">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
+              Round-wide matches ({crossFoursomeMatches.length})
+            </p>
+            <p className="mt-1 text-[11px] text-zinc-500">
+              Matches that span multiple foursomes (e.g. 4v4 best ball
+              drawing from every foursome). Scores propagate from the
+              per-foursome scorecards via fan-out.
+            </p>
+            <div className="mt-3 space-y-2">
+              {crossFoursomeMatches.map((m) => {
+                const parts = participantsRows.filter((p) => p.participant.matchId === m.id);
+                return (
+                  <Link
+                    key={m.id}
+                    href={`/trips/${slug}/matches/${m.id}/edit`}
+                    className="flex items-center justify-between gap-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3 hover:border-yellow-500/40 hover:bg-yellow-500/5"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <FormatBadge format={m.format} size="xs" />
+                        <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+                          {m.scoring === 'stableford' ? 'Stableford' : 'Match Play'}
+                          {' · '}
+                          {m.templateSizeA}v{m.templateSizeB}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 truncate text-xs text-zinc-700 dark:text-zinc-300">
+                        {parts.length > 0 ? (
+                          parts.map((p) => p.member.nickname).join(' · ')
+                        ) : (
+                          <span className="text-zinc-500">No participants</span>
+                        )}
+                      </p>
+                    </div>
+                    <Pencil size={10} className="shrink-0 text-zinc-600" />
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })()}
 
       <div className="mt-12 border-t border-zinc-300 dark:border-zinc-800 pt-6">
         <DeleteRoundButton roundId={round.id} />
