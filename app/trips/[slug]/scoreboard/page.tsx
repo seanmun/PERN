@@ -353,13 +353,7 @@ async function OutingLiveBoard({
  * tell who's winning at a glance.
  */
 function humanizeStatus({
-  statusText,
-  sideAName,
-  sideBName,
-  upA,
-  upB,
   holesPlayed,
-  remaining,
 }: {
   statusText: string;
   sideAName?: string;
@@ -369,22 +363,9 @@ function humanizeStatus({
   holesPlayed: number;
   remaining: number;
 }): string {
-  const leader = upA > upB ? sideAName : upB > upA ? sideBName : null;
-  const thru = `thru ${holesPlayed}`;
-  if (statusText === 'AS') return `All square · ${thru}`;
-  if (statusText === 'DORMIE') {
-    return `${leader ?? 'Side'} dormie · ${thru}`;
-  }
-  // "X UP" — match in progress
-  if (statusText.endsWith(' UP') && leader) {
-    return `${leader} ${statusText} · ${thru}${remaining > 0 ? ` · ${remaining} to play` : ''}`;
-  }
-  // "X & Y" — match closed (won by X with Y to play)
-  if (statusText.includes(' & ') && leader) {
-    const [up, left] = statusText.split(' & ');
-    return `${leader} won ${up} up, ${left} to play`;
-  }
-  return `${statusText} · ${thru}${remaining > 0 ? ` · ${remaining} to play` : ''}`;
+  // Gradient + big-number row carry the lead and the magnitude. The
+  // text is just the through-count, nothing else.
+  return `thru ${holesPlayed}`;
 }
 
 async function computeLive(matchId: string) {
