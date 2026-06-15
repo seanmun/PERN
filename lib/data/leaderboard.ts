@@ -42,6 +42,12 @@ export type PlayerTotal = {
   net: number;
   par: number;          // sum of par for the holes scored
   scoreVsPar: number;   // net - par (negative is good)
+  // Stableford total under the standard 4/3/2/1/0 (eagle/birdie/par/
+  // bogey/double+) scale, computed from net vs par per hole. Always
+  // populated regardless of which scoring mode a match uses — the
+  // leaderboard column is a parallel "what would your stableford be"
+  // view of every player's round.
+  stablefordPoints: number;
   // Total strokes the player has actually received across their played
   // holes (match-relative). Displayed on the leaderboard in place of the
   // raw trip handicap — "+3" reads as "you've gotten 3 strokes so far in
@@ -327,6 +333,7 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
       net: 0,
       par: 0,
       scoreVsPar: 0,
+      stablefordPoints: 0,
       strokesGiven: 0,
     });
   }
@@ -392,6 +399,16 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     player.strokesGiven += strokes;
     // Display is NET vs par — gross minus the match-relative strokes received.
     player.scoreVsPar = player.net - player.par;
+    // Stableford under the standard scale: eagle+=4, birdie=3, par=2,
+    // bogey=1, double+=0.
+    const diff = net - hole.par;
+    let pts: number;
+    if (diff <= -2) pts = 4;
+    else if (diff === -1) pts = 3;
+    else if (diff === 0) pts = 2;
+    else if (diff === 1) pts = 1;
+    else pts = 0;
+    player.stablefordPoints += pts;
   }
 
   const teamTotals = Array.from(teamTotalsMap.values()).sort(

@@ -700,22 +700,23 @@ function PlayerRow({ player, rank, slug }: { player: PlayerTotal; rank: number; 
             ? `${player.tripHandicap} hcp`
             : '—'}
       </p>
-      <div className="w-20 shrink-0 text-right">
-        <div className="flex items-baseline justify-end gap-1.5">
-          <p className={`font-mono text-lg font-bold tabular-nums ${scoreColor}`}>
-            {scoreLabel}
-          </p>
-          {player.holesScored > 0 && (
-            <p className="font-mono text-xs tabular-nums text-zinc-600">
-              {player.gross}
-            </p>
-          )}
-        </div>
+      <div className="w-14 shrink-0 text-right">
+        <p className={`font-mono text-lg font-bold tabular-nums ${scoreColor}`}>
+          {scoreLabel}
+        </p>
         {player.holesScored > 0 && (
           <p className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
             thru {player.holesScored}
           </p>
         )}
+      </div>
+      <div className="w-12 shrink-0 text-right">
+        <p className="font-mono text-lg font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
+          {player.holesScored > 0 ? player.stablefordPoints : '—'}
+        </p>
+        <p className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">
+          pts
+        </p>
       </div>
       <ChevronRight size={12} className="shrink-0 text-zinc-700" />
     </Link>
