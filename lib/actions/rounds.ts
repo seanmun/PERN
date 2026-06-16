@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { rounds, courses, courseTees } from '@/db/schema';
+import { rounds, courses, courseTees, matches } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
@@ -240,6 +240,47 @@ export async function updateRoundField(formData: FormData): Promise<void> {
   const tripSlug = await getTripSlugById(existing.tripId);
   revalidatePath(`/trips/${tripSlug}/schedule`);
   revalidatePath(`/trips/${tripSlug}/admin/rounds`);
+  revalidatePath(`/trips/${tripSlug}/admin/rounds/${id}/edit`);
+}
+
+/**
+ * Re-run recomputeMatchStatus for every match in a round. Use case:
+ * matches scored before an engine fix have stale persisted status /
+ * winningTeamId. Live views (cup tab, match detail) recompute on
+ * read, so they look right, but the DB columns drive cup standings.
+ * One tap on the round-edit page fixes the round in one shot.
+ */
+export async function recomputeRoundMatches(formData: FormData): Promise<void> {
+  const ctx = await getGlobalAuthContext();
+  if (!ctx) throw new AuthorizationError('Authentication required');
+
+  const id = String(formData.get('id') ?? '').trim();
+  if (!id) throw new Error('id required');
+
+  const [existing] = await db
+    .select()
+    .from(rounds)
+    .where(eq(rounds.id, id))
+    .limit(1);
+  if (!existing) throw new Error('Round not found');
+
+  requireRoundAdmin(ctx, existing.tripId);
+
+  // Inline import so the actions file doesn't pull the scoring engine
+  // for routes that don't need it. (Same module the score-upsert action
+  // already imports.)
+  const { recomputeMatchStatusById } = await import('@/lib/actions/scores');
+  const matchRows = await db
+    .select({ id: matches.id })
+    .from(matches)
+    .where(eq(matches.roundId, id));
+  for (const m of matchRows) {
+    await recomputeMatchStatusById(m.id);
+  }
+
+  const tripSlug = await getTripSlugById(existing.tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/scoreboard`);
   revalidatePath(`/trips/${tripSlug}/admin/rounds/${id}/edit`);
 }
 

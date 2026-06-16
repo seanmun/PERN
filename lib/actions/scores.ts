@@ -44,6 +44,13 @@ const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
   'two_man_aggregate',
 ]);
 
+/** Exported alias so other server actions can re-run the recompute for a
+ * match (e.g. round-level "recompute all" for past matches scored under
+ * a broken engine). Same body as the internal recomputeMatchStatus. */
+export async function recomputeMatchStatusById(matchId: string): Promise<void> {
+  return recomputeMatchStatus(matchId);
+}
+
 async function recomputeMatchStatus(matchId: string): Promise<void> {
   const data = await getMatchScoringData(matchId);
   if (!data) return;

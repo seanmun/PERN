@@ -31,7 +31,7 @@ import {
   InlineCheckbox,
 } from '@/components/admin/InlineRoundCard';
 import { RoundProgress, type RoundStep } from '@/components/admin/RoundProgress';
-import { updateRoundField } from '@/lib/actions/rounds';
+import { updateRoundField, recomputeRoundMatches } from '@/lib/actions/rounds';
 
 export default async function EditRoundPage({
   params,
@@ -498,6 +498,26 @@ export default async function EditRoundPage({
           </section>
         );
       })()}
+
+      {/* One-tap "recompute" for this round's matches. Use case: an
+          engine fix shipped after a round was scored; the DB still
+          has the old (wrong) match.status / winning_team_id. Re-runs
+          recomputeMatchStatus against every match in the round to
+          backfill. */}
+      <form action={recomputeRoundMatches} className="mt-10">
+        <input type="hidden" name="id" value={round.id} />
+        <button
+          type="submit"
+          className="flex w-full items-center justify-center gap-2 rounded-sm border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:border-yellow-500/40 hover:text-yellow-400"
+        >
+          Recompute every match in this round
+        </button>
+        <p className="mt-1.5 text-[11px] text-zinc-500">
+          Re-runs the scoring engine against persisted hole scores —
+          fixes status / winner columns for matches scored before an
+          engine update.
+        </p>
+      </form>
 
       <div className="mt-12 border-t border-zinc-300 dark:border-zinc-800 pt-6">
         <DeleteRoundButton roundId={round.id} />
