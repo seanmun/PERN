@@ -642,7 +642,12 @@ function SideNicknames({
 
 function TeamScoreRow({ teams, slug }: { teams: TeamTotal[]; slug: string }) {
   if (teams.length !== 2) return null;
-  const [a, b] = teams;
+  // Render in the same team-UUID order the engine uses for match-card
+  // sides (lowest UUID = Side A = left). Otherwise the top totals can
+  // sit "MachIans on left" while every match below sits "Douchebags on
+  // left" — confusing.
+  const sorted = [...teams].sort((x, y) => (x.teamId < y.teamId ? -1 : 1));
+  const [a, b] = sorted;
   return (
     <div className="mt-8 grid grid-cols-[1fr_auto_1fr] items-stretch gap-3">
       <TeamSide team={a} align="left" slug={slug} />
