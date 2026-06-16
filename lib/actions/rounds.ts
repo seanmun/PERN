@@ -179,6 +179,70 @@ export async function updateRound(formData: FormData): Promise<void> {
   redirect(`/trips/${tripSlug}/admin/rounds/${id}/edit`);
 }
 
+/**
+ * Update a single field on a round. Powers the inline-editable card on
+ * the round-edit page — each tap-to-edit field posts just its own value
+ * without resubmitting the whole form, and without redirecting.
+ *
+ * Form payload: `id`, `field` (one of label / date / courseId / courseTeeId
+ * / format / friendly), `value`.
+ */
+export async function updateRoundField(formData: FormData): Promise<void> {
+  const ctx = await getGlobalAuthContext();
+  if (!ctx) throw new AuthorizationError('Authentication required');
+
+  const id = String(formData.get('id') ?? '').trim();
+  const field = String(formData.get('field') ?? '').trim();
+  const raw = formData.get('value');
+  if (!id || !field) throw new Error('id and field required');
+
+  const [existing] = await db
+    .select()
+    .from(rounds)
+    .where(eq(rounds.id, id))
+    .limit(1);
+  if (!existing) throw new Error('Round not found');
+
+  requireRoundAdmin(ctx, existing.tripId);
+
+  const patch: Partial<typeof rounds.$inferInsert> = {};
+  switch (field) {
+    case 'label':
+      patch.label = trim(raw);
+      break;
+    case 'date':
+      patch.date = parseDate(raw);
+      break;
+    case 'format':
+      patch.format = readFormat(raw);
+      break;
+    case 'friendly':
+      patch.countsTowardCup = String(raw) !== 'on';
+      break;
+    case 'courseId': {
+      const courseId = String(raw ?? '').trim();
+      if (!courseId) throw new Error('Course is required');
+      patch.courseId = courseId;
+      // Resetting course clears any tee selection — old tee may not exist
+      // on the new course.
+      patch.courseTeeId = null;
+      break;
+    }
+    case 'courseTeeId':
+      patch.courseTeeId = await resolveCourseTeeId(trim(raw), existing.courseId);
+      break;
+    default:
+      throw new Error(`Unknown field "${field}"`);
+  }
+
+  await db.update(rounds).set(patch).where(eq(rounds.id, id));
+
+  const tripSlug = await getTripSlugById(existing.tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/admin/rounds`);
+  revalidatePath(`/trips/${tripSlug}/admin/rounds/${id}/edit`);
+}
+
 export async function deleteRound(formData: FormData): Promise<void> {
   const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');

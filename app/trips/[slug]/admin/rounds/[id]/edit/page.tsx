@@ -8,6 +8,7 @@ import {
   courses,
   courseTees,
   teeTimes,
+  teeTimeParticipants,
   matches,
   matchParticipants,
   tripMembers,
@@ -15,7 +16,6 @@ import {
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
-import { updateRound } from '@/lib/actions/rounds';
 import {
   formatTripTime,
   formatTripDayLong,
@@ -24,6 +24,13 @@ import {
 import DeleteRoundButton from '@/components/admin/DeleteRoundButton';
 import DeleteTeeTimeButton from '@/components/admin/DeleteTeeTimeButton';
 import FormatBadge from '@/components/FormatBadge';
+import {
+  InlineText,
+  InlineDate,
+  InlineChips,
+  InlineCheckbox,
+} from '@/components/admin/InlineRoundCard';
+import { RoundProgress, type RoundStep } from '@/components/admin/RoundProgress';
 
 export default async function EditRoundPage({
   params,
@@ -102,6 +109,58 @@ export default async function EditRoundPage({
     participantsByMatch.set(p.participant.matchId, list);
   }
 
+  // Tee time rosters — for the progress bar's "foursomes have rosters" step.
+  const rosterRows = teeTimeIds.length
+    ? await db
+        .select({
+          teeTimeId: teeTimeParticipants.teeTimeId,
+          tripMemberId: teeTimeParticipants.tripMemberId,
+        })
+        .from(teeTimeParticipants)
+        .where(inArray(teeTimeParticipants.teeTimeId, teeTimeIds))
+    : [];
+  const rosterCountByTeeTime = new Map<string, number>();
+  for (const r of rosterRows) {
+    rosterCountByTeeTime.set(r.teeTimeId, (rosterCountByTeeTime.get(r.teeTimeId) ?? 0) + 1);
+  }
+
+  // Per-round setup progress. Each step represents a piece of admin
+  // work that has to be done for the round to be playable. Drives the
+  // progress bar at the top of the page.
+  const allFoursomesRostered =
+    teeTimesList.length > 0 &&
+    teeTimesList.every((tt) => (rosterCountByTeeTime.get(tt.id) ?? 0) >= 2);
+  const progressSteps: RoundStep[] = [
+    {
+      id: 'date',
+      label: 'Date set',
+      done: round.date != null,
+    },
+    {
+      id: 'course',
+      label: 'Course assigned',
+      done: round.courseId != null,
+    },
+    {
+      id: 'tee-times',
+      label: 'Tee times added',
+      done: teeTimesList.length > 0,
+      hint: teeTimesList.length === 0 ? 'add at least one group' : undefined,
+    },
+    {
+      id: 'rosters',
+      label: 'Foursomes have rosters',
+      done: allFoursomesRostered,
+      hint: allFoursomesRostered ? undefined : 'tap a group to assign',
+    },
+    {
+      id: 'matches',
+      label: 'Matches built',
+      done: roundMatches.length > 0,
+      hint: roundMatches.length === 0 ? 'add at least one matchup' : undefined,
+    },
+  ];
+
   const dateInputValue = round.date
     ? new Intl.DateTimeFormat('en-CA', {
         year: 'numeric',
@@ -127,128 +186,101 @@ export default async function EditRoundPage({
         {round.label ?? roundFormatLabel(round.format)}
       </p>
 
-      {/* Round basics */}
-      <form action={updateRound} className="mt-8 space-y-5">
-        <input type="hidden" name="id" value={round.id} />
+      {/* Setup progress */}
+      <div className="mt-6">
+        <RoundProgress steps={progressSteps} />
+      </div>
 
-        <Field label="Label">
-          <input
-            type="text"
-            name="label"
-            defaultValue={round.label ?? ''}
+      {/* Round basics — inline-editable card. Tap any value to edit;
+          auto-saves on blur / Enter. No submit button. */}
+      <section className="mt-8 space-y-4 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4">
+        <Row label="Label">
+          <InlineText
+            roundId={round.id}
+            field="label"
+            value={round.label}
             placeholder="Wed PM — Pine Needles"
-            className={inputCls}
           />
-        </Field>
+        </Row>
 
-        <Field label="Date">
-          <input
-            type="date"
-            name="date"
-            defaultValue={dateInputValue}
-            className={inputCls}
+        <Row label="Date">
+          <InlineDate roundId={round.id} field="date" value={dateInputValue} />
+        </Row>
+
+        <Row label="Course">
+          <InlineChips
+            roundId={round.id}
+            field="courseId"
+            value={round.courseId}
+            options={allCourses.map((c) => ({
+              value: c.id,
+              label: c.name,
+              sublabel: c.location ?? undefined,
+            }))}
           />
-        </Field>
-
-        <Field label="Course" required>
-          <select
-            name="courseId"
-            required
-            defaultValue={round.courseId}
-            className={inputCls}
-          >
-            {allCourses.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-                {c.location ? ` · ${c.location}` : ''}
-              </option>
-            ))}
-          </select>
           <Link
             href={`/trips/${slug}/admin/courses/${round.courseId}/edit`}
             className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-400 hover:text-yellow-300"
           >
             Edit course holes →
           </Link>
-        </Field>
+        </Row>
 
-        <Field
+        <Row
           label="Tee"
           hint={
             teesForCourse.length === 0
               ? 'This course has no tees defined yet. Add them under Admin → Courses.'
-              : 'Which tee the round plays from. Leave blank to use the course default.'
+              : undefined
           }
         >
           {teesForCourse.length === 0 ? (
-            <p className={`${inputCls} cursor-not-allowed opacity-60`}>
+            <p className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900/40 px-3 py-2 text-sm text-zinc-500">
               No tees on this course
             </p>
           ) : (
-            <select
-              name="courseTeeId"
-              defaultValue={round.courseTeeId ?? ''}
-              className={inputCls}
-            >
-              <option value="">
-                Use course default
-                {teesForCourse.find((t) => t.isDefault)
+            <InlineChips
+              roundId={round.id}
+              field="courseTeeId"
+              value={round.courseTeeId}
+              allowEmpty
+              emptyLabel={`Default${
+                teesForCourse.find((t) => t.isDefault)
                   ? ` (${teesForCourse.find((t) => t.isDefault)!.name})`
-                  : ''}
-              </option>
-              {teesForCourse.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                  {t.totalYardage != null ? ` · ${t.totalYardage} yds` : ''}
-                </option>
-              ))}
-            </select>
+                  : ''
+              }`}
+              options={teesForCourse.map((t) => ({
+                value: t.id,
+                label: t.name,
+                sublabel: t.totalYardage != null ? `${t.totalYardage} yds` : undefined,
+              }))}
+            />
           )}
-        </Field>
+        </Row>
 
-        <Field
-          label="Default format for new matches"
-          hint="Each match in this round can override its own format independently (Best Ball + Singles side-bet stacks etc.)."
-          required
-        >
-          <select
-            name="format"
-            required
-            defaultValue={round.format}
-            className={inputCls}
-          >
-            <option value="best_ball">Best Ball — 2v2 (lowest net per side)</option>
-            <option value="two_man_aggregate">Two-Man Aggregate — 2v2 (sum of nets)</option>
-            <option value="singles">Singles — 1v1 match play</option>
-            <option value="scramble">Scramble</option>
-            <option value="stroke">Stroke play</option>
-          </select>
-        </Field>
-
-        <label className="flex items-start gap-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-3 py-3">
-          <input
-            type="checkbox"
-            name="friendly"
-            defaultChecked={!round.countsTowardCup}
-            className="mt-0.5 h-4 w-4 accent-yellow-500"
+        <Row label="Default format" hint="Each match can override.">
+          <InlineChips
+            roundId={round.id}
+            field="format"
+            value={round.format}
+            options={[
+              { value: 'best_ball', label: 'Best Ball' },
+              { value: 'two_man_aggregate', label: '2-Man Aggregate' },
+              { value: 'singles', label: 'Singles' },
+              { value: 'scramble', label: 'Scramble' },
+              { value: 'stroke', label: 'Stroke' },
+            ]}
           />
-          <span className="min-w-0 flex-1">
-            <span className="block font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-800 dark:text-zinc-200">
-              Friendly round
-            </span>
-            <span className="block text-[11px] text-zinc-500">
-              Does not count toward the Cup.
-            </span>
-          </span>
-        </label>
+        </Row>
 
-        <button
-          type="submit"
-          className="w-full rounded-sm bg-yellow-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black hover:bg-yellow-400"
-        >
-          Save round
-        </button>
-      </form>
+        <InlineCheckbox
+          roundId={round.id}
+          field="friendly"
+          checked={!round.countsTowardCup}
+          label="Friendly round"
+          hint="Does not count toward the Cup."
+        />
+      </section>
 
       {/* Groups (tee times) */}
       <section className="mt-10">
@@ -473,28 +505,27 @@ export default async function EditRoundPage({
   );
 }
 
-const inputCls =
-  'mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
-
-function Field({
+/**
+ * Inline-edit row. Compact label-above-value pattern shared by every
+ * field on the round basics card. No form wrapper — each field's
+ * onSave fires updateRoundField directly.
+ */
+function Row({
   label,
-  children,
-  required,
   hint,
+  children,
 }: {
   label: string;
-  children: React.ReactNode;
-  required?: boolean;
   hint?: string;
+  children: React.ReactNode;
 }) {
   return (
-    <label className="block">
-      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+    <div>
+      <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
         {label}
-        {required && <span className="ml-1 text-yellow-800 dark:text-yellow-500">*</span>}
-      </span>
+      </p>
       {children}
-      {hint && <p className="mt-1.5 text-[11px] text-zinc-500">{hint}</p>}
-    </label>
+      {hint && <p className="mt-1 text-[11px] text-zinc-500">{hint}</p>}
+    </div>
   );
 }
