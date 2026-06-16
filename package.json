@@ -12,6 +12,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx --env-file=.env.local db/seed.ts",
+    "seed:scenarios": "tsx --env-file=.env.local scripts/seed-scenarios.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
