@@ -133,21 +133,44 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
       points: 0,
     });
   }
-  for (const { match } of completedCup) {
-    if (match.isHalved) {
-      // 0.5 to each team in the match
-      const teamsInMatch = new Set(
+  // Award points per match segment. A segment counts the moment its
+  // winner column is set — segments close independently from the
+  // overall match, so a front-9 closeout can show up on the cup
+  // standings before the back 9 is even started.
+  for (const { match } of cupMatches) {
+    const teamsInMatch = Array.from(
+      new Set(
         relevantParticipants
           .filter((p) => p.matchId === match.id)
           .map((p) => p.teamId),
-      );
-      for (const teamId of teamsInMatch) {
-        const t = teamTotalsMap.get(teamId);
-        if (t) t.points += 0.5;
+      ),
+    );
+
+    // Overall segment (full 18). Halved = split equally between the
+    // two teams.
+    if (match.pointsOverall > 0 && match.status === 'completed') {
+      if (match.isHalved) {
+        const split = match.pointsOverall / teamsInMatch.length;
+        for (const teamId of teamsInMatch) {
+          const t = teamTotalsMap.get(teamId);
+          if (t) t.points += split;
+        }
+      } else if (match.winningTeamId) {
+        const t = teamTotalsMap.get(match.winningTeamId);
+        if (t) t.points += match.pointsOverall;
       }
-    } else if (match.winningTeamId) {
-      const t = teamTotalsMap.get(match.winningTeamId);
-      if (t) t.points += 1;
+    }
+
+    // Front 9 segment.
+    if (match.pointsFront9 > 0 && match.front9WinningTeamId) {
+      const t = teamTotalsMap.get(match.front9WinningTeamId);
+      if (t) t.points += match.pointsFront9;
+    }
+
+    // Back 9 segment.
+    if (match.pointsBack9 > 0 && match.back9WinningTeamId) {
+      const t = teamTotalsMap.get(match.back9WinningTeamId);
+      if (t) t.points += match.pointsBack9;
     }
   }
 

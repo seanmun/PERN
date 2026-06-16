@@ -90,6 +90,13 @@ export default function MatchBuilder({
     bogey: number;
     doublePlus: number;
   }>({ eagle: 4, birdie: 3, par: 2, bogey: 1, doublePlus: 0 });
+  // Match-point allocation. Defaults to "1 point overall" — same as
+  // the prior single-point system. Presets snap to common splits.
+  const [matchPoints, setMatchPoints] = useState<{
+    overall: number;
+    front9: number;
+    back9: number;
+  }>({ overall: 1, front9: 0, back9: 0 });
   const [sideATeamId, setSideATeamId] = useState<string>(
     teams[0]?.id ?? '',
   );
@@ -233,6 +240,9 @@ export default function MatchBuilder({
         <input type="hidden" name="tripSlug" value={tripSlug} />
         <input type="hidden" name="state" value={payload} />
         <input type="hidden" name="scoring" value={scoring} />
+        <input type="hidden" name="pointsOverall" value={matchPoints.overall} />
+        <input type="hidden" name="pointsFront9" value={matchPoints.front9} />
+        <input type="hidden" name="pointsBack9" value={matchPoints.back9} />
         {scoring === 'stableford' && (
           <input
             type="hidden"
@@ -340,6 +350,74 @@ export default function MatchBuilder({
             </div>
           </div>
         )}
+
+        {/* Match-points splitter */}
+        <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+            Cup points
+          </p>
+          <p className="mt-1 text-[11px] text-zinc-500">
+            How many cup points this match awards. Front 9 + Back 9
+            close independently, so a 9-hole closeout shows up on the
+            cup tab right away.
+          </p>
+          {/* Presets */}
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {([
+              { label: '1 pt — match', preset: { overall: 1, front9: 0, back9: 0 } },
+              { label: '2 pts — split 9s', preset: { overall: 0, front9: 1, back9: 1 } },
+              { label: '3 pts — match + 9s', preset: { overall: 1, front9: 1, back9: 1 } },
+            ] as const).map((p) => {
+              const active =
+                matchPoints.overall === p.preset.overall &&
+                matchPoints.front9 === p.preset.front9 &&
+                matchPoints.back9 === p.preset.back9;
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => setMatchPoints(p.preset)}
+                  className={`rounded-sm border px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
+                    active
+                      ? 'border-yellow-500 bg-yellow-500 text-black'
+                      : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-300 hover:border-yellow-500/40'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+          {/* Custom inputs */}
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {(
+              [
+                ['overall', 'Overall (18)'],
+                ['front9', 'Front 9'],
+                ['back9', 'Back 9'],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="block">
+                <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
+                  {label}
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  max={10}
+                  value={matchPoints[key]}
+                  onChange={(e) =>
+                    setMatchPoints((prev) => ({
+                      ...prev,
+                      [key]: Math.max(0, Number(e.target.value) || 0),
+                    }))
+                  }
+                  className="mt-1 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2 py-1.5 text-right font-mono text-sm tabular-nums focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
+                />
+              </label>
+            ))}
+          </div>
+        </div>
 
         {/* Format hint */}
         <p className="text-[11px] text-zinc-500">

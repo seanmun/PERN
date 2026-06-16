@@ -151,9 +151,68 @@ async function recomputeMatchStatus(matchId: string): Promise<void> {
     }
   }
 
+  // Segment winners: front 9 + back 9 run the same engine on their
+  // own hole slice. Independent closure — a segment finishing early
+  // doesn't kill holes for other segments. Only ever populated for
+  // match-play matches with point splits enabled. Stableford segments
+  // could be added later by running computeStableford on each slice
+  // the same way.
+  let front9WinningTeamId: string | null = null;
+  let back9WinningTeamId: string | null = null;
+  if (data.match.scoring !== 'stableford' && data.engineHoles.length >= 18) {
+    const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
+      ? (data.match.format as PlayerInputFormat)
+      : 'best_ball';
+    const runSegment = (from: number, to: number): string | null => {
+      const holes = data.engineHoles.filter(
+        (h) => h.number >= from && h.number <= to,
+      );
+      if (holes.length === 0) return null;
+      if (data.inputMode === 'team' && data.engineTeams && data.engineTeams.length === 2) {
+        const seg = computeTeamMatch({
+          teams: [data.engineTeams[0], data.engineTeams[1]],
+          holes,
+          scores: (data.engineTeamScores ?? []).filter(
+            (s) => s.holeNumber >= from && s.holeNumber <= to,
+          ),
+        });
+        if (seg.status.kind === 'closed') {
+          return teamIdByside.get(seg.status.winner) ?? null;
+        }
+        return null;
+      }
+      const seg = computeMatch({
+        players: data.enginePlayers,
+        holes,
+        scores: data.engineScores.filter(
+          (s) => s.holeNumber >= from && s.holeNumber <= to,
+        ),
+        format: fmt,
+      });
+      if (seg.status.kind === 'closed') {
+        return teamIdByside.get(seg.status.winner) ?? null;
+      }
+      // 9-hole segment finished with a lead but not closed — treat as
+      // segment-closed (every hole played + lead = closed).
+      if (seg.holesPlayed === holes.length && seg.upA !== seg.upB) {
+        return teamIdByside.get(seg.upA > seg.upB ? 'A' : 'B') ?? null;
+      }
+      return null;
+    };
+    front9WinningTeamId = runSegment(1, 9);
+    back9WinningTeamId = runSegment(10, 18);
+  }
+
   await db
     .update(matches)
-    .set({ status: nextStatus, winningTeamId, isHalved, resultText })
+    .set({
+      status: nextStatus,
+      winningTeamId,
+      isHalved,
+      resultText,
+      front9WinningTeamId,
+      back9WinningTeamId,
+    })
     .where(eq(matches.id, matchId));
 }
 

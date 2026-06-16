@@ -367,6 +367,17 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
     }
   }
 
+  // Match-points splitter. Defaults preserve the prior "1 pt match"
+  // behavior when the builder doesn't post values.
+  const clampPts = (raw: FormDataEntryValue | null, dflt: number): number => {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) return dflt;
+    return Math.min(10, Math.floor(n));
+  };
+  const pointsOverall = clampPts(formData.get('pointsOverall'), 1);
+  const pointsFront9 = clampPts(formData.get('pointsFront9'), 0);
+  const pointsBack9 = clampPts(formData.get('pointsBack9'), 0);
+
   const [match] = await db
     .insert(matches)
     .values({
@@ -381,6 +392,9 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
       ptsPar: stablefordPts.par ?? null,
       ptsBogey: stablefordPts.bogey ?? null,
       ptsDoublePlus: stablefordPts.doublePlus ?? null,
+      pointsOverall,
+      pointsFront9,
+      pointsBack9,
       status: 'scheduled',
     })
     .returning();

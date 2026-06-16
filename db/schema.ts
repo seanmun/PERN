@@ -241,9 +241,24 @@ export const matches = pgTable('matches', {
   ptsPar: integer('pts_par'),
   ptsBogey: integer('pts_bogey'),
   ptsDoublePlus: integer('pts_double_plus'),
+  // Match points — how many cup points this match awards across its
+  // three segments (overall 18 / front 9 / back 9). Defaults preserve
+  // the prior "1 point per match" behavior. Admin can dial:
+  //   1 / 0 / 0 — whole match only (default)
+  //   0 / 1 / 1 — each nine, no overall
+  //   1 / 1 / 1 — match + both nines (3 points total)
+  pointsOverall: integer('points_overall').default(1).notNull(),
+  pointsFront9: integer('points_front_9').default(0).notNull(),
+  pointsBack9: integer('points_back_9').default(0).notNull(),
   status: matchStatusEnum('status').default('scheduled').notNull(),
   resultText: text('result_text'),
+  // Per-segment winners. winningTeamId stays the overall (full-18)
+  // winner for backward compatibility; the two new columns track
+  // the segment winners independently — a segment closes per its own
+  // hole range without killing holes for other segments.
   winningTeamId: uuid('winning_team_id').references(() => teams.id),
+  front9WinningTeamId: uuid('front_9_winning_team_id').references(() => teams.id),
+  back9WinningTeamId: uuid('back_9_winning_team_id').references(() => teams.id),
   isHalved: boolean('is_halved').default(false).notNull(),
 });
 

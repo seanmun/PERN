@@ -205,6 +205,8 @@ async function OutingLiveBoard({
       </p>
       <h1 className="mt-1 text-3xl font-bold tracking-tight">{tripName}</h1>
 
+      <TeamScoreRow teams={board.teamTotals} slug={slug} />
+
       {allMatches.length === 0 ? (
         <p className="mt-8 text-sm text-zinc-500">
           No matches set up yet. Add them from the admin page.
