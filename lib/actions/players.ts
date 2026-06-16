@@ -117,6 +117,116 @@ export async function createPlayer(formData: FormData): Promise<void> {
   redirect(`/trips/${tripSlug}/admin/players`);
 }
 
+/**
+ * Inline-edit single-field patch for the player admin card. Lighter
+ * than updatePlayer — handles one column at a time without the team
+ * re-sync / user-relink work (those still go through updatePlayer
+ * when a full save happens).
+ *
+ * Supported fields: nickname, email, role, isCaptain, tripHandicap,
+ * scoutingReport, teamId.
+ *
+ * Form payload: `id`, `field`, `value`.
+ */
+export async function updatePlayerField(formData: FormData): Promise<void> {
+  const ctx = await getGlobalAuthContext();
+  if (!ctx) throw new AuthorizationError('Authentication required');
+
+  const id = String(formData.get('id') ?? '').trim();
+  const field = String(formData.get('field') ?? '').trim();
+  const raw = formData.get('value');
+  if (!id || !field) throw new Error('id and field required');
+
+  const [existing] = await db
+    .select()
+    .from(tripMembers)
+    .where(eq(tripMembers.id, id))
+    .limit(1);
+  if (!existing) throw new Error('Player not found');
+
+  if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, existing.tripId)) {
+    throw new AuthorizationError('Trip admin required');
+  }
+
+  const patch: Partial<typeof tripMembers.$inferInsert> = {};
+  let resyncTeam = false;
+  switch (field) {
+    case 'nickname': {
+      const v = String(raw ?? '').trim();
+      if (!v) throw new Error('Nickname is required');
+      patch.nickname = v;
+      break;
+    }
+    case 'email': {
+      const v = String(raw ?? '').trim().toLowerCase();
+      if (v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+        throw new Error('Email looks invalid');
+      }
+      patch.email = v || null;
+      break;
+    }
+    case 'role':
+      patch.role = String(raw) === 'trip_admin' ? 'trip_admin' : 'player';
+      break;
+    case 'isCaptain':
+      patch.isCaptain = String(raw) === 'on';
+      break;
+    case 'tripHandicap':
+      patch.tripHandicap = parseHandicap(raw);
+      break;
+    case 'scoutingReport':
+      patch.scoutingReport = trimOrNull(raw);
+      break;
+    case 'teamId': {
+      const v = String(raw ?? '').trim();
+      patch.teamId = v || null;
+      if (v) {
+        const [team] = await db.select().from(teams).where(eq(teams.id, v)).limit(1);
+        if (!team || team.tripId !== existing.tripId) {
+          throw new Error('Invalid team');
+        }
+        resyncTeam = true;
+      }
+      break;
+    }
+    default:
+      throw new Error(`Unknown field "${field}"`);
+  }
+
+  await db.update(tripMembers).set(patch).where(eq(tripMembers.id, id));
+
+  // When team changes, sync the new teamId onto every uncompleted match
+  // this player is in. Mirrors the logic in updatePlayer so admin can
+  // swap a player's team without breaking active matchups.
+  if (resyncTeam && patch.teamId) {
+    const inFlightMatches = await db
+      .select({ id: matches.id })
+      .from(matches)
+      .innerJoin(rounds, eq(matches.roundId, rounds.id))
+      .where(
+        and(
+          eq(rounds.tripId, existing.tripId),
+          sql`${matches.status} <> 'completed'`,
+        ),
+      );
+    const matchIds = inFlightMatches.map((m) => m.id);
+    if (matchIds.length > 0) {
+      await db
+        .update(matchParticipants)
+        .set({ teamId: patch.teamId })
+        .where(
+          and(
+            eq(matchParticipants.tripMemberId, id),
+            inArray(matchParticipants.matchId, matchIds),
+          ),
+        );
+    }
+  }
+
+  const tripSlug = await getTripSlugById(existing.tripId);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
+}
+
 export async function updatePlayer(formData: FormData): Promise<void> {
   const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');

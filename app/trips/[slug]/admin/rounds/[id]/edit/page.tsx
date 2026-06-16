@@ -31,6 +31,7 @@ import {
   InlineCheckbox,
 } from '@/components/admin/InlineRoundCard';
 import { RoundProgress, type RoundStep } from '@/components/admin/RoundProgress';
+import { updateRoundField } from '@/lib/actions/rounds';
 
 export default async function EditRoundPage({
   params,
@@ -196,7 +197,7 @@ export default async function EditRoundPage({
       <section className="mt-8 space-y-4 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4">
         <Row label="Label">
           <InlineText
-            roundId={round.id}
+            action={updateRoundField} hidden={{ id: round.id }}
             field="label"
             value={round.label}
             placeholder="Wed PM — Pine Needles"
@@ -204,12 +205,12 @@ export default async function EditRoundPage({
         </Row>
 
         <Row label="Date">
-          <InlineDate roundId={round.id} field="date" value={dateInputValue} />
+          <InlineDate action={updateRoundField} hidden={{ id: round.id }} field="date" value={dateInputValue} />
         </Row>
 
         <Row label="Course">
           <InlineChips
-            roundId={round.id}
+            action={updateRoundField} hidden={{ id: round.id }}
             field="courseId"
             value={round.courseId}
             options={allCourses.map((c) => ({
@@ -240,7 +241,7 @@ export default async function EditRoundPage({
             </p>
           ) : (
             <InlineChips
-              roundId={round.id}
+              action={updateRoundField} hidden={{ id: round.id }}
               field="courseTeeId"
               value={round.courseTeeId}
               allowEmpty
@@ -260,7 +261,7 @@ export default async function EditRoundPage({
 
         <Row label="Default format" hint="Each match can override.">
           <InlineChips
-            roundId={round.id}
+            action={updateRoundField} hidden={{ id: round.id }}
             field="format"
             value={round.format}
             options={[
@@ -274,7 +275,7 @@ export default async function EditRoundPage({
         </Row>
 
         <InlineCheckbox
-          roundId={round.id}
+          action={updateRoundField} hidden={{ id: round.id }}
           field="friendly"
           checked={!round.countsTowardCup}
           label="Friendly round"

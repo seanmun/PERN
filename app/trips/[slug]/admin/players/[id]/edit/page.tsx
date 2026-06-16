@@ -6,8 +6,13 @@ import { db } from '@/db/client';
 import { tripMembers, teams, users } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
-import { updatePlayer } from '@/lib/actions/players';
+import { updatePlayerField } from '@/lib/actions/players';
 import PhotoWithPortraitSection from '@/components/portraits/PhotoWithPortraitSection';
+import {
+  InlineText,
+  InlineChips,
+  InlineCheckbox,
+} from '@/components/admin/InlineRoundCard';
 
 export default async function EditPlayerPage({
   params,
@@ -81,9 +86,7 @@ export default async function EditPlayerPage({
         Admin edit. Player can override their own avatar + handicap later.
       </p>
 
-      <form action={updatePlayer} className="mt-8 space-y-5">
-        <input type="hidden" name="id" value={player.id} />
-
+      <div className="mt-8">
         <PhotoWithPortraitSection
           photoName="avatarUrl"
           photoDefaultValue={player.avatarUrl ?? portraitUser?.avatarUrl ?? null}
@@ -92,138 +95,104 @@ export default async function EditPlayerPage({
           targetTripMemberId={player.id}
           targetLabel={`${player.nickname}'s`}
         />
+      </div>
 
-        <Field label="Nickname" required>
-          <input
-            type="text"
-            name="nickname"
-            required
-            defaultValue={player.nickname}
-            className={inputCls}
+      {/* Inline-edit card — every field auto-saves on blur / Enter. */}
+      <section className="mt-6 space-y-4 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4">
+        <Row label="Nickname">
+          <InlineText
+            action={updatePlayerField}
+            hidden={{ id: player.id }}
+            field="nickname"
+            value={player.nickname}
+            placeholder="Add nickname…"
           />
-        </Field>
+        </Row>
 
-        <Field
-          label="Email"
-          hint="Leave blank for a shell player. Set the email so they can lazy-claim this slot on sign-in."
-        >
-          <input
-            type="email"
-            name="email"
-            defaultValue={player.email ?? ''}
-            className={inputCls}
+        <Row label="Email" hint="Leave blank for a shell player. Set the email so they can lazy-claim this slot on sign-in.">
+          <InlineText
+            action={updatePlayerField}
+            hidden={{ id: player.id }}
+            field="email"
+            value={player.email}
+            placeholder="player@example.com"
           />
-        </Field>
+        </Row>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Team">
-            <select
-              name="teamId"
-              defaultValue={player.teamId ?? ''}
-              className={inputCls}
-            >
-              <option value="">— None —</option>
-              {teamsList.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label="Role">
-            <select
-              name="role"
-              defaultValue={player.role}
-              className={inputCls}
-            >
-              <option value="player">Player</option>
-              <option value="trip_admin">Trip admin</option>
-            </select>
-          </Field>
-        </div>
-
-        <label className="flex items-center gap-3 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-3 py-3">
-          <input
-            type="checkbox"
-            name="isCaptain"
-            defaultChecked={player.isCaptain}
-            className="h-4 w-4 accent-yellow-500"
+        <Row label="Team">
+          <InlineChips
+            action={updatePlayerField}
+            hidden={{ id: player.id }}
+            field="teamId"
+            value={player.teamId}
+            allowEmpty
+            emptyLabel="— None —"
+            options={teamsList.map((t) => ({ value: t.id, label: t.name }))}
           />
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-800 dark:text-zinc-200">
-            Team captain
-          </span>
-        </label>
+        </Row>
 
-        <Field
-          label="Trip handicap"
-          hint="One decimal, e.g. 12.3. Drives stroke allocation for this trip."
-        >
-          <input
-            type="text"
-            name="tripHandicap"
-            inputMode="decimal"
-            defaultValue={player.tripHandicap ?? ''}
+        <Row label="Role">
+          <InlineChips
+            action={updatePlayerField}
+            hidden={{ id: player.id }}
+            field="role"
+            value={player.role}
+            options={[
+              { value: 'player', label: 'Player' },
+              { value: 'trip_admin', label: 'Trip admin' },
+            ]}
+          />
+        </Row>
+
+        <InlineCheckbox
+          action={updatePlayerField}
+          hidden={{ id: player.id }}
+          field="isCaptain"
+          checked={player.isCaptain}
+          label="Team captain"
+        />
+
+        <Row label="Trip handicap" hint="One decimal, e.g. 12.3. Drives stroke allocation for this trip.">
+          <InlineText
+            action={updatePlayerField}
+            hidden={{ id: player.id }}
+            field="tripHandicap"
+            value={player.tripHandicap}
             placeholder="24.5"
-            className={inputCls}
           />
-        </Field>
+        </Row>
 
-        <Field
-          label="Scouting report"
-          hint="Captain-authored bio. Shown on profile pages."
-        >
-          <textarea
-            name="scoutingReport"
-            defaultValue={player.scoutingReport ?? ''}
-            rows={3}
+        <Row label="Scouting report" hint="Captain-authored bio. Shown on profile pages.">
+          <InlineText
+            action={updatePlayerField}
+            hidden={{ id: player.id }}
+            field="scoutingReport"
+            value={player.scoutingReport}
             placeholder="“Long drives, suspect putter.”"
-            className={`${inputCls} resize-none`}
           />
-        </Field>
-
-        <div className="flex items-center gap-3 pt-4">
-          <button
-            type="submit"
-            className="flex-1 rounded-sm bg-yellow-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400"
-          >
-            Save player
-          </button>
-          <Link
-            href={`/trips/${slug}/admin/players`}
-            className="rounded-sm border border-zinc-400 dark:border-zinc-700 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-200"
-          >
-            Cancel
-          </Link>
-        </div>
-      </form>
+        </Row>
+      </section>
 
     </div>
   );
 }
 
-const inputCls =
-  'mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
-
-function Field({
+function Row({
   label,
-  children,
   hint,
-  required,
+  children,
 }: {
   label: string;
-  children: React.ReactNode;
   hint?: string;
-  required?: boolean;
+  children: React.ReactNode;
 }) {
   return (
-    <label className="block">
-      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+    <div>
+      <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
         {label}
-        {required && <span className="ml-1 text-yellow-800 dark:text-yellow-500">*</span>}
-      </span>
+      </p>
       {children}
-      {hint && <p className="mt-1.5 text-[11px] text-zinc-500">{hint}</p>}
-    </label>
+      {hint && <p className="mt-1 text-[11px] text-zinc-500">{hint}</p>}
+    </div>
   );
 }

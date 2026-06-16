@@ -99,6 +99,54 @@ export async function updateTeeTime(formData: FormData): Promise<void> {
 }
 
 /**
+ * Inline-edit single-field patch for the tee-time admin card. Pairs
+ * with InlineText / InlineDatetime / InlineNumber on the edit page.
+ *
+ * Form payload: `id`, `field` (time / groupNumber), `value`.
+ */
+export async function updateTeeTimeField(formData: FormData): Promise<void> {
+  const ctx = await getGlobalAuthContext();
+  if (!ctx) throw new AuthorizationError('Authentication required');
+
+  const id = String(formData.get('id') ?? '').trim();
+  const field = String(formData.get('field') ?? '').trim();
+  const raw = formData.get('value');
+  if (!id || !field) throw new Error('id and field required');
+
+  const [row] = await db
+    .select({ teeTime: teeTimes, round: rounds })
+    .from(teeTimes)
+    .innerJoin(rounds, eq(teeTimes.roundId, rounds.id))
+    .where(eq(teeTimes.id, id))
+    .limit(1);
+  if (!row) throw new Error('Tee time not found');
+
+  requireTeeTimeAdmin(ctx, row.round.tripId);
+
+  const patch: Partial<typeof teeTimes.$inferInsert> = {};
+  switch (field) {
+    case 'time': {
+      const d = parseWallTime(raw);
+      if (!d) throw new Error('Time required');
+      patch.time = d;
+      break;
+    }
+    case 'groupNumber':
+      patch.groupNumber = parseGroup(raw);
+      break;
+    default:
+      throw new Error(`Unknown field "${field}"`);
+  }
+
+  await db.update(teeTimes).set(patch).where(eq(teeTimes.id, id));
+
+  const tripSlug = await getTripSlugById(row.round.tripId);
+  revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/admin/rounds/${row.round.id}/edit`);
+  revalidatePath(`/trips/${tripSlug}/admin/tee-times/${id}/edit`);
+}
+
+/**
  * Replace the foursome's roster (tee_time_participants) with the
  * selected set. Wipes the existing rows and inserts whatever the form
  * sends. This is the explicit "who's physically in this group" list,

@@ -13,7 +13,15 @@ import {
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
-import { updateTeeTime, updateTeeTimeRoster } from '@/lib/actions/tee-times';
+import {
+  updateTeeTime,
+  updateTeeTimeField,
+  updateTeeTimeRoster,
+} from '@/lib/actions/tee-times';
+import {
+  InlineDatetime,
+  InlineNumber,
+} from '@/components/admin/InlineRoundCard';
 
 const TRIP_TZ = 'America/New_York';
 
@@ -72,48 +80,35 @@ export default async function EditTeeTimePage({
         Round {row.round.order} · {row.course.name}
       </p>
 
-      <RosterEditor teeTimeId={row.teeTime.id} tripId={row.round.tripId} />
-
-      <form action={updateTeeTime} className="mt-10 space-y-5">
-        <input type="hidden" name="id" value={row.teeTime.id} />
-
-        <Field label="Time" required>
-          <input
-            type="datetime-local"
-            name="time"
-            required
-            defaultValue={toWallTimeInput(row.teeTime.time)}
-            className={inputCls}
+      {/* Inline-edit basics: time + group number. Auto-save. */}
+      <section className="mt-8 space-y-4 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4">
+        <div>
+          <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+            Time
+          </p>
+          <InlineDatetime
+            action={updateTeeTimeField}
+            hidden={{ id: row.teeTime.id }}
+            field="time"
+            value={toWallTimeInput(row.teeTime.time)}
           />
-        </Field>
-
-        <Field label="Group number" required>
-          <input
-            type="number"
-            name="groupNumber"
-            required
+        </div>
+        <div>
+          <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+            Group number
+          </p>
+          <InlineNumber
+            action={updateTeeTimeField}
+            hidden={{ id: row.teeTime.id }}
+            field="groupNumber"
+            value={row.teeTime.groupNumber}
             min={1}
             max={99}
-            defaultValue={row.teeTime.groupNumber}
-            className={inputCls}
           />
-        </Field>
-
-        <div className="flex items-center gap-3 pt-4">
-          <button
-            type="submit"
-            className="flex-1 rounded-sm bg-yellow-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400"
-          >
-            Save tee time
-          </button>
-          <Link
-            href={`/trips/${slug}/admin/rounds/${row.round.id}/edit`}
-            className="rounded-sm border border-zinc-400 dark:border-zinc-700 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-200"
-          >
-            Cancel
-          </Link>
         </div>
-      </form>
+      </section>
+
+      <RosterEditor teeTimeId={row.teeTime.id} tripId={row.round.tripId} />
     </div>
   );
 }
