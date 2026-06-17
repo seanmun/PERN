@@ -181,6 +181,12 @@ export async function upsertHoleScore(formData: FormData): Promise<void> {
     revalidatePath(`/trips/${tripSlug}/matches/${mid}`);
     revalidatePath(`/trips/${tripSlug}/matches/${mid}/score`);
   }
+  // Also bust the cache for the tee-time-keyed score route — otherwise
+  // navigating away and back lands on a stale snapshot, and the
+  // auto-jump-to-first-unscored picks hole 1 instead of the next empty.
+  if (target.match.teeTimeId) {
+    revalidatePath(`/trips/${tripSlug}/tee-times/${target.match.teeTimeId}/score`);
+  }
   revalidatePath(`/trips/${tripSlug}/scoreboard`);
   revalidatePath(`/trips/${tripSlug}/feed`);
   revalidatePath(`/trips/${tripSlug}/schedule`);
@@ -318,6 +324,11 @@ export async function upsertTeamHoleScore(formData: FormData): Promise<void> {
   for (const mid of participatingMatchIds) {
     revalidatePath(`/trips/${tripSlug}/matches/${mid}`);
     revalidatePath(`/trips/${tripSlug}/matches/${mid}/score`);
+  }
+  if (teamParticipants[0].match.teeTimeId) {
+    revalidatePath(
+      `/trips/${tripSlug}/tee-times/${teamParticipants[0].match.teeTimeId}/score`,
+    );
   }
   revalidatePath(`/trips/${tripSlug}/scoreboard`);
   revalidatePath(`/trips/${tripSlug}/feed`);
