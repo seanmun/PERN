@@ -270,9 +270,11 @@ async function enterScores(
         set: { gross: s.gross, enteredBy: systemUserId, enteredAt: new Date() },
       });
   }
-  // Trigger the same recompute path the action layer fires.
-  const { recomputeMatchStatusById } = await import('@/lib/actions/scores');
-  await recomputeMatchStatusById(matchId);
+  // Trigger the same recompute path the action layer fires. Imported
+  // from the PURE module so the server-only auth chain doesn't taint
+  // this Node-side script.
+  const { recomputeMatchStatus } = await import('@/lib/scoring/recompute');
+  await recomputeMatchStatus(matchId);
 }
 
 // ───────────────────────── SCENARIOS ─────────────────────────
@@ -493,14 +495,11 @@ async function scenarioFanOutAcrossMatches(systemUserId: string) {
     sideB: [bPlayers[0]],
   });
 
-  // Enter scores against ONE match — the round-scoped fan-out should
-  // replicate the rows into the other match. We use the upsert action so
-  // fan-out fires.
-  const { upsertHoleScore } = await import('@/lib/actions/scores');
-  // The action requires an authenticated context; we can't easily fake
-  // that from a script. Instead we directly insert the score into BOTH
-  // matches (the fan-out behavior the action would have produced) and
-  // verify both match statuses recompute coherently.
+  // Action-layer fan-out requires an authenticated context that the
+  // script can't fake. Direct-insert into both matches reproduces the
+  // same end state (the fan-out path the upsert action would have
+  // produced) and lets us verify both match statuses recompute
+  // coherently from one shared set of grosses.
   const scoreRows: { playerId: string; hole: number; gross: number }[] = [];
   for (let h = 1; h <= 18; h++) {
     scoreRows.push({ playerId: aPlayers[0].id, hole: h, gross: 3 });
@@ -512,8 +511,6 @@ async function scenarioFanOutAcrossMatches(systemUserId: string) {
   await enterScores(singlesId, systemUserId, scoreRows.filter(
     (s) => s.playerId === aPlayers[0].id || s.playerId === bPlayers[0].id,
   ));
-  // suppress unused-import lint
-  void upsertHoleScore;
 
   const [bb] = await db.select().from(matches).where(eq(matches.id, bestBallId));
   const [sg] = await db.select().from(matches).where(eq(matches.id, singlesId));

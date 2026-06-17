@@ -29,6 +29,7 @@ import {
   type PlayerInputFormat,
   type StablefordPoints,
 } from '@/lib/scoring/engine';
+import { recomputeMatchStatus as pureRecompute } from '@/lib/scoring/recompute';
 
 /**
  * Recompute the match's status / winning team / result text from its current
@@ -44,177 +45,19 @@ const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
   'two_man_aggregate',
 ]);
 
-/** Exported alias so other server actions can re-run the recompute for a
- * match (e.g. round-level "recompute all" for past matches scored under
- * a broken engine). Same body as the internal recomputeMatchStatus. */
+/** Re-export of the pure recompute so other server actions (round-level
+ * "recompute all") have a stable name to import. */
 export async function recomputeMatchStatusById(matchId: string): Promise<void> {
-  return recomputeMatchStatus(matchId);
+  return pureRecompute(matchId);
 }
 
 async function recomputeMatchStatus(matchId: string): Promise<void> {
-  const data = await getMatchScoringData(matchId);
-  if (!data) return;
-
-  // Map A/B back to the actual team IDs. data.participants carries the side.
-  const teamIdByside = new Map<'A' | 'B', string>();
-  for (const p of data.participants) {
-    if (!teamIdByside.has(p.side)) teamIdByside.set(p.side, p.team.id);
-  }
-
-  let nextStatus: 'scheduled' | 'in_progress' | 'completed' = 'scheduled';
-  let winningTeamId: string | null = null;
-  let isHalved = false;
-  let resultText: string | null = null;
-
-  // Stableford branches off the match-play resolution entirely — high
-  // total wins, not "X UP." Team-input formats (scramble, alt shot)
-  // recorded the team gross on every teammate's hole_score via fan-out,
-  // so the player-keyed stableford engine works for both.
-  if (data.match.scoring === 'stableford') {
-    const pts: StablefordPoints = {
-      eagle: data.match.ptsEagle ?? DEFAULT_STABLEFORD_POINTS.eagle,
-      birdie: data.match.ptsBirdie ?? DEFAULT_STABLEFORD_POINTS.birdie,
-      par: data.match.ptsPar ?? DEFAULT_STABLEFORD_POINTS.par,
-      bogey: data.match.ptsBogey ?? DEFAULT_STABLEFORD_POINTS.bogey,
-      doublePlus: data.match.ptsDoublePlus ?? DEFAULT_STABLEFORD_POINTS.doublePlus,
-    };
-    const sb = computeStableford({
-      players: data.enginePlayers,
-      holes: data.engineHoles,
-      scores: data.engineScores,
-      points: pts,
-    });
-    switch (sb.status.kind) {
-      case 'not_started':
-        nextStatus = 'scheduled';
-        break;
-      case 'in_progress':
-        nextStatus = 'in_progress';
-        resultText = `${sb.aPoints}–${sb.bPoints} pts · thru ${sb.holesPlayed}`;
-        break;
-      case 'final':
-        nextStatus = 'completed';
-        if (sb.status.winner === 'halved') {
-          isHalved = true;
-          resultText = `Halved · ${sb.aPoints}–${sb.bPoints} pts`;
-        } else {
-          winningTeamId = teamIdByside.get(sb.status.winner) ?? null;
-          resultText = `${sb.aPoints}–${sb.bPoints} pts`;
-        }
-        break;
-    }
-  } else {
-    // Match-play (default) or any other unrecognised scoring falls back
-    // to the original computeMatch / computeTeamMatch flow.
-    let computed;
-    if (
-      data.inputMode === 'team' &&
-      data.engineTeams &&
-      data.engineTeams.length === 2
-    ) {
-      computed = computeTeamMatch({
-        teams: [data.engineTeams[0], data.engineTeams[1]],
-        holes: data.engineHoles,
-        scores: data.engineTeamScores ?? [],
-      });
-    } else {
-      const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
-        ? (data.match.format as PlayerInputFormat)
-        : 'best_ball';
-      computed = computeMatch({
-        players: data.enginePlayers,
-        holes: data.engineHoles,
-        scores: data.engineScores,
-        format: fmt,
-      });
-    }
-
-    switch (computed.status.kind) {
-      case 'not_started':
-        nextStatus = 'scheduled';
-        break;
-      case 'in_progress':
-      case 'dormie':
-        nextStatus = 'in_progress';
-        resultText = formatStatus(computed.status);
-        break;
-      case 'closed':
-        nextStatus = 'completed';
-        winningTeamId = teamIdByside.get(computed.status.winner) ?? null;
-        resultText = formatStatus(computed.status);
-        break;
-      case 'halved':
-        nextStatus = 'completed';
-        isHalved = true;
-        resultText = formatStatus(computed.status);
-        break;
-    }
-  }
-
-  // Segment winners: front 9 + back 9 run the same engine on their
-  // own hole slice. Independent closure — a segment finishing early
-  // doesn't kill holes for other segments. Only ever populated for
-  // match-play matches with point splits enabled. Stableford segments
-  // could be added later by running computeStableford on each slice
-  // the same way.
-  let front9WinningTeamId: string | null = null;
-  let back9WinningTeamId: string | null = null;
-  if (data.match.scoring !== 'stableford' && data.engineHoles.length >= 18) {
-    const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
-      ? (data.match.format as PlayerInputFormat)
-      : 'best_ball';
-    const runSegment = (from: number, to: number): string | null => {
-      const holes = data.engineHoles.filter(
-        (h) => h.number >= from && h.number <= to,
-      );
-      if (holes.length === 0) return null;
-      if (data.inputMode === 'team' && data.engineTeams && data.engineTeams.length === 2) {
-        const seg = computeTeamMatch({
-          teams: [data.engineTeams[0], data.engineTeams[1]],
-          holes,
-          scores: (data.engineTeamScores ?? []).filter(
-            (s) => s.holeNumber >= from && s.holeNumber <= to,
-          ),
-        });
-        if (seg.status.kind === 'closed') {
-          return teamIdByside.get(seg.status.winner) ?? null;
-        }
-        return null;
-      }
-      const seg = computeMatch({
-        players: data.enginePlayers,
-        holes,
-        scores: data.engineScores.filter(
-          (s) => s.holeNumber >= from && s.holeNumber <= to,
-        ),
-        format: fmt,
-      });
-      if (seg.status.kind === 'closed') {
-        return teamIdByside.get(seg.status.winner) ?? null;
-      }
-      // 9-hole segment finished with a lead but not closed — treat as
-      // segment-closed (every hole played + lead = closed).
-      if (seg.holesPlayed === holes.length && seg.upA !== seg.upB) {
-        return teamIdByside.get(seg.upA > seg.upB ? 'A' : 'B') ?? null;
-      }
-      return null;
-    };
-    front9WinningTeamId = runSegment(1, 9);
-    back9WinningTeamId = runSegment(10, 18);
-  }
-
-  await db
-    .update(matches)
-    .set({
-      status: nextStatus,
-      winningTeamId,
-      isHalved,
-      resultText,
-      front9WinningTeamId,
-      back9WinningTeamId,
-    })
-    .where(eq(matches.id, matchId));
+  return pureRecompute(matchId);
 }
+
+// recomputeMatchStatus body moved to lib/scoring/recompute.ts so callers
+// outside the Next runtime can use it. Both action exports above
+// delegate to it.
 
 function parseGross(v: FormDataEntryValue | null): number | null {
   if (v == null) return null;
