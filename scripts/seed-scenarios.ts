@@ -87,11 +87,48 @@ async function clearOldScenarios() {
     .select({ id: trips.id })
     .from(trips)
     .where(like(trips.name, `${PREFIX}%`));
-  if (olds.length) {
-    await db
-      .delete(trips)
-      .where(inArray(trips.id, olds.map((t) => t.id)));
+  if (!olds.length) {
+    // Still wipe any orphan scenario courses.
+    await db.delete(courses).where(like(courses.name, `${PREFIX}%`));
+    return;
   }
+  const tripIds = olds.map((t) => t.id);
+
+  // Walk down the tree explicitly. `match_participants.team_id` doesn't
+  // cascade, so the trip cascade would die yanking teams out from under
+  // it. Tear matches + participants out first.
+  const matchRows = await db
+    .select({ id: matches.id })
+    .from(matches)
+    .innerJoin(rounds, eq(matches.roundId, rounds.id))
+    .where(inArray(rounds.tripId, tripIds));
+  const matchIds = matchRows.map((m) => m.id);
+  if (matchIds.length) {
+    await db.delete(holeScores).where(inArray(holeScores.matchId, matchIds));
+    await db
+      .delete(matchParticipants)
+      .where(inArray(matchParticipants.matchId, matchIds));
+    await db.delete(matches).where(inArray(matches.id, matchIds));
+  }
+
+  const ttRows = await db
+    .select({ id: teeTimes.id })
+    .from(teeTimes)
+    .innerJoin(rounds, eq(teeTimes.roundId, rounds.id))
+    .where(inArray(rounds.tripId, tripIds));
+  const ttIds = ttRows.map((t) => t.id);
+  if (ttIds.length) {
+    await db
+      .delete(teeTimeParticipants)
+      .where(inArray(teeTimeParticipants.teeTimeId, ttIds));
+    await db.delete(teeTimes).where(inArray(teeTimes.id, ttIds));
+  }
+
+  // Now the trip cascade can take rounds, teams, tripMembers safely.
+  await db.delete(trips).where(inArray(trips.id, tripIds));
+
+  // Scenario courses are global — clean them up by prefix.
+  await db.delete(courses).where(like(courses.name, `${PREFIX}%`));
 }
 
 type Player = { id: string; nickname: string; teamId: string };
