@@ -230,6 +230,65 @@ export async function updatePlayerField(formData: FormData): Promise<void> {
   revalidatePath(`/trips/${tripSlug}`, 'layout');
 }
 
+/**
+ * One-tap add a buddy (a user the current admin has played with
+ * before) as a trip member on the current trip. Pulls nickname /
+ * handicap from their most-recent trip_member row so the new row is
+ * pre-filled. Links userId from the start so the buddy doesn't have
+ * to re-claim on sign-in.
+ *
+ * Form payload: `tripId`, `userId`, `nickname` (optional),
+ * `handicap` (optional).
+ */
+export async function addBuddyToTrip(formData: FormData): Promise<void> {
+  const ctx = await getGlobalAuthContext();
+  if (!ctx) throw new AuthorizationError('Authentication required');
+
+  const tripId = String(formData.get('tripId') ?? '').trim();
+  const buddyUserId = String(formData.get('userId') ?? '').trim();
+  if (!tripId || !buddyUserId) throw new Error('tripId and userId required');
+
+  if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, tripId)) {
+    throw new AuthorizationError('Trip admin required');
+  }
+
+  // Don't double-add — bail if there's already a trip_member for this user.
+  const [existing] = await db
+    .select({ id: tripMembers.id })
+    .from(tripMembers)
+    .where(and(eq(tripMembers.tripId, tripId), eq(tripMembers.userId, buddyUserId)))
+    .limit(1);
+  if (existing) {
+    const tripSlug = await getTripSlugById(tripId);
+    revalidatePath(`/trips/${tripSlug}/admin/players`);
+    return;
+  }
+
+  // Resolve email from the user row so the buddy can be invited later
+  // from /admin/players without admin re-typing it.
+  const [buddy] = await db
+    .select({ email: users.email, displayName: users.displayName, fullName: users.fullName })
+    .from(users)
+    .where(eq(users.id, buddyUserId))
+    .limit(1);
+  if (!buddy) throw new Error('Buddy not found');
+
+  const nicknameOverride = trimOrNull(formData.get('nickname'));
+  const nickname =
+    nicknameOverride ?? buddy.displayName ?? buddy.fullName ?? buddy.email.split('@')[0];
+
+  await db.insert(tripMembers).values({
+    tripId,
+    userId: buddyUserId,
+    nickname,
+    email: buddy.email,
+    tripHandicap: parseHandicap(formData.get('handicap')),
+  });
+
+  const tripSlug = await getTripSlugById(tripId);
+  revalidatePath(`/trips/${tripSlug}/admin/players`);
+}
+
 export async function updatePlayer(formData: FormData): Promise<void> {
   const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');

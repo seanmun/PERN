@@ -8,6 +8,8 @@ import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import MemberAvatar from '@/components/avatar/MemberAvatar';
 import PlayerInviteButton from '@/components/admin/PlayerInviteButton';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { getBuddies } from '@/lib/data/buddies';
+import { addBuddyToTrip } from '@/lib/actions/players';
 
 export default async function AdminPlayersPage({
   params,
@@ -45,6 +47,14 @@ export default async function AdminPlayersPage({
     arcadePortraitUrl: r.arcadePortraitUrl,
   }));
 
+  // Buddy list — anyone the current admin has played with before,
+  // excluding the people already on this trip so the chip list only
+  // shows fresh adds. Ranked by overlap count, top 12 shown.
+  const existingUserIds = players
+    .map((p) => p.userId)
+    .filter((id): id is string => !!id);
+  const buddies = (await getBuddies(ctx.user.id, existingUserIds)).slice(0, 12);
+
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-6">
       <Link
@@ -67,6 +77,44 @@ export default async function AdminPlayersPage({
       <p className="mt-1 text-xs text-zinc-500">
         Upload photos, set handicaps, swap teams, mark captains, edit scouting reports.
       </p>
+
+      {buddies.length > 0 && (
+        <section className="mt-6 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3">
+          <div className="flex items-baseline justify-between">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+              Buddies
+            </p>
+            <p className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
+              tap to add
+            </p>
+          </div>
+          <p className="mt-1 text-[11px] text-zinc-500">
+            People you've played with before, ranked by how often. One tap pre-fills nickname + handicap.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {buddies.map((b) => (
+              <form key={b.userId} action={addBuddyToTrip}>
+                <input type="hidden" name="tripId" value={trip.id} />
+                <input type="hidden" name="userId" value={b.userId} />
+                <input type="hidden" name="nickname" value={b.recentNickname} />
+                {b.recentHandicap && (
+                  <input type="hidden" name="handicap" value={b.recentHandicap} />
+                )}
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 rounded-sm border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2.5 py-1.5 text-xs font-semibold text-zinc-800 dark:text-zinc-200 transition-colors hover:border-yellow-500/40 hover:bg-yellow-500/10"
+                >
+                  <Plus size={11} strokeWidth={2.5} className="text-yellow-800 dark:text-yellow-400" />
+                  <span>{b.recentNickname}</span>
+                  <span className="font-mono text-[9px] font-normal text-zinc-500 tabular-nums">
+                    ×{b.matchesPlayedTogether}
+                  </span>
+                </button>
+              </form>
+            ))}
+          </div>
+        </section>
+      )}
 
       {players.length === 0 && (
         <div className="mt-8 rounded-sm border border-dashed border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-6 text-center">
