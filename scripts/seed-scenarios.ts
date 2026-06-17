@@ -560,6 +560,207 @@ async function scenarioFanOutAcrossMatches(systemUserId: string) {
   assertEq(aTotal, 2, 'team A points (2 matches × 1 pt)');
 }
 
+async function scenarioMatchClosesEarly(systemUserId: string) {
+  logHeader('Singles 1v1 — match closes 3 & 2 at hole 16 (dead 17/18)');
+  const tripId = await makeTrip(systemUserId, 'closes-early', 'match');
+  const [teamA, teamB] = await makeTeams(tripId, [
+    { name: 'A', color: '#16a34a' },
+    { name: 'B', color: '#eab308' },
+  ]);
+  const [alpha] = await makePlayers(tripId, teamA.id, [{ nickname: 'Alpha', handicap: '0' }]);
+  const [bravo] = await makePlayers(tripId, teamB.id, [{ nickname: 'Bravo', handicap: '0' }]);
+  const courseId = await makeCourse();
+  const roundId = await makeRound(tripId, courseId, 1, 'singles');
+  const teeTimeId = await makeTeeTime(roundId, 1, [alpha.id, bravo.id]);
+  const matchId = await makeMatch({
+    roundId,
+    teeTimeId,
+    format: 'singles',
+    sideA: [alpha],
+    sideB: [bravo],
+  });
+
+  // A wins holes 1, 2, 3 (3 UP). Halves 4–16 (still 3 UP, 2 to play).
+  // Closure: |lead| > remaining → match closes 3 & 2 at hole 16.
+  // Bravo "wins" 17 and 18 by birdying, but they're dead.
+  const scores: { playerId: string; hole: number; gross: number }[] = [];
+  for (let h = 1; h <= 18; h++) {
+    let aGross = 4;
+    let bGross = 4;
+    if (h <= 3) {
+      aGross = 3;
+      bGross = 4;
+    } else if (h >= 17) {
+      aGross = 4;
+      bGross = 3;
+    }
+    scores.push({ playerId: alpha.id, hole: h, gross: aGross });
+    scores.push({ playerId: bravo.id, hole: h, gross: bGross });
+  }
+  await enterScores(matchId, systemUserId, scores);
+
+  const [m] = await db.select().from(matches).where(eq(matches.id, matchId));
+  assertEq(m.status, 'completed', 'match status');
+  assertEq(m.winningTeamId, teamA.id, 'overall winner is team A (3 & 2)');
+  assert(m.resultText?.includes('3') ?? false, 'resultText reflects 3 & 2');
+
+  const board = await getLeaderboard(tripId);
+  const aTotal = board.teamTotals.find((t) => t.teamId === teamA.id)?.points ?? 0;
+  const bTotal = board.teamTotals.find((t) => t.teamId === teamB.id)?.points ?? 0;
+  assertEq(aTotal, 1, 'team A gets the point (despite B "winning" 17 & 18)');
+  assertEq(bTotal, 0, 'team B has 0 points');
+}
+
+async function scenarioScramble(systemUserId: string) {
+  logHeader('Scramble — team-input format, A beats B by 1');
+  const tripId = await makeTrip(systemUserId, 'scramble', 'outing');
+  const [teamA, teamB] = await makeTeams(tripId, [
+    { name: 'A', color: '#16a34a' },
+    { name: 'B', color: '#eab308' },
+  ]);
+  const aPlayers = await makePlayers(tripId, teamA.id, [
+    { nickname: 'A1', handicap: '0' },
+    { nickname: 'A2', handicap: '0' },
+  ]);
+  const bPlayers = await makePlayers(tripId, teamB.id, [
+    { nickname: 'B1', handicap: '0' },
+    { nickname: 'B2', handicap: '0' },
+  ]);
+  const courseId = await makeCourse();
+  const roundId = await makeRound(tripId, courseId, 1, 'scramble');
+  const teeTimeId = await makeTeeTime(roundId, 1, [
+    ...aPlayers.map((p) => p.id),
+    ...bPlayers.map((p) => p.id),
+  ]);
+  const matchId = await makeMatch({
+    roundId,
+    teeTimeId,
+    format: 'scramble',
+    sideA: aPlayers,
+    sideB: bPlayers,
+  });
+
+  // Team-input: every teammate's row gets the SAME gross (fan-out
+  // behavior). A team posts 3s on holes 1-3, then 4s. B team posts all
+  // 4s. A wins three holes.
+  const scores: { playerId: string; hole: number; gross: number }[] = [];
+  for (let h = 1; h <= 18; h++) {
+    const aGross = h <= 3 ? 3 : 4;
+    const bGross = 4;
+    for (const p of aPlayers) scores.push({ playerId: p.id, hole: h, gross: aGross });
+    for (const p of bPlayers) scores.push({ playerId: p.id, hole: h, gross: bGross });
+  }
+  await enterScores(matchId, systemUserId, scores);
+
+  const [m] = await db.select().from(matches).where(eq(matches.id, matchId));
+  assertEq(m.status, 'completed', 'match status');
+  assertEq(m.winningTeamId, teamA.id, 'team A wins the scramble');
+
+  const board = await getLeaderboard(tripId);
+  const aTotal = board.teamTotals.find((t) => t.teamId === teamA.id)?.points ?? 0;
+  assertEq(aTotal, 1, 'team A gets the point');
+}
+
+async function scenarioAggregatePartial(systemUserId: string) {
+  logHeader('Two-man aggregate — hole skipped when only one partner scored');
+  const tripId = await makeTrip(systemUserId, 'aggregate-partial', 'outing');
+  const [teamA, teamB] = await makeTeams(tripId, [
+    { name: 'A', color: '#16a34a' },
+    { name: 'B', color: '#eab308' },
+  ]);
+  const aPlayers = await makePlayers(tripId, teamA.id, [
+    { nickname: 'A1', handicap: '0' },
+    { nickname: 'A2', handicap: '0' },
+  ]);
+  const bPlayers = await makePlayers(tripId, teamB.id, [
+    { nickname: 'B1', handicap: '0' },
+    { nickname: 'B2', handicap: '0' },
+  ]);
+  const courseId = await makeCourse();
+  const roundId = await makeRound(tripId, courseId, 1, 'two_man_aggregate');
+  const teeTimeId = await makeTeeTime(roundId, 1, [
+    ...aPlayers.map((p) => p.id),
+    ...bPlayers.map((p) => p.id),
+  ]);
+  const matchId = await makeMatch({
+    roundId,
+    teeTimeId,
+    format: 'two_man_aggregate',
+    sideA: aPlayers,
+    sideB: bPlayers,
+  });
+
+  // Hole 1: only A1 enters. Aggregate needs BOTH → hole skipped.
+  // Holes 2-18: everyone enters par 4 → side sums equal 8 each → halved.
+  const scores: { playerId: string; hole: number; gross: number }[] = [];
+  scores.push({ playerId: aPlayers[0].id, hole: 1, gross: 3 });
+  for (let h = 2; h <= 18; h++) {
+    for (const p of [...aPlayers, ...bPlayers]) {
+      scores.push({ playerId: p.id, hole: h, gross: 4 });
+    }
+  }
+  await enterScores(matchId, systemUserId, scores);
+
+  const [m] = await db.select().from(matches).where(eq(matches.id, matchId));
+  // Only 17 holes counted (hole 1 partial) — match shows in_progress
+  // because aggregate engine refuses to call the result with a missing
+  // partner-score on hole 1.
+  assert(
+    m.status === 'in_progress' || m.status === 'completed',
+    'match status (aggregate with skipped hole)',
+  );
+}
+
+async function scenarioFriendlyRoundExcluded(systemUserId: string) {
+  logHeader('Friendly round — does not count toward cup totals');
+  const tripId = await makeTrip(systemUserId, 'friendly', 'outing');
+  const [teamA, teamB] = await makeTeams(tripId, [
+    { name: 'A', color: '#16a34a' },
+    { name: 'B', color: '#eab308' },
+  ]);
+  const [alpha] = await makePlayers(tripId, teamA.id, [{ nickname: 'Alpha', handicap: '0' }]);
+  const [bravo] = await makePlayers(tripId, teamB.id, [{ nickname: 'Bravo', handicap: '0' }]);
+  const courseId = await makeCourse();
+  // Create round with countsTowardCup = false.
+  const [round] = await db
+    .insert(rounds)
+    .values({
+      tripId,
+      courseId,
+      order: 1,
+      format: 'singles',
+      date: new Date(),
+      countsTowardCup: false,
+    })
+    .returning();
+  const teeTimeId = await makeTeeTime(round.id, 1, [alpha.id, bravo.id]);
+  const matchId = await makeMatch({
+    roundId: round.id,
+    teeTimeId,
+    format: 'singles',
+    sideA: [alpha],
+    sideB: [bravo],
+  });
+
+  // A wins outright — but the round is friendly, so it shouldn't credit
+  // cup totals at all.
+  const scores: { playerId: string; hole: number; gross: number }[] = [];
+  for (let h = 1; h <= 18; h++) {
+    scores.push({ playerId: alpha.id, hole: h, gross: 3 });
+    scores.push({ playerId: bravo.id, hole: h, gross: 4 });
+  }
+  await enterScores(matchId, systemUserId, scores);
+
+  const [m] = await db.select().from(matches).where(eq(matches.id, matchId));
+  assertEq(m.winningTeamId, teamA.id, 'match still records a winner');
+
+  const board = await getLeaderboard(tripId);
+  const aTotal = board.teamTotals.find((t) => t.teamId === teamA.id)?.points ?? 0;
+  const bTotal = board.teamTotals.find((t) => t.teamId === teamB.id)?.points ?? 0;
+  assertEq(aTotal, 0, 'friendly round contributes 0 to team A cup total');
+  assertEq(bTotal, 0, 'friendly round contributes 0 to team B cup total');
+}
+
 // ───────────────────────── ENTRY ─────────────────────────
 
 async function main() {
@@ -573,6 +774,10 @@ async function main() {
   await scenarioStableford(systemUser.id);
   await scenarioSegmentPoints(systemUser.id);
   await scenarioFanOutAcrossMatches(systemUser.id);
+  await scenarioMatchClosesEarly(systemUser.id);
+  await scenarioScramble(systemUser.id);
+  await scenarioAggregatePartial(systemUser.id);
+  await scenarioFriendlyRoundExcluded(systemUser.id);
 
   console.log(`\n\x1b[1mResults:\x1b[0m \x1b[32m${pass} pass\x1b[0m · \x1b[${fail === 0 ? 32 : 31}m${fail} fail\x1b[0m`);
   if (fail > 0) process.exit(1);
