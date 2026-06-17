@@ -12,7 +12,7 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
-export const tripRoleEnum = pgEnum('trip_role', ['trip_admin', 'player']);
+export const tripRoleEnum = pgEnum('trip_role', ['trip_admin', 'player', 'viewer']);
 
 /**
  * Kind of golf event. Drives the UI shape and the Cup-tab behavior.

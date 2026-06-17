@@ -165,9 +165,12 @@ export async function updatePlayerField(formData: FormData): Promise<void> {
       patch.email = v || null;
       break;
     }
-    case 'role':
-      patch.role = String(raw) === 'trip_admin' ? 'trip_admin' : 'player';
+    case 'role': {
+      const r = String(raw);
+      patch.role =
+        r === 'trip_admin' ? 'trip_admin' : r === 'viewer' ? 'viewer' : 'player';
       break;
+    }
     case 'isCaptain':
       patch.isCaptain = String(raw) === 'on';
       break;
@@ -269,8 +272,8 @@ export async function updatePlayer(formData: FormData): Promise<void> {
   }
 
   const roleRaw = String(formData.get('role') ?? 'player');
-  const role: 'player' | 'trip_admin' =
-    roleRaw === 'trip_admin' ? 'trip_admin' : 'player';
+  const role: 'player' | 'trip_admin' | 'viewer' =
+    roleRaw === 'trip_admin' ? 'trip_admin' : roleRaw === 'viewer' ? 'viewer' : 'player';
 
   const isCaptain = formData.get('isCaptain') === 'on';
 

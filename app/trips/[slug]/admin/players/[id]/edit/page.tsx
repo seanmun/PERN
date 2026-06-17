@@ -140,6 +140,7 @@ export default async function EditPlayerPage({
             options={[
               { value: 'player', label: 'Player' },
               { value: 'trip_admin', label: 'Trip admin' },
+              { value: 'viewer', label: 'Viewer' },
             ]}
           />
         </Row>

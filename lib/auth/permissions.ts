@@ -44,13 +44,27 @@ export function canEditTripMember(
   return isSelfTripMember(ctx, target.id);
 }
 
+/**
+ * Score entry is open to platform admins, the trip's own admins, and
+ * any non-viewer member of the same trip. The "anyone on the trip can
+ * score for anyone" model matches how a foursome actually keeps a
+ * scorecard — one person walks the card and enters everyone. Viewers
+ * (spectators / non-players) are explicitly blocked.
+ */
 export function canEnterScoreFor(
   ctx: AuthContext,
   target: Pick<TripMember, 'id' | 'tripId'>
 ): boolean {
   if (isPlatformAdmin(ctx)) return true;
   if (isTripAdminOf(ctx, target.tripId)) return true;
-  return isSelfTripMember(ctx, target.id);
+  // Same-trip member who isn't a viewer can score anyone.
+  if (
+    ctx.tripMember?.tripId === target.tripId &&
+    ctx.tripMember.role !== 'viewer'
+  ) {
+    return true;
+  }
+  return false;
 }
 
 export class AuthorizationError extends Error {
