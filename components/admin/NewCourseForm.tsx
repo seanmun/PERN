@@ -224,7 +224,14 @@ export default function NewCourseForm({
         <p className="mt-1 mb-3 text-[11px] text-zinc-500">
           Optional — used as the match-detail background.
         </p>
-        <ImagePickerInput name="imageUrl" defaultValue={imageUrl || undefined} />
+        {/* key={imageUrl} forces a remount when the autocomplete fills
+            a new URL — ImagePickerInput uses defaultValue, which only
+            applies on first mount otherwise. */}
+        <ImagePickerInput
+          key={imageUrl || 'empty'}
+          name="imageUrl"
+          defaultValue={imageUrl || undefined}
+        />
       </div>
 
       <div>
