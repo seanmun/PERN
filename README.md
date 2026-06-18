@@ -19,7 +19,7 @@ A private golf trip app — built for the Pinehurst Cup (12 guys, 2 teams, 6 rou
 
 ## Repo layout
 
-This is a pnpm monorepo:
+This is an npm-workspaces monorepo:
 
 ```
 buddycup/
@@ -36,19 +36,17 @@ See [`docs/mobile-app-plan.md`](./docs/mobile-app-plan.md) for the rationale.
 ## Quickstart
 
 ```bash
-# One-time
-npm install -g pnpm     # if you don't have it
 cp apps/web/.env.example apps/web/.env.local   # fill in CLERK_*, DATABASE_URL, PLATFORM_ADMIN_EMAILS, GOOGLE_PLACES_API_KEY
 
-# Install + run
-pnpm install
-pnpm dev                # runs apps/web
+# Install + run (from repo root)
+npm install
+npm run dev                # runs apps/web
 
 # Other scripts (all delegate into apps/web)
-pnpm test               # vitest engine + validation
-pnpm test:watch
-pnpm seed:scenarios     # end-to-end seeded assertions
-pnpm build              # prod build
+npm test                   # vitest engine + validation
+npm run test:watch
+npm run seed:scenarios     # end-to-end seeded assertions
+npm run build              # prod build
 ```
 
 ## Concept

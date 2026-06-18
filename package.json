@@ -2,16 +2,19 @@
   "name": "buddycup",
   "private": true,
   "version": "0.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "pnpm --filter web dev",
-    "build": "pnpm --filter web build",
-    "lint": "pnpm --filter web lint",
-    "test": "pnpm --filter web test",
-    "test:watch": "pnpm --filter web test:watch",
-    "seed:scenarios": "pnpm --filter web seed:scenarios"
+    "dev": "npm run dev -w web",
+    "build": "npm run build -w web",
+    "lint": "npm run lint -w web",
+    "test": "npm test -w web",
+    "test:watch": "npm run test:watch -w web",
+    "seed:scenarios": "npm run seed:scenarios -w web"
   },
   "engines": {
     "node": "20.x"
-  },
-  "packageManager": "pnpm@10.5.2"
+  }
 }
