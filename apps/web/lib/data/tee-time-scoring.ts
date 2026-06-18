@@ -123,11 +123,17 @@ export async function getTeeTimeScoringData(
   const data = await getMatchScoringData(primaryMatchId);
   if (!data) return null;
 
-  // Augment data.scores with scores from any OTHER match a roster
+  // Augment data.scores with scores from EVERY OTHER match a roster
   // player is in for this round. Fan-out may not have populated every
-  // match (especially cross-foursome), so we dedupe by (player, hole)
-  // and keep the first non-null gross we see. The primary-match scores
-  // already loaded by getMatchScoringData win the tiebreaker.
+  // match (especially cross-foursome ones with tee_time_id = NULL), so
+  // we walk all of them and dedupe by (player, hole). The primary
+  // match's scores already in data.scores win on collisions.
+  //
+  // Earlier this only iterated otherMatchIds[0], so a foursome with
+  // two separate 1v1 matches (plus a round-wide 4v4) would render two
+  // empty player rows — whichever players were only in the un-walked
+  // matches. The bug: scores for those players existed in the DB but
+  // never reached the scorecard. Walking every match fixes it.
   const otherMatchIds = roundMatches
     .map((m) => m.id)
     .filter((id) => id !== primaryMatchId);
@@ -135,8 +141,9 @@ export async function getTeeTimeScoringData(
     const seen = new Set(
       data.scores.map((s) => `${s.tripMemberId}:${s.holeNumber}`),
     );
-    const extra = await getMatchScoringData(otherMatchIds[0]);
-    if (extra) {
+    for (const otherId of otherMatchIds) {
+      const extra = await getMatchScoringData(otherId);
+      if (!extra) continue;
       for (const s of extra.scores) {
         if (!rosterMemberIds.includes(s.tripMemberId)) continue;
         const key = `${s.tripMemberId}:${s.holeNumber}`;

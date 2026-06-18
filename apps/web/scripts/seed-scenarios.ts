@@ -761,6 +761,81 @@ async function scenarioFriendlyRoundExcluded(systemUserId: string) {
   assertEq(bTotal, 0, 'friendly round contributes 0 to team B cup total');
 }
 
+async function scenarioFoursomeScorecardLoadsAllMatches(systemUserId: string) {
+  // Regression for the bug where the foursome scorecard only augmented
+  // from the FIRST other match in the round — so a foursome with two
+  // separate 1v1 matches showed 2 players empty when they were 100%
+  // entered. Setup: 4-player foursome roster, two 1v1 matches, scores
+  // entered for both. getTeeTimeScoringData must return scores for ALL
+  // 4 roster players.
+  logHeader('Foursome scorecard loads scores from EVERY in-foursome match');
+  const tripId = await makeTrip(systemUserId, 'load-all-matches', 'outing');
+  const [teamA, teamB] = await makeTeams(tripId, [
+    { name: 'A', color: '#16a34a' },
+    { name: 'B', color: '#eab308' },
+  ]);
+  const [a1, a2] = await makePlayers(tripId, teamA.id, [
+    { nickname: 'A1', handicap: '0' },
+    { nickname: 'A2', handicap: '0' },
+  ]);
+  const [b1, b2] = await makePlayers(tripId, teamB.id, [
+    { nickname: 'B1', handicap: '0' },
+    { nickname: 'B2', handicap: '0' },
+  ]);
+  const courseId = await makeCourse();
+  const roundId = await makeRound(tripId, courseId, 1, 'singles');
+  const teeTimeId = await makeTeeTime(roundId, 1, [a1.id, a2.id, b1.id, b2.id]);
+  // Two separate 1v1 matches in the same foursome. No 2v2 to span them.
+  const match1 = await makeMatch({
+    roundId,
+    teeTimeId,
+    format: 'singles',
+    sideA: [a1],
+    sideB: [b1],
+  });
+  const match2 = await makeMatch({
+    roundId,
+    teeTimeId,
+    format: 'singles',
+    sideA: [a2],
+    sideB: [b2],
+  });
+
+  // Enter pars for all 4 players via their respective matches. The
+  // fan-out path in upsertHoleScore would normally propagate within the
+  // round, but the seed script writes directly — so to mirror that we
+  // write each player to THEIR own match.
+  const scoresM1 = [];
+  const scoresM2 = [];
+  for (let h = 1; h <= 12; h++) {
+    scoresM1.push({ playerId: a1.id, hole: h, gross: 4 });
+    scoresM1.push({ playerId: b1.id, hole: h, gross: 4 });
+    scoresM2.push({ playerId: a2.id, hole: h, gross: 4 });
+    scoresM2.push({ playerId: b2.id, hole: h, gross: 4 });
+  }
+  await enterScores(match1, systemUserId, scoresM1);
+  await enterScores(match2, systemUserId, scoresM2);
+
+  const { getTeeTimeScoringData } = await import('@/lib/data/tee-time-scoring');
+  const result = await getTeeTimeScoringData(teeTimeId);
+  if (!result) {
+    logFail('getTeeTimeScoringData returned null');
+    return;
+  }
+
+  const scoredPlayerIds = new Set(result.scores.map((s) => s.tripMemberId));
+  assert(scoredPlayerIds.has(a1.id), 'A1 scores load');
+  assert(scoredPlayerIds.has(a2.id), 'A2 scores load (other-match scenario)');
+  assert(scoredPlayerIds.has(b1.id), 'B1 scores load');
+  assert(scoredPlayerIds.has(b2.id), 'B2 scores load (other-match scenario)');
+
+  // Each player should have exactly 12 hole rows.
+  for (const p of [a1, a2, b1, b2]) {
+    const count = result.scores.filter((s) => s.tripMemberId === p.id).length;
+    assertEq(count, 12, `${p.nickname} has 12 hole scores`);
+  }
+}
+
 // ───────────────────────── ENTRY ─────────────────────────
 
 async function main() {
@@ -778,6 +853,7 @@ async function main() {
   await scenarioScramble(systemUser.id);
   await scenarioAggregatePartial(systemUser.id);
   await scenarioFriendlyRoundExcluded(systemUser.id);
+  await scenarioFoursomeScorecardLoadsAllMatches(systemUser.id);
 
   console.log(`\n\x1b[1mResults:\x1b[0m \x1b[32m${pass} pass\x1b[0m · \x1b[${fail === 0 ? 32 : 31}m${fail} fail\x1b[0m`);
   if (fail > 0) process.exit(1);
