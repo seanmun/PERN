@@ -1,57 +1,17 @@
 {
-  "name": "cup",
-  "version": "0.1.0",
+  "name": "buddycup",
   "private": true,
+  "version": "0.0.0",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx --env-file=.env.local db/seed.ts",
-    "seed:scenarios": "tsx --env-file=.env.local scripts/seed-scenarios.ts",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "lint": "pnpm --filter web lint",
+    "test": "pnpm --filter web test",
+    "test:watch": "pnpm --filter web test:watch",
+    "seed:scenarios": "pnpm --filter web seed:scenarios"
   },
-  "dependencies": {
-    "@anthropic-ai/sdk": "^0.96.0",
-    "@clerk/nextjs": "^7.3.3",
-    "@clerk/themes": "^2.4.57",
-    "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
-    "@dnd-kit/utilities": "^3.2.2",
-    "@neondatabase/serverless": "^1.1.0",
-    "@react-email/components": "^1.0.12",
-    "@react-email/render": "^2.0.8",
-    "@tanstack/react-query": "^5.100.9",
-    "@vercel/blob": "^2.3.3",
-    "browser-image-compression": "^2.0.2",
-    "drizzle-orm": "^0.45.2",
-    "framer-motion": "^12.38.0",
-    "lucide-react": "^1.14.0",
-    "next": "16.2.6",
-    "openai": "^6.42.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "resend": "^6.12.4",
-    "sharp": "^0.34.5"
+  "engines": {
+    "node": ">=20"
   },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@vitest/coverage-v8": "^4.1.8",
-    "dotenv": "^17.4.2",
-    "drizzle-kit": "^0.31.10",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.6",
-    "tailwindcss": "^4",
-    "tsx": "^4.21.0",
-    "typescript": "^5",
-    "vitest": "^4.1.8"
-  }
+  "packageManager": "pnpm@9.0.0"
 }

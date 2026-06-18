@@ -17,14 +17,38 @@ A private golf trip app — built for the Pinehurst Cup (12 guys, 2 teams, 6 rou
 - [`docs/pinehurst.md`](./docs/pinehurst.md) — the Pinehurst Cup trip specifics (roster, schedule, rules)
 - [`docs/backlog.md`](./docs/backlog.md) — post-MVP features in priority order
 
+## Repo layout
+
+This is a pnpm monorepo:
+
+```
+buddycup/
+  apps/
+    web/                ← Next.js app (lives here, not at root)
+  packages/
+    scoring/            ← pure TS engine + validation, shared with apps/mobile later
+  ios-watch/            ← (future) SwiftUI Watch app
+  docs/                 ← cross-app specs + plans
+```
+
+See [`docs/mobile-app-plan.md`](./docs/mobile-app-plan.md) for the rationale.
+
 ## Quickstart
 
 ```bash
-npm install
-cp .env.example .env.local   # fill in CLERK_*, DATABASE_URL, PLATFORM_ADMIN_EMAILS
-npm run db:push              # apply schema to Neon (Phase 1)
-npm run db:seed              # seed the Pinehurst trip (Phase 1)
-npm run dev
+# One-time
+npm install -g pnpm     # if you don't have it
+cp apps/web/.env.example apps/web/.env.local   # fill in CLERK_*, DATABASE_URL, PLATFORM_ADMIN_EMAILS, GOOGLE_PLACES_API_KEY
+
+# Install + run
+pnpm install
+pnpm dev                # runs apps/web
+
+# Other scripts (all delegate into apps/web)
+pnpm test               # vitest engine + validation
+pnpm test:watch
+pnpm seed:scenarios     # end-to-end seeded assertions
+pnpm build              # prod build
 ```
 
 ## Concept

@@ -1,0 +1,11 @@
+{
+  "name": "@buddycup/scoring",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./engine": "./engine.ts",
+    "./formats": "./formats.ts",
+    "./validation/match-builder": "./validation/match-builder.ts"
+  }
+}
