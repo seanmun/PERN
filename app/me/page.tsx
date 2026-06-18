@@ -4,31 +4,32 @@ import { ArrowLeft } from 'lucide-react';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import { updateMyUserProfile } from '@/lib/actions/me';
 import PhotoWithPortraitSection from '@/components/portraits/PhotoWithPortraitSection';
+import MeTabs from '@/components/me/MeTabs';
+import { getBuddies } from '@/lib/data/buddies';
 
-export default async function MyProfilePage() {
+export default async function MyProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const ctx = await getGlobalAuthContext();
   if (!ctx) redirect('/sign-in?redirect_url=/me');
 
   const { user } = ctx;
+  const { tab } = await searchParams;
+  const initialTab: 'profile' | 'buddies' = tab === 'buddies' ? 'buddies' : 'profile';
+  const buddies = await getBuddies(user.id);
 
-  return (
-    <div className="mx-auto max-w-md px-4 pb-24 pt-6">
-      <Link
-        href="/home"
-        className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500 hover:text-yellow-400"
-      >
-        <ArrowLeft size={12} /> Home
-      </Link>
-
-      <h1 className="mt-6 text-2xl font-bold tracking-tight">Profile</h1>
-      <p className="mt-1 text-xs text-zinc-500">
+  const profileSlot = (
+    <>
+      <p className="text-xs text-zinc-500">
         Your platform-wide profile. The handicap here is your default — when
         you join a new trip, your trip handicap starts from this value. Trip
         admins can override your handicap on a specific trip without changing
         this one.
       </p>
 
-      <form action={updateMyUserProfile} className="mt-8 space-y-6">
+      <form action={updateMyUserProfile} className="mt-6 space-y-6">
         <PhotoWithPortraitSection
           photoName="avatarUrl"
           photoDefaultValue={user.avatarUrl ?? null}
@@ -170,6 +171,21 @@ export default async function MyProfilePage() {
           </Link>
         </div>
       </form>
+    </>
+  );
+
+  return (
+    <div className="mx-auto max-w-md px-4 pb-24 pt-6">
+      <Link
+        href="/home"
+        className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500 hover:text-yellow-400"
+      >
+        <ArrowLeft size={12} /> Home
+      </Link>
+
+      <h1 className="mt-6 text-2xl font-bold tracking-tight">Me</h1>
+
+      <MeTabs profileSlot={profileSlot} buddies={buddies} initialTab={initialTab} />
     </div>
   );
 }
