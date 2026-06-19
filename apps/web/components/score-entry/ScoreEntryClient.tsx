@@ -175,8 +175,40 @@ export default function ScoreEntryClient({
     }
   }, [activeHole]);
 
+  // A hole is "submitted" iff at least one player has a non-null gross.
+  // Drive-bys with zero scores stay editable (no lock, no Edit-tap
+  // needed). The missing-score alert below also keys off this set.
+  const submittedHoles = useMemo(() => {
+    const set = new Set<number>();
+    for (const [key, v] of scores) {
+      if (v == null) continue;
+      const holeNum = Number(key.split(':')[1]);
+      if (Number.isFinite(holeNum)) set.add(holeNum);
+    }
+    return set;
+  }, [scores]);
+
   const activeHoleLocked =
-    leftHoles.has(activeHole) && !unlockedHoles.has(activeHole);
+    leftHoles.has(activeHole) &&
+    submittedHoles.has(activeHole) &&
+    !unlockedHoles.has(activeHole);
+
+  // For every PAST hole that's been submitted, list players still
+  // missing a gross. Lets the user catch a skipped 17 the moment they
+  // land on 18. The HoleByHole renders this list under prev/next with
+  // tap-to-jump.
+  const missingByHole = useMemo(() => {
+    const m: { hole: number; players: ScoreClientPlayer[] }[] = [];
+    for (const h of holes) {
+      if (h.number >= activeHole) continue;
+      if (!submittedHoles.has(h.number)) continue;
+      const missing = players.filter(
+        (p) => scores.get(`${p.tripMemberId}:${h.number}`) == null,
+      );
+      if (missing.length > 0) m.push({ hole: h.number, players: missing });
+    }
+    return m;
+  }, [scores, holes, players, activeHole, submittedHoles]);
 
   function unlockActiveHole() {
     setUnlockedHoles((prev) => {
@@ -258,6 +290,8 @@ export default function ScoreEntryClient({
           onNext={() => setActiveHole((h) => Math.min(holes.length, h + 1))}
           canPrev={activeHole > 1}
           canNext={activeHole < holes.length}
+          missingByHole={missingByHole}
+          onJumpHole={(h) => setActiveHole(h)}
         />
       ) : (
         <CardView
@@ -321,6 +355,8 @@ function HoleByHole({
   onNext,
   canPrev,
   canNext,
+  missingByHole,
+  onJumpHole,
 }: {
   matchId: string;
   matchIdByPlayer?: Record<string, string>;
@@ -339,6 +375,10 @@ function HoleByHole({
   onNext: () => void;
   canPrev: boolean;
   canNext: boolean;
+  // Past holes that have at least one score but some players missing.
+  // Empty array = nothing to flag.
+  missingByHole: { hole: number; players: ScoreClientPlayer[] }[];
+  onJumpHole: (h: number) => void;
 }) {
   return (
     <div className="mt-3">
@@ -426,6 +466,30 @@ function HoleByHole({
           Next <ChevronRight size={14} />
         </button>
       </div>
+
+      {missingByHole.length > 0 && (
+        <div className="mt-3 rounded-sm border border-red-500/40 bg-red-500/5 p-3">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-red-700 dark:text-red-400">
+            Missing scores
+          </p>
+          <ul className="mt-1.5 space-y-1">
+            {missingByHole.map((m) => (
+              <li key={m.hole} className="flex items-center justify-between gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => onJumpHole(m.hole)}
+                  className="font-mono text-[11px] font-semibold uppercase tracking-widest text-red-700 dark:text-red-300 underline-offset-2 hover:underline"
+                >
+                  Hole {m.hole}
+                </button>
+                <span className="truncate text-right text-[11px] text-zinc-700 dark:text-zinc-300">
+                  {m.players.map((p) => p.nickname).join(', ')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

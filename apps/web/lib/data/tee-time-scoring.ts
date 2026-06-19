@@ -50,12 +50,34 @@ export async function getTeeTimeScoringData(
     .limit(1);
   if (!teeTime) return null;
 
-  // 1. Roster: explicit tee_time_participants rows.
+  // 1. Roster: explicit tee_time_participants rows. If the foursome
+  //    roster was never explicitly set (common for matches created via
+  //    /matches/new before the auto-populate fix shipped), fall back to
+  //    the union of match participants for this tee time. Stops the
+  //    score-entry page from crashing on a missing roster.
   const rosterRows = await db
     .select({ tripMemberId: teeTimeParticipants.tripMemberId })
     .from(teeTimeParticipants)
     .where(eq(teeTimeParticipants.teeTimeId, teeTimeId));
-  const rosterMemberIds = rosterRows.map((r) => r.tripMemberId);
+  let rosterMemberIds = rosterRows.map((r) => r.tripMemberId);
+  if (rosterMemberIds.length === 0) {
+    const matchRowsFallback = await db
+      .select({ id: matches.id })
+      .from(matches)
+      .where(eq(matches.teeTimeId, teeTimeId));
+    if (matchRowsFallback.length) {
+      const fallback = await db
+        .select({ tripMemberId: matchParticipants.tripMemberId })
+        .from(matchParticipants)
+        .where(
+          inArray(
+            matchParticipants.matchId,
+            matchRowsFallback.map((m) => m.id),
+          ),
+        );
+      rosterMemberIds = Array.from(new Set(fallback.map((r) => r.tripMemberId)));
+    }
+  }
 
   // 2. All matches in this round + their participants. We need a
   //    matchId per roster player; we pick any match they're in.

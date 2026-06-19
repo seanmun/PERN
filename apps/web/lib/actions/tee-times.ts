@@ -170,6 +170,9 @@ export async function updateTeeTimeRoster(formData: FormData): Promise<void> {
   requireTeeTimeAdmin(ctx, row.round.tripId);
 
   const memberIds = formData.getAll('memberIds').map((v) => String(v)).filter(Boolean);
+  if (memberIds.length > 4) {
+    throw new Error('A foursome maxes out at 4 players. Uncheck one before saving.');
+  }
 
   await db
     .delete(teeTimeParticipants)
@@ -186,7 +189,7 @@ export async function updateTeeTimeRoster(formData: FormData): Promise<void> {
   revalidatePath(`/trips/${tripSlug}/admin/tee-times/${teeTimeId}/edit`);
   revalidatePath(`/trips/${tripSlug}/tee-times/${teeTimeId}/score`);
   revalidatePath(`/trips/${tripSlug}/schedule`);
-  redirect(`/trips/${tripSlug}/admin/tee-times/${teeTimeId}/edit`);
+  redirect(`/trips/${tripSlug}/admin/rounds/${row.round.id}/edit`);
 }
 
 export async function deleteTeeTime(formData: FormData): Promise<void> {

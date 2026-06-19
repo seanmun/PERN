@@ -489,20 +489,29 @@ function MatchLiveRow({
   totalHoles: number;
   statusText: string;
 }) {
+  // Engine pins A/B by UUID; we then re-map to visual left/right by
+  // team-name alphabetical so the cup match cards put the same team on
+  // the same side as the schedule and the top TeamScoreRow.
   const sideA = sides.find((s) => s.teamId === aTeamId) ?? sides[0];
   const sideB = sides.find((s) => s.teamId === bTeamId) ?? sides[1];
+  const leftIsEngineA =
+    (sideA?.name ?? '').localeCompare(sideB?.name ?? '') <= 0;
+  const left = leftIsEngineA ? sideA : sideB;
+  const right = leftIsEngineA ? sideB : sideA;
+  const leftUp = leftIsEngineA ? upA : upB;
+  const rightUp = leftIsEngineA ? upB : upA;
   const remaining = Math.max(0, totalHoles - holesPlayed);
   // Leaning background gradient. Same 10-slice scale as LeanBar — 0 holes
   // up = even gradient (50/50); 10 holes up = fully one color. Lives behind
   // the matchup card so the visual weight tracks the score in your peripheral
   // vision before you read the numbers.
-  const lean = upA - upB;
+  const lean = leftUp - rightUp;
   const magnitude = Math.min(10, Math.abs(lean));
   const offsetPct = (magnitude / 10) * 50; // 0..50% lean from center
   const aEndPct = lean > 0 ? 50 + offsetPct : 50 - offsetPct;
   const leanGradient =
-    sideA?.color && sideB?.color
-      ? `linear-gradient(90deg, ${sideA.color}33 0%, ${sideA.color}33 ${Math.max(0, aEndPct - 4)}%, ${sideB.color}33 ${Math.min(100, aEndPct + 4)}%, ${sideB.color}33 100%)`
+    left?.color && right?.color
+      ? `linear-gradient(90deg, ${left.color}33 0%, ${left.color}33 ${Math.max(0, aEndPct - 4)}%, ${right.color}33 ${Math.min(100, aEndPct + 4)}%, ${right.color}33 100%)`
       : undefined;
   return (
     <Link
@@ -517,10 +526,10 @@ function MatchLiveRow({
             ? 'Not started'
             : humanizeStatus({
                 statusText,
-                sideAName: sideA?.name,
-                sideBName: sideB?.name,
-                upA,
-                upB,
+                sideAName: left?.name,
+                sideBName: right?.name,
+                upA: leftUp,
+                upB: rightUp,
                 holesPlayed,
                 remaining,
               })}
@@ -528,13 +537,13 @@ function MatchLiveRow({
       </div>
 
       <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-        <SideNicknames side={sideA} align="left" />
+        <SideNicknames side={left} align="left" />
         <p className="font-mono text-2xl font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
-          <span style={{ color: sideA?.color ?? undefined }}>{upA}</span>
+          <span style={{ color: left?.color ?? undefined }}>{leftUp}</span>
           <span className="mx-1 text-zinc-700">·</span>
-          <span style={{ color: sideB?.color ?? undefined }}>{upB}</span>
+          <span style={{ color: right?.color ?? undefined }}>{rightUp}</span>
         </p>
-        <SideNicknames side={sideB} align="right" />
+        <SideNicknames side={right} align="right" />
       </div>
 
       {/* LeanBar hidden temporarily — testing the gradient background alone.
@@ -642,11 +651,13 @@ function SideNicknames({
 
 function TeamScoreRow({ teams, slug }: { teams: TeamTotal[]; slug: string }) {
   if (teams.length !== 2) return null;
-  // Render in the same team-UUID order the engine uses for match-card
-  // sides (lowest UUID = Side A = left). Otherwise the top totals can
-  // sit "MachIans on left" while every match below sits "Douchebags on
-  // left" — confusing.
-  const sorted = [...teams].sort((x, y) => (x.teamId < y.teamId ? -1 : 1));
+  // Render in alphabetical team-name order so the side here matches
+  // the schedule match cards (which also sort by team name). Without
+  // this the top totals could sit "MachIans left" while every match
+  // below sits "Douchebags left" — confusing.
+  const sorted = [...teams].sort((x, y) =>
+    x.teamName.localeCompare(y.teamName),
+  );
   const [a, b] = sorted;
   return (
     <div className="mt-8 grid grid-cols-[1fr_auto_1fr] items-stretch gap-3">

@@ -208,7 +208,7 @@ export default async function MatchDetailPage({
               <div className="flex items-center gap-2">
                 <Trophy size={16} className="text-yellow-800 dark:text-yellow-400" />
                 <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-400">
-                  Round {match.round.order} · {roundFormatLabel(match.round.format)}
+                  Round {match.round.order} · {roundFormatLabel(match.match.format)}
                   {roundTee && (
                     <>
                       <span className="mx-1.5 text-zinc-700">·</span>
@@ -328,15 +328,6 @@ export default async function MatchDetailPage({
           participants={scoringData.participants}
           holes={scoringData.engineHoles}
         />
-      )}
-
-      {canEnterScores && (
-        <Link
-          href={`/trips/${slug}/matches/${match.match.id}/score`}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-sm bg-yellow-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400"
-        >
-          <PenLine size={14} /> Enter scores
-        </Link>
       )}
 
       <div className="mt-8 grid grid-cols-2 gap-2">

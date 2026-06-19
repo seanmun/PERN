@@ -9,6 +9,7 @@ import {
   matchParticipants,
   rounds,
   teeTimes,
+  teeTimeParticipants,
   tripMembers,
   teams,
 } from '@/db/schema';
@@ -20,6 +21,38 @@ import {
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
 import type { AuthContext } from '@/lib/auth/current-user';
+
+/**
+ * Auto-populate tee_time_participants from a match's participants when
+ * the match is in-foursome (teeTimeId != null). Without this, creating
+ * matches via /matches/new doesn't fill in the foursome roster, and
+ * the score-entry page falls back to a derived roster. Explicit roster
+ * is still authoritative — this just seeds it so admins don't have to
+ * visit the tee-time roster page after every match create.
+ *
+ * Hard-caps the foursome at 4 players. If adding the match's
+ * participants would push past 4, we silently keep the existing 4 and
+ * skip the rest. The match-builder's same-foursome validation should
+ * prevent this from ever being a real conflict.
+ */
+async function syncTeeTimeRosterFromMatch(
+  teeTimeId: string,
+  participantIds: string[],
+): Promise<void> {
+  if (!participantIds.length) return;
+  const existing = await db
+    .select({ tripMemberId: teeTimeParticipants.tripMemberId })
+    .from(teeTimeParticipants)
+    .where(eq(teeTimeParticipants.teeTimeId, teeTimeId));
+  const have = new Set(existing.map((r) => r.tripMemberId));
+  const remainingSlots = Math.max(0, 4 - have.size);
+  if (remainingSlots === 0) return;
+  const toAdd = participantIds.filter((id) => !have.has(id)).slice(0, remainingSlots);
+  if (!toAdd.length) return;
+  await db.insert(teeTimeParticipants).values(
+    toAdd.map((id) => ({ teeTimeId, tripMemberId: id })),
+  );
+}
 import {
   validateBuilderState,
   getMatchTeeTimeId,
@@ -128,6 +161,13 @@ export async function updateMatchParticipants(formData: FormData): Promise<void>
     await db.insert(matchParticipants).values(rows);
   }
 
+  if (match.match.teeTimeId) {
+    await syncTeeTimeRosterFromMatch(
+      match.match.teeTimeId,
+      rows.map((r) => r.tripMemberId),
+    );
+  }
+
   const tripSlug = await getTripSlugById(match.round.tripId);
   revalidatePath(`/trips/${tripSlug}/schedule`);
   revalidatePath(`/trips/${tripSlug}/matches/${matchId}`);
@@ -186,6 +226,11 @@ export async function createMatch(formData: FormData): Promise<void> {
   if (rows.length) {
     await db.insert(matchParticipants).values(rows);
   }
+
+  await syncTeeTimeRosterFromMatch(
+    teeTime.teeTime.id,
+    rows.map((r) => r.tripMemberId),
+  );
 
   const tripSlug = await getTripSlugById(teeTime.round.tripId);
   revalidatePath(`/trips/${tripSlug}/schedule`);
@@ -411,6 +456,13 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
   }
   if (rows.length) {
     await db.insert(matchParticipants).values(rows);
+  }
+
+  if (teeTimeId) {
+    await syncTeeTimeRosterFromMatch(
+      teeTimeId,
+      rows.map((r) => r.tripMemberId),
+    );
   }
 
   revalidatePath(`/trips/${tripSlug}/schedule`);

@@ -474,6 +474,17 @@ function formatLabel(fmt: ClientGolfItem['roundFormat']): string {
   }
 }
 
+function formatShortLabel(fmt: ClientMatch['format']): string {
+  switch (fmt) {
+    case 'best_ball':         return 'Best Ball';
+    case 'singles':           return 'Singles';
+    case 'scramble':          return 'Scramble';
+    case 'stroke':            return 'Stroke';
+    case 'two_man_aggregate': return 'Aggregate';
+    case 'alternate_shot':    return 'Alt Shot';
+  }
+}
+
 function GolfRow({
   item,
   compact,
@@ -533,29 +544,26 @@ function GolfRow({
   void compact;
   return (
     <div className="overflow-hidden rounded-md border border-yellow-600/20 bg-white dark:bg-zinc-950/70 shadow-[0_0_0_1px_rgba(0,0,0,0.4)]">
-      {/* Tee-time header — shown once for the whole group */}
-      <div className="flex items-baseline justify-between gap-3 border-b border-yellow-600/10 bg-zinc-50 dark:bg-black/30 px-3 py-2">
-        <div className="flex items-baseline gap-2">
+      {/* Tee-time header — collapsed into one row to save vertical real estate.
+          time + group + course on a single line; match-count on the right. */}
+      <div className="flex items-center justify-between gap-3 border-b border-yellow-600/10 bg-zinc-50 dark:bg-black/30 px-3 py-1.5">
+        <div className="flex min-w-0 items-baseline gap-2">
           <p className="font-mono text-xs font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
             {time}
           </p>
           <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
-            Group {item.groupNumber}
+            G{item.groupNumber}
+          </p>
+          <p className="min-w-0 truncate text-[11px] text-zinc-700 dark:text-zinc-300">
+            {item.courseName}
           </p>
         </div>
-        <p className="truncate font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+        <p className="shrink-0 font-mono text-[9px] uppercase tracking-widest text-zinc-500">
           R{item.roundOrder}
           {item.matches.length > 1 && (
-            <span className="ml-1.5 text-zinc-600">
-              · {item.matches.length} matches
-            </span>
+            <span className="ml-1 text-zinc-600">· {item.matches.length}m</span>
           )}
         </p>
-      </div>
-
-      <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-900 px-3 py-1.5">
-        <Trophy size={11} className="shrink-0 text-yellow-500/70" />
-        <p className="truncate text-xs text-zinc-700 dark:text-zinc-300">{item.courseName}</p>
       </div>
 
       {/* Match sub-rows — each renders a compact NBA-Jam showdown card.
@@ -567,13 +575,17 @@ function GolfRow({
             <Link
               key={m.id}
               href={`/trips/${tripSlug}/matches/${m.id}`}
-              className="block px-3 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
+              className="block px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
             >
-              <div className="flex items-center justify-between gap-2">
-                <FormatBadge format={m.format} size="xs" />
-                <ChevronRight size={12} className="shrink-0 text-zinc-600 dark:text-zinc-400 dark:text-zinc-700" />
-              </div>
-              <div className="mt-2">
+              <div className="relative">
+                {/* Format chip sits ON the gold border at top-center.
+                    Yellow fill matches the border so it reads as a flag
+                    extending out of the frame, not as a separate widget. */}
+                <span
+                  className="pointer-events-none absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-zinc-900 bg-yellow-500 px-1.5 py-0.5 font-mono text-[8px] font-extrabold uppercase tracking-widest text-black shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
+                >
+                  {formatShortLabel(m.format)}
+                </span>
                 <MatchupShowdownCompact match={m} />
               </div>
             </Link>
@@ -582,10 +594,10 @@ function GolfRow({
 
       {/* One "Enter scores" button per foursome — only for participants + admins. */}
       {item.canEnterScores && item.scoreMatchId && (
-        <div className="border-t border-yellow-600/15 bg-zinc-50 dark:bg-black/30 p-3">
+        <div className="border-t border-yellow-600/15 bg-zinc-50 dark:bg-black/30 p-2">
           <Link
             href={`/trips/${tripSlug}/tee-times/${item.teeTimeId}/score`}
-            className="flex w-full items-center justify-center gap-2 rounded-sm bg-yellow-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400"
+            className="flex w-full items-center justify-center gap-2 rounded-sm bg-yellow-500 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-widest text-black shadow-[0_0_20px_rgba(202,138,4,0.25)] hover:bg-yellow-400"
           >
             Enter scores
           </Link>
@@ -633,7 +645,12 @@ function MatchupShowdownCompact({ match }: { match: ClientMatch }) {
     list.push(p);
     byTeam.set(p.teamId, list);
   }
-  const teamGroups = Array.from(byTeam.values());
+  // Sort team groups by team name alphabetical so the left/right side
+  // is stable across the schedule and the cup scoreboard. Without this
+  // the side depended on DB row order — visually random.
+  const teamGroups = Array.from(byTeam.values()).sort((x, y) =>
+    (x[0]?.teamName ?? '').localeCompare(y[0]?.teamName ?? ''),
+  );
   if (teamGroups.length !== 2) {
     return (
       <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-600">
@@ -652,12 +669,6 @@ function MatchupShowdownCompact({ match }: { match: ClientMatch }) {
           '0 0 0 2px #eab308, 0 0 0 3px #18181b, 0 0 12px rgba(202,138,4,0.2)',
       }}
     >
-      {/*
-        Light-mode bg borrows the Cup tab's lean gradient — soft horizontal
-        wash of each team's color at ~20% alpha (matches `${color}33`). Dark
-        mode keeps the original deep-navy gradient. CSS vars + the dark:
-        variant keep both branches in one element.
-      */}
       <div
         className="grid grid-cols-[1fr_auto_1fr] items-stretch bg-[image:var(--matchup-bg-light)] dark:bg-[image:var(--matchup-bg-dark)]"
         style={
@@ -677,9 +688,9 @@ function MatchupShowdownCompact({ match }: { match: ClientMatch }) {
 
 function CompactVsBanner() {
   return (
-    <div className="flex items-center justify-center px-2">
+    <div className="flex items-center justify-center px-1.5">
       <div
-        className="flex h-9 w-10 items-center justify-center rounded-sm border-2 border-yellow-600"
+        className="flex h-7 w-8 items-center justify-center rounded-sm border-2 border-yellow-600"
         style={{
           background: 'linear-gradient(180deg, #ca8a04 0%, #a16207 100%)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3), 0 0 6px rgba(0,0,0,0.6)',
@@ -707,7 +718,7 @@ function CompactPortraitsCell({
 }) {
   return (
     <div
-      className="flex flex-col items-stretch p-2"
+      className="flex flex-col items-stretch p-1.5"
       style={{
         background: `linear-gradient(${
           align === 'left' ? '90deg' : '270deg'
@@ -723,7 +734,7 @@ function CompactPortraitsCell({
         {players[0]?.teamName ?? ''}
       </p>
       <div
-        className={`mt-1 grid items-end gap-1 ${
+        className={`mt-0.5 grid items-end gap-1 ${
           align === 'right' ? 'justify-items-end' : 'justify-items-start'
         }`}
         style={{
@@ -751,7 +762,7 @@ function CompactPortraitSlot({
     <div className="flex w-full min-w-0 flex-col items-center">
       <div
         className="relative flex aspect-square w-full min-w-0 items-end justify-center"
-        style={{ maxWidth: 56 }}
+        style={{ maxWidth: 44 }}
       >
         {portrait ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -779,8 +790,8 @@ function CompactPortraitSlot({
         )}
       </div>
       <p
-        className="mt-1 truncate text-center text-[11px] font-semibold leading-tight text-zinc-900 dark:text-zinc-100"
-        style={{ maxWidth: 72 }}
+        className="mt-0.5 truncate text-center text-[10px] font-semibold leading-tight text-zinc-900 dark:text-zinc-100"
+        style={{ maxWidth: 60 }}
       >
         {player.nickname}
       </p>

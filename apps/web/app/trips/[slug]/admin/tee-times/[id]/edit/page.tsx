@@ -108,7 +108,11 @@ export default async function EditTeeTimePage({
         </div>
       </section>
 
-      <RosterEditor teeTimeId={row.teeTime.id} tripId={row.round.tripId} />
+      <RosterEditor
+        teeTimeId={row.teeTime.id}
+        tripId={row.round.tripId}
+        roundId={row.round.id}
+      />
     </div>
   );
 }
@@ -144,9 +148,11 @@ function Field({
 async function RosterEditor({
   teeTimeId,
   tripId,
+  roundId,
 }: {
   teeTimeId: string;
   tripId: string;
+  roundId: string;
 }) {
   const tripTeams = await db
     .select()
@@ -167,6 +173,25 @@ async function RosterEditor({
     .from(teeTimeParticipants)
     .where(eq(teeTimeParticipants.teeTimeId, teeTimeId));
   const checked = new Set(existing.map((e) => e.tripMemberId));
+
+  // Players already rostered to a DIFFERENT tee time in the same round.
+  // Greyed out + disabled so admin can't double-book a player. A player
+  // CAN only be in one foursome per round.
+  const sisterTeeTimes = await db
+    .select({ id: teeTimes.id })
+    .from(teeTimes)
+    .where(eq(teeTimes.roundId, roundId));
+  const sisterIds = sisterTeeTimes.map((t) => t.id).filter((id) => id !== teeTimeId);
+  const elsewhereRows = sisterIds.length
+    ? await db
+        .select({
+          tripMemberId: teeTimeParticipants.tripMemberId,
+          teeTimeId: teeTimeParticipants.teeTimeId,
+        })
+        .from(teeTimeParticipants)
+        .where(inArray(teeTimeParticipants.teeTimeId, sisterIds))
+    : [];
+  const elsewhereBy = new Map(elsewhereRows.map((r) => [r.tripMemberId, r.teeTimeId]));
 
   return (
     <section className="mt-8">
@@ -197,21 +222,35 @@ async function RosterEditor({
                 {team.name}
               </p>
               <div className="mt-2 grid grid-cols-2 gap-1.5">
-                {teamMembers.map((m) => (
-                  <label
-                    key={m.id}
-                    className="flex cursor-pointer items-center gap-2 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-2.5 py-1.5 text-sm hover:border-zinc-600 has-checked:border-yellow-500/60 has-checked:bg-yellow-500/10"
-                  >
-                    <input
-                      type="checkbox"
-                      name="memberIds"
-                      value={m.id}
-                      defaultChecked={checked.has(m.id)}
-                      className="h-4 w-4 accent-yellow-500"
-                    />
-                    <span className="truncate">{m.nickname}</span>
-                  </label>
-                ))}
+                {teamMembers.map((m) => {
+                  const inOther = elsewhereBy.has(m.id);
+                  return (
+                    <label
+                      key={m.id}
+                      className={
+                        inOther
+                          ? 'flex items-center gap-2 rounded-sm border border-zinc-200 dark:border-zinc-900 bg-zinc-100/60 dark:bg-zinc-950/20 px-2.5 py-1.5 text-sm opacity-40 cursor-not-allowed'
+                          : 'flex cursor-pointer items-center gap-2 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-2.5 py-1.5 text-sm hover:border-zinc-600 has-checked:border-yellow-500/60 has-checked:bg-yellow-500/10'
+                      }
+                      title={inOther ? 'Already in another foursome this round' : undefined}
+                    >
+                      <input
+                        type="checkbox"
+                        name="memberIds"
+                        value={m.id}
+                        defaultChecked={checked.has(m.id)}
+                        disabled={inOther}
+                        className="h-4 w-4 accent-yellow-500"
+                      />
+                      <span className="truncate">{m.nickname}</span>
+                      {inOther && (
+                        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-zinc-500">
+                          taken
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
               </div>
             </section>
           );
