@@ -6,7 +6,7 @@ import { db } from '@/db/client';
 import { tripMembers, teams, users } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
-import { updatePlayerField } from '@/lib/actions/players';
+import { updatePlayerField, deletePlayer } from '@/lib/actions/players';
 import PhotoWithPortraitSection from '@/components/portraits/PhotoWithPortraitSection';
 import {
   InlineText,
@@ -172,6 +172,25 @@ export default async function EditPlayerPage({
             placeholder="“Long drives, suspect putter.”"
           />
         </Row>
+      </section>
+
+      <section className="mt-12 rounded-sm border border-red-500/30 bg-red-500/5 p-4">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-red-700 dark:text-red-400">
+          Danger zone
+        </p>
+        <p className="mt-1.5 text-[12px] text-zinc-700 dark:text-zinc-300">
+          Removing a player wipes their match + foursome assignments. Blocked if
+          they already have hole scores entered (to protect history).
+        </p>
+        <form action={deletePlayer} className="mt-3">
+          <input type="hidden" name="id" value={player.id} />
+          <button
+            type="submit"
+            className="rounded-sm border border-red-500/50 bg-red-500/10 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-widest text-red-700 dark:text-red-300 hover:bg-red-500/20"
+          >
+            Remove player
+          </button>
+        </form>
       </section>
 
     </div>

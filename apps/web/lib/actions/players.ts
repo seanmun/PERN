@@ -4,7 +4,16 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { tripMembers, teams, matchParticipants, matches, rounds, users } from '@/db/schema';
+import {
+  tripMembers,
+  teams,
+  matchParticipants,
+  matches,
+  rounds,
+  users,
+  holeScores,
+  teeTimeParticipants,
+} from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
@@ -419,6 +428,54 @@ export async function updatePlayer(formData: FormData): Promise<void> {
   const tripSlug = await getTripSlugById(existing.tripId);
   // Clear every cached page under this trip — the team change cascades into
   // match-detail, team-roster, profile, schedule, scoreboard, and feed.
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
+  redirect(`/trips/${tripSlug}/admin/players`);
+}
+
+/**
+ * Remove a player from the trip. Refuses if the player has any hole
+ * scores entered — deleting them would silently rewrite historical
+ * results. Otherwise wipes match/tee-time participation and the trip
+ * member row. The shared user row (if linked) is untouched.
+ */
+export async function deletePlayer(formData: FormData): Promise<void> {
+  const ctx = await getGlobalAuthContext();
+  if (!ctx) throw new AuthorizationError('Authentication required');
+
+  const id = String(formData.get('id') ?? '').trim();
+  if (!id) throw new Error('id required');
+
+  const [existing] = await db
+    .select()
+    .from(tripMembers)
+    .where(eq(tripMembers.id, id))
+    .limit(1);
+  if (!existing) throw new Error('Player not found');
+
+  if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, existing.tripId)) {
+    throw new AuthorizationError('Trip admin required');
+  }
+
+  const [hasScore] = await db
+    .select({ id: holeScores.id })
+    .from(holeScores)
+    .where(eq(holeScores.tripMemberId, id))
+    .limit(1);
+  if (hasScore) {
+    throw new Error(
+      'This player already has scores entered. Remove their scores first or keep the player.',
+    );
+  }
+
+  await db
+    .delete(matchParticipants)
+    .where(eq(matchParticipants.tripMemberId, id));
+  await db
+    .delete(teeTimeParticipants)
+    .where(eq(teeTimeParticipants.tripMemberId, id));
+  await db.delete(tripMembers).where(eq(tripMembers.id, id));
+
+  const tripSlug = await getTripSlugById(existing.tripId);
   revalidatePath(`/trips/${tripSlug}`, 'layout');
   redirect(`/trips/${tripSlug}/admin/players`);
 }
