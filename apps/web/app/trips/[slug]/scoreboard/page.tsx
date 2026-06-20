@@ -7,6 +7,7 @@ import { matches, matchParticipants, rounds, teeTimes, teams, tripMembers } from
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { getLeaderboard, type PlayerTotal, type TeamTotal } from '@/lib/data/leaderboard';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
+import LeaderboardSortTabs from '@/components/scoreboard/LeaderboardSortTabs';
 import {
   computeMatch,
   computeStableford,
@@ -89,7 +90,6 @@ function TripIndividualLeaderboard({
   slug: string;
 }) {
   if (board.playerTotals.length === 0) return null;
-  const visible = board.playerTotals.slice(0, LEADERBOARD_VISIBLE);
   const overflow = Math.max(0, board.playerTotals.length - LEADERBOARD_VISIBLE);
   return (
     <section className="mt-10">
@@ -106,11 +106,11 @@ function TripIndividualLeaderboard({
           </Link>
         )}
       </div>
-      <div className="mt-3 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800">
-        {visible.map((p, i) => (
-          <PlayerRow key={p.tripMemberId} player={p} rank={i + 1} slug={slug} />
-        ))}
-      </div>
+      <LeaderboardSortTabs
+        players={board.playerTotals}
+        slug={slug}
+        maxRows={LEADERBOARD_VISIBLE}
+      />
       {overflow > 0 && (
         <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-zinc-600">
           +{overflow} more
@@ -337,13 +337,13 @@ async function OutingLiveBoard({
             </Link>
           )}
         </div>
-        {lbVisible.length > 0 ? (
+        {board.playerTotals.length > 0 ? (
           <>
-            <div className="mt-3 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800">
-              {lbVisible.map((p, i) => (
-                <PlayerRow key={p.tripMemberId} player={p} rank={i + 1} slug={slug} />
-              ))}
-            </div>
+            <LeaderboardSortTabs
+              players={board.playerTotals}
+              slug={slug}
+              maxRows={LEADERBOARD_VISIBLE}
+            />
             {lbOverflow > 0 && (
               <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-zinc-600">
                 +{lbOverflow} more

@@ -9,10 +9,65 @@
  *   status / winning_team_id / is_halved / result_text / front_9_winning_team_id / back_9_winning_team_id
  */
 
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { matches } from '@/db/schema';
+import {
+  matches,
+  matchParticipants,
+  teeTimeParticipants,
+  tripMembers,
+} from '@/db/schema';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
+
+/**
+ * The "scratch" baseline for handicap allocation. Cup convention: strokes
+ * are given vs the lowest handicap on the SCORECARD (the foursome), not
+ * the lowest in the specific match. So a 1v1 between a 20 and a 26 still
+ * gets BOTH strokes when an 8 sits in the same foursome.
+ *
+ * For round-wide (cross-foursome) matches with no tee_time_id, falls back
+ * to the lowest handicap among that match's participants (no broader
+ * scorecard exists).
+ */
+export async function getScratchHandicap(
+  matchId: string,
+  teeTimeId: string | null,
+  roundId: string,
+): Promise<number | undefined> {
+  let memberIds: string[] = [];
+  if (teeTimeId) {
+    const rows = await db
+      .select({ tripMemberId: teeTimeParticipants.tripMemberId })
+      .from(teeTimeParticipants)
+      .where(eq(teeTimeParticipants.teeTimeId, teeTimeId));
+    memberIds = rows.map((r) => r.tripMemberId);
+    if (memberIds.length === 0) {
+      // Roster never set; fall back to match participants.
+      const fb = await db
+        .select({ tripMemberId: matchParticipants.tripMemberId })
+        .from(matchParticipants)
+        .where(eq(matchParticipants.matchId, matchId));
+      memberIds = fb.map((r) => r.tripMemberId);
+    }
+  } else {
+    const rows = await db
+      .select({ tripMemberId: matchParticipants.tripMemberId })
+      .from(matchParticipants)
+      .where(eq(matchParticipants.matchId, matchId));
+    memberIds = rows.map((r) => r.tripMemberId);
+    void roundId; // reserved for future round-wide fallback if needed
+  }
+  if (memberIds.length === 0) return undefined;
+  const members = await db
+    .select({ tripHandicap: tripMembers.tripHandicap })
+    .from(tripMembers)
+    .where(inArray(tripMembers.id, memberIds));
+  const hcps = members
+    .map((m) => (m.tripHandicap ? Number(m.tripHandicap) : null))
+    .filter((n): n is number => n != null && Number.isFinite(n));
+  if (hcps.length === 0) return undefined;
+  return Math.min(...hcps);
+}
 import {
   computeMatch,
   computeStableford,
@@ -32,6 +87,16 @@ const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
 export async function recomputeMatchStatus(matchId: string): Promise<void> {
   const data = await getMatchScoringData(matchId);
   if (!data) return;
+
+  // Cup convention: scratch = foursome's lowest handicap. Without this,
+  // a 1v1 between a 20 and a 26 would compute strokes vs each other
+  // (Seany +6) instead of vs the 8 sitting in the same foursome
+  // (Seany 18, Fister 12). Wrong baseline → wrong hole-by-hole match status.
+  const scratchHandicap = await getScratchHandicap(
+    matchId,
+    data.match.teeTimeId,
+    data.round.id,
+  );
 
   // Map A/B back to the actual team IDs. data.participants carries the side.
   const teamIdByside = new Map<'A' | 'B', string>();
@@ -98,6 +163,7 @@ export async function recomputeMatchStatus(matchId: string): Promise<void> {
         holes: data.engineHoles,
         scores: data.engineScores,
         format: fmt,
+        scratchHandicap,
       });
     }
 
@@ -155,6 +221,7 @@ export async function recomputeMatchStatus(matchId: string): Promise<void> {
           (s) => s.holeNumber >= from && s.holeNumber <= to,
         ),
         format: fmt,
+        scratchHandicap,
       });
       if (seg.status.kind === 'closed') {
         return teamIdByside.get(seg.status.winner) ?? null;

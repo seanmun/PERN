@@ -22,12 +22,14 @@ import {
   roundFormatLabel,
 } from '@/lib/format';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
+import { getScratchHandicap } from '@/lib/scoring/recompute';
 import {
   computeMatch,
   computeStableford,
   computeTeamMatch,
   DEFAULT_STABLEFORD_POINTS,
   formatStatus,
+  formatStatusWithWinner,
   type ComputedStableford,
   type HoleResult,
   type PlayerInputFormat,
@@ -134,6 +136,14 @@ export default async function MatchDetailPage({
   // scoring mode (match_play vs stableford), then on team vs player
   // input. Only one of liveMatch / liveStableford is populated.
   const scoringData = await getMatchScoringData(id);
+  // Cup scratch baseline = foursome's lowest handicap (not the match's).
+  const scratchHandicap = scoringData
+    ? await getScratchHandicap(
+        id,
+        scoringData.match.teeTimeId,
+        scoringData.round.id,
+      )
+    : undefined;
   let liveMatch = null;
   let liveStableford: ComputedStableford | null = null;
   if (scoringData) {
@@ -169,10 +179,27 @@ export default async function MatchDetailPage({
         format: PLAYER_INPUT_FORMATS.has(scoringData.match.format)
           ? (scoringData.match.format as PlayerInputFormat)
           : 'best_ball',
+        scratchHandicap,
       });
     }
   }
-  const liveStatusText = liveMatch ? formatStatus(liveMatch.status) : null;
+  // For singles 1v1 we want the player nickname on the result line
+  // ("Seany 4 & 2"); for everything else the team name reads cleaner.
+  const sideAParticipants = scoringData?.participants.filter((p) => p.side === 'A') ?? [];
+  const sideBParticipants = scoringData?.participants.filter((p) => p.side === 'B') ?? [];
+  const isSingles1v1 =
+    match.match.format === 'singles' &&
+    sideAParticipants.length === 1 &&
+    sideBParticipants.length === 1;
+  const sideAName = isSingles1v1
+    ? sideAParticipants[0]?.participant.nickname ?? null
+    : sideAParticipants[0]?.team.name ?? null;
+  const sideBName = isSingles1v1
+    ? sideBParticipants[0]?.participant.nickname ?? null
+    : sideBParticipants[0]?.team.name ?? null;
+  const liveStatusText = liveMatch
+    ? formatStatusWithWinner(liveMatch.status, sideAName, sideBName)
+    : null;
 
   const selfTripMemberId = ctx.tripMember?.id ?? null;
   const selfIsParticipant = participants.some(
@@ -319,6 +346,10 @@ export default async function MatchDetailPage({
           bTeamName={scoringData.participants.find((p) => p.side === 'B')?.team.name ?? 'B'}
           aTeamColor={scoringData.participants.find((p) => p.side === 'A')?.team.color ?? null}
           bTeamColor={scoringData.participants.find((p) => p.side === 'B')?.team.color ?? null}
+          nicknameById={Object.fromEntries(
+            scoringData.participants.map((p) => [p.participant.id, p.participant.nickname]),
+          )}
+          showContributor={match.match.format === 'best_ball'}
         />
       )}
 
@@ -596,18 +627,26 @@ function handicapToRating(tripHandicap: string | null): number {
  * state ("1 UP", "AS") sits in the rightmost column so you can trace
  * momentum hole-by-hole.
  */
+function truncateName(s: string, max = 8): string {
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
 function HoleScorecard({
   holeResults,
   aTeamName,
   bTeamName,
   aTeamColor,
   bTeamColor,
+  nicknameById,
+  showContributor,
 }: {
   holeResults: HoleResult[];
   aTeamName: string;
   bTeamName: string;
   aTeamColor: string | null;
   bTeamColor: string | null;
+  nicknameById: Record<string, string>;
+  showContributor: boolean;
 }) {
   const colorA = aTeamColor ?? '#71717a';
   const colorB = bTeamColor ?? '#71717a';
@@ -660,7 +699,7 @@ function HoleScorecard({
               <span className="font-semibold text-zinc-700 dark:text-zinc-300">{r.holeNumber}</span>
               <span className="text-zinc-600 dark:text-zinc-400">{r.par}</span>
               <span
-                className={`rounded-sm px-2 py-1 text-center font-bold ${
+                className={`flex flex-col items-center rounded-sm px-2 py-1 text-center font-bold ${
                   aWon ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-500'
                 }`}
                 style={
@@ -669,10 +708,25 @@ function HoleScorecard({
                     : undefined
                 }
               >
-                {r.aBestNet ?? '—'}
+                <span>
+                  {r.aBestNet ?? '—'}
+                  {r.aStrokes > 0 && (
+                    <span className="ml-1 font-mono text-[9px] font-bold text-yellow-700 dark:text-yellow-400">
+                      +{r.aStrokes}
+                    </span>
+                  )}
+                </span>
+                {showContributor && r.aBestPlayerId && nicknameById[r.aBestPlayerId] && (
+                  <span
+                    className="font-mono text-[8px] font-semibold uppercase tracking-widest text-zinc-500"
+                    title={nicknameById[r.aBestPlayerId]}
+                  >
+                    {truncateName(nicknameById[r.aBestPlayerId])}
+                  </span>
+                )}
               </span>
               <span
-                className={`rounded-sm px-2 py-1 text-center font-bold ${
+                className={`flex flex-col items-center rounded-sm px-2 py-1 text-center font-bold ${
                   bWon ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-500'
                 }`}
                 style={
@@ -681,7 +735,22 @@ function HoleScorecard({
                     : undefined
                 }
               >
-                {r.bBestNet ?? '—'}
+                <span>
+                  {r.bBestNet ?? '—'}
+                  {r.bStrokes > 0 && (
+                    <span className="ml-1 font-mono text-[9px] font-bold text-yellow-700 dark:text-yellow-400">
+                      +{r.bStrokes}
+                    </span>
+                  )}
+                </span>
+                {showContributor && r.bBestPlayerId && nicknameById[r.bBestPlayerId] && (
+                  <span
+                    className="font-mono text-[8px] font-semibold uppercase tracking-widest text-zinc-500"
+                    title={nicknameById[r.bBestPlayerId]}
+                  >
+                    {truncateName(nicknameById[r.bBestPlayerId])}
+                  </span>
+                )}
               </span>
               <span
                 className={`text-right ${

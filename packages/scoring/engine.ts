@@ -43,6 +43,17 @@ export type HoleResult = {
   par: number;
   aBestNet: number | null;
   bBestNet: number | null;
+  // Strokes given to the player whose net counts on this hole (max
+  // strokes on the side for best-ball, the player's own for singles).
+  // Used by the UI to render "+1" indicators next to the net.
+  aStrokes: number;
+  bStrokes: number;
+  // Which player on the side posted the best net for the hole. Null
+  // for team-input formats (scramble/alt-shot) and aggregate where
+  // there isn't a single contributor. Lets the UI show "best ball by
+  // Fister" under a 2v2 hole.
+  aBestPlayerId: string | null;
+  bBestPlayerId: string | null;
   winner: 'A' | 'B' | 'halved' | null; // null if hole not yet scored on at least one side
   statusAfter: { upA: number; upB: number };
 };
@@ -71,12 +82,18 @@ export type ComputedMatch = {
  */
 export function computeStrokes(
   players: EnginePlayer[],
-  holes: EngineHole[]
+  holes: EngineHole[],
+  // Optional override for the "scratch" baseline. Cup convention:
+  // strokes are allocated against the FOURSOME's lowest handicap, not
+  // the lowest of just the match's two players. Pass the foursome's
+  // min handicap here so a 1v1 between a 20 and a 26 still gives BOTH
+  // strokes when an 8 is sitting in the same foursome.
+  scratchHandicap?: number,
 ): Map<string, Map<number, number>> {
   const result = new Map<string, Map<number, number>>();
   if (players.length === 0) return result;
 
-  const minH = Math.min(...players.map((p) => p.handicap));
+  const minH = scratchHandicap ?? Math.min(...players.map((p) => p.handicap));
 
   for (const p of players) {
     const diff = Math.max(0, Math.round(p.handicap - minH));
@@ -102,11 +119,13 @@ export function computeMatch(input: {
   holes: EngineHole[];
   scores: EngineScore[];
   format?: PlayerInputFormat;
+  /** Foursome scratch baseline. See computeStrokes(scratchHandicap) docs. */
+  scratchHandicap?: number;
 }): ComputedMatch {
   const { players, holes } = input;
   const format = input.format ?? 'best_ball';
   const totalHoles = holes.length;
-  const strokesByPlayer = computeStrokes(players, holes);
+  const strokesByPlayer = computeStrokes(players, holes, input.scratchHandicap);
 
   // Index scores: playerId -> holeNumber -> gross
   const scoreByPlayerHole = new Map<string, Map<number, number>>();
@@ -132,6 +151,17 @@ export function computeMatch(input: {
    * comparing a partial sum to the other side's full sum would lie. We only
    * count the hole once every player on the side has scored.
    */
+  /** Max strokes any player on the side is getting for that hole.
+   * Drives the "+1" indicator on the scorecard. */
+  function holeStrokes(side: EnginePlayer[], holeNumber: number): number {
+    let max = 0;
+    for (const p of side) {
+      const n = strokesByPlayer.get(p.id)?.get(holeNumber) ?? 0;
+      if (n > max) max = n;
+    }
+    return max;
+  }
+
   function sideNetOnHole(side: EnginePlayer[], holeNumber: number): number | null {
     const nets: number[] = [];
     for (const p of side) {
@@ -148,6 +178,29 @@ export function computeMatch(input: {
       return nets.reduce((a, b) => a + b, 0);
     }
     return Math.min(...nets);
+  }
+
+  /** For best-ball / singles, the player whose net was the side's best
+   * on that hole. Null for aggregate (sum, no single contributor) or
+   * when nobody on the side has a score yet. */
+  function bestBallContributor(
+    side: EnginePlayer[],
+    holeNumber: number,
+  ): string | null {
+    if (format === 'two_man_aggregate') return null;
+    let bestNet: number | null = null;
+    let bestId: string | null = null;
+    for (const p of side) {
+      const gross = scoreByPlayerHole.get(p.id)?.get(holeNumber);
+      if (gross == null) continue;
+      const strokes = strokesByPlayer.get(p.id)?.get(holeNumber) ?? 0;
+      const net = gross - strokes;
+      if (bestNet == null || net < bestNet) {
+        bestNet = net;
+        bestId = p.id;
+      }
+    }
+    return bestId;
   }
 
   let upA = 0;
@@ -198,6 +251,10 @@ export function computeMatch(input: {
       par: hole.par,
       aBestNet: aNet,
       bBestNet: bNet,
+      aStrokes: holeStrokes(sideA, hole.number),
+      bStrokes: holeStrokes(sideB, hole.number),
+      aBestPlayerId: bestBallContributor(sideA, hole.number),
+      bBestPlayerId: bestBallContributor(sideB, hole.number),
       winner: countedThisHole ? winner : null,
       statusAfter: { upA, upB },
     });
@@ -300,6 +357,31 @@ export function winnerSide(s: MatchStatus): 'A' | 'B' | 'halved' | null {
   if (s.kind === 'closed') return s.winner;
   if (s.kind === 'halved') return 'halved';
   return null;
+}
+
+/**
+ * Human-readable status with the winning party prefixed. Falls back to
+ * plain formatStatus when nothing's been decided yet. Pass the player
+ * nickname for singles 1v1 and the team name for everything else.
+ *
+ *   closed   → "Seany 4 & 2"  /  "Mulligan Men 3 & 1"
+ *   dormie   → "Seany DORMIE"
+ *   in_progress with leader → "Seany 2 UP"
+ */
+export function formatStatusWithWinner(
+  s: MatchStatus,
+  sideAName: string | null,
+  sideBName: string | null,
+): string {
+  const base = formatStatus(s);
+  let leaderSide: 'A' | 'B' | null = null;
+  if (s.kind === 'closed') leaderSide = s.winner;
+  else if (s.kind === 'dormie') leaderSide = s.leader;
+  else if (s.kind === 'in_progress' && s.leader) leaderSide = s.leader;
+  if (!leaderSide) return base;
+  const name = leaderSide === 'A' ? sideAName : sideBName;
+  if (!name) return base;
+  return `${name} ${base}`;
 }
 
 // ───────────────────────── TEAM-INPUT FORMATS ─────────────────────────
@@ -417,6 +499,14 @@ export function computeTeamMatch(input: {
     return gross - strokesForSide(team.side, hole.handicapIndex);
   }
 
+  /** Team-mode shim so the same `holeStrokes(side, holeNumber)` call site
+   * works for both engines. Just reads team-side allocation. */
+  function holeStrokes(team: EngineTeam, holeNumber: number): number {
+    const hole = holes.find((h) => h.number === holeNumber);
+    if (!hole) return 0;
+    return strokesForSide(team.side, hole.handicapIndex);
+  }
+
   // Reuse the strokesByPlayer shape so consumers don't care which engine
   // produced the result. For team matches we expose strokes-per-team keyed
   // by the team id (callers can label these as "team strokes" in the UI).
@@ -473,6 +563,10 @@ export function computeTeamMatch(input: {
       par: hole.par,
       aBestNet: aNet,
       bBestNet: bNet,
+      aStrokes: holeStrokes(sideA, hole.number),
+      bStrokes: holeStrokes(sideB, hole.number),
+      aBestPlayerId: null, // team-input formats don't have a single contributor
+      bBestPlayerId: null,
       winner: countedThisHole ? winner : null,
       statusAfter: { upA, upB },
     });
