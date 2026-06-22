@@ -8,6 +8,7 @@ import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { getLeaderboard, type PlayerTotal, type TeamTotal } from '@/lib/data/leaderboard';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
 import LeaderboardSortTabs from '@/components/scoreboard/LeaderboardSortTabs';
+import DayTabs, { type DayTab } from '@/components/scoreboard/DayTabs';
 import {
   computeMatch,
   computeStableford,
@@ -58,7 +59,8 @@ export default async function ScoreboardPage({
     return <OutingLiveBoard tripId={trip.id} tripName={trip.name} slug={slug} />;
   }
 
-  // Trip kind (default): cumulative team Cup standings + individual leaderboard.
+  // Trip kind (default): cumulative team Cup standings + per-day match
+  // cards + individual leaderboard.
   const board = await getLeaderboard(trip.id);
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6 pb-24">
@@ -73,7 +75,370 @@ export default async function ScoreboardPage({
         {board.matchesContested} of {board.matchesTotal} matches in the books · {board.pointsAvailable} pts left
       </p>
 
+      <TripDailyCupBoard tripId={trip.id} tripStartDate={trip.startDate} slug={slug} />
+
       <TripIndividualLeaderboard board={board} slug={slug} />
+    </div>
+  );
+}
+
+// ───────────────────────── TRIP DAILY CUP BOARD ─────────────────────────
+
+const TRIP_TZ = 'America/New_York';
+
+/**
+ * Return YYYY-MM-DD for the given timestamp in trip-local time (ET for
+ * Pinehurst). Used both as a Map key for day-bucketing and for the tab
+ * labels.
+ */
+function trimToETDate(d: Date | null | undefined): string {
+  if (!d) return '';
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: TRIP_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}
+
+function shortDayLabel(d: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: TRIP_TZ,
+    weekday: 'short',
+    month: 'numeric',
+    day: 'numeric',
+  })
+    .format(d)
+    .replace(',', '');
+}
+
+/**
+ * Trip-kind cup tab's per-day match board. Server-renders the cards for
+ * every trip day; client component picks the active day and shows only
+ * its block.
+ */
+async function TripDailyCupBoard({
+  tripId,
+  tripStartDate,
+  slug,
+}: {
+  tripId: string;
+  tripStartDate: Date | null;
+  slug: string;
+}) {
+  // Pull rounds with date + courseId. We bucket by ET date.
+  const tripRounds = await db
+    .select({
+      id: rounds.id,
+      date: rounds.date,
+      label: rounds.label,
+      order: rounds.order,
+      tripId: rounds.tripId,
+    })
+    .from(rounds)
+    .where(eq(rounds.tripId, tripId))
+    .orderBy(asc(rounds.order));
+
+  if (tripRounds.length === 0) return null;
+
+  // Pull every match in the trip in one shot.
+  const allMatches = await db
+    .select({
+      match: matches,
+      teeTime: teeTimes,
+      roundId: rounds.id,
+      roundLabel: rounds.label,
+      roundOrder: rounds.order,
+      roundDate: rounds.date,
+    })
+    .from(matches)
+    .innerJoin(rounds, eq(matches.roundId, rounds.id))
+    .leftJoin(teeTimes, eq(matches.teeTimeId, teeTimes.id))
+    .where(eq(rounds.tripId, tripId))
+    .orderBy(asc(teeTimes.groupNumber));
+
+  if (allMatches.length === 0) return null;
+
+  const matchIds = allMatches.map((m) => m.match.id);
+  const partRows = matchIds.length
+    ? await db
+        .select({ p: matchParticipants, member: tripMembers, team: teams })
+        .from(matchParticipants)
+        .innerJoin(tripMembers, eq(matchParticipants.tripMemberId, tripMembers.id))
+        .innerJoin(teams, eq(matchParticipants.teamId, teams.id))
+        .where(inArray(matchParticipants.matchId, matchIds))
+    : [];
+
+  const partsByMatch = new Map<string, typeof partRows>();
+  for (const r of partRows) {
+    const list = partsByMatch.get(r.p.matchId) ?? [];
+    list.push(r);
+    partsByMatch.set(r.p.matchId, list);
+  }
+
+  // Compute live status per match. N queries per page render — OK at
+  // trip scale (small-double-digit matches).
+  const liveByMatch = new Map<string, Awaited<ReturnType<typeof computeLive>>>();
+  for (const m of allMatches) {
+    liveByMatch.set(m.match.id, await computeLive(m.match.id));
+  }
+
+  // Bucket rounds by ET date. Also bucket matches by their round id so
+  // we can pull "matches for this day" by walking the day's round list.
+  const matchesByRound = new Map<string, typeof allMatches>();
+  for (const m of allMatches) {
+    const list = matchesByRound.get(m.roundId) ?? [];
+    list.push(m);
+    matchesByRound.set(m.roundId, list);
+  }
+
+  const dateBuckets = new Map<string, typeof tripRounds>();
+  for (const r of tripRounds) {
+    const key = trimToETDate(r.date);
+    if (!key) continue;
+    const list = dateBuckets.get(key) ?? [];
+    list.push(r);
+    dateBuckets.set(key, list);
+  }
+
+  const dayKeys = Array.from(dateBuckets.keys()).sort();
+  if (dayKeys.length === 0) return null;
+
+  // Trip start date → day number is 1-based. Falls back to position in
+  // the sorted day list if trip.startDate isn't set.
+  const dayNumberFor = (key: string): number => {
+    const idx = dayKeys.indexOf(key);
+    if (tripStartDate) {
+      const startKey = trimToETDate(tripStartDate);
+      const startIdx = dayKeys.indexOf(startKey);
+      if (startIdx >= 0) return idx - startIdx + 1;
+    }
+    return idx + 1;
+  };
+
+  const todayKey = trimToETDate(new Date());
+
+  const days: DayTab[] = dayKeys.map((key) => {
+    const roundsOnDay = dateBuckets.get(key) ?? [];
+    return {
+      key,
+      label: roundsOnDay[0]?.date ? shortDayLabel(roundsOnDay[0].date) : key,
+      dayNumber: dayNumberFor(key),
+      isToday: key === todayKey,
+      content: (
+        <DayContent
+          roundsOnDay={roundsOnDay}
+          matchesByRound={matchesByRound}
+          partsByMatch={partsByMatch}
+          liveByMatch={liveByMatch}
+          slug={slug}
+        />
+      ),
+    };
+  });
+
+  return (
+    <section className="mt-10">
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">
+        Daily matches
+      </p>
+      <DayTabs days={days} />
+    </section>
+  );
+}
+
+function DayContent({
+  roundsOnDay,
+  matchesByRound,
+  partsByMatch,
+  liveByMatch,
+  slug,
+}: {
+  roundsOnDay: { id: string; label: string | null; order: number }[];
+  matchesByRound: Map<
+    string,
+    {
+      match: typeof matches.$inferSelect;
+      teeTime: typeof teeTimes.$inferSelect | null;
+      roundLabel: string | null;
+      roundOrder: number;
+    }[]
+  >;
+  partsByMatch: Map<
+    string,
+    { p: typeof matchParticipants.$inferSelect; member: typeof tripMembers.$inferSelect; team: typeof teams.$inferSelect }[]
+  >;
+  liveByMatch: Map<string, Awaited<ReturnType<typeof computeLive>>>;
+  slug: string;
+}) {
+  const sortedRounds = [...roundsOnDay].sort((a, b) => a.order - b.order);
+  if (sortedRounds.every((r) => (matchesByRound.get(r.id) ?? []).length === 0)) {
+    return (
+      <p className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-4 text-sm text-zinc-500">
+        No matches set up for this day yet.
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-6">
+      {sortedRounds.map((round) => {
+        const rows = matchesByRound.get(round.id) ?? [];
+        if (rows.length === 0) return null;
+        return (
+          <div key={round.id}>
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-500">
+              Round {round.order}
+              {round.label ? ` · ${round.label}` : ''}
+            </p>
+            <div className="mt-2">
+              <TeeTimeGroups rows={rows} partsByMatch={partsByMatch} liveByMatch={liveByMatch} slug={slug} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Shared rendering for "matches grouped by tee time" — same look as the
+ * outing live board's middle section. Lifted into its own helper so the
+ * trip-kind board can call it per-day.
+ */
+function TeeTimeGroups({
+  rows,
+  partsByMatch,
+  liveByMatch,
+  slug,
+}: {
+  rows: {
+    match: typeof matches.$inferSelect;
+    teeTime: typeof teeTimes.$inferSelect | null;
+  }[];
+  partsByMatch: Map<
+    string,
+    { p: typeof matchParticipants.$inferSelect; member: typeof tripMembers.$inferSelect; team: typeof teams.$inferSelect }[]
+  >;
+  liveByMatch: Map<string, Awaited<ReturnType<typeof computeLive>>>;
+  slug: string;
+}) {
+  const byTeeTime = new Map<
+    string,
+    { teeTime: typeof rows[number]['teeTime']; rows: typeof rows }
+  >();
+  for (const row of rows) {
+    const key = row.teeTime?.id ?? 'ungrouped';
+    const entry = byTeeTime.get(key) ?? { teeTime: row.teeTime, rows: [] };
+    entry.rows.push(row);
+    byTeeTime.set(key, entry);
+  }
+  const sortedEntries = Array.from(byTeeTime.entries()).sort((a, b) => {
+    if (a[0] === 'ungrouped') return -1;
+    if (b[0] === 'ungrouped') return 1;
+    return (a[1].teeTime?.groupNumber ?? 99) - (b[1].teeTime?.groupNumber ?? 99);
+  });
+
+  return (
+    <div className="space-y-3">
+      {sortedEntries.map(([key, { teeTime, rows: groupRows }]) => {
+        const headerTeamsMap = new Map<
+          string,
+          { teamId: string; color: string | null; name: string }
+        >();
+        for (const r of groupRows) {
+          for (const p of partsByMatch.get(r.match.id) ?? []) {
+            if (!headerTeamsMap.has(p.team.id)) {
+              headerTeamsMap.set(p.team.id, {
+                teamId: p.team.id,
+                color: p.team.color,
+                name: p.team.name,
+              });
+            }
+          }
+        }
+        const headerTeams = Array.from(headerTeamsMap.values()).sort(
+          (a, b) => a.name.localeCompare(b.name),
+        );
+        const headerA = headerTeams[0] ?? null;
+        const headerB = headerTeams[1] ?? null;
+
+        return (
+          <div
+            key={key}
+            className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40"
+          >
+            <div className="border-b border-zinc-200 dark:border-zinc-900 px-3 py-2.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
+                  {teeTime ? `Group ${teeTime.groupNumber}` : 'Round-wide'}
+                </p>
+                <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-600">
+                  {groupRows.length} match{groupRows.length === 1 ? '' : 'es'}
+                </p>
+              </div>
+              {headerA && headerB && (
+                <div className="mt-2 flex items-baseline justify-between gap-3">
+                  <p
+                    className="truncate font-mono text-xs font-bold uppercase tracking-widest"
+                    style={{ color: headerA.color ?? '#a1a1aa' }}
+                  >
+                    {headerA.name}
+                  </p>
+                  <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-600">
+                    vs
+                  </span>
+                  <p
+                    className="truncate text-right font-mono text-xs font-bold uppercase tracking-widest"
+                    style={{ color: headerB.color ?? '#a1a1aa' }}
+                  >
+                    {headerB.name}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="divide-y divide-zinc-200 dark:divide-zinc-900">
+              {[...groupRows]
+                .sort(
+                  (x, y) =>
+                    (MATCH_FORMAT_ORDER[x.match.format] ?? 99) -
+                    (MATCH_FORMAT_ORDER[y.match.format] ?? 99),
+                )
+                .map((row) => {
+                  const parts = partsByMatch.get(row.match.id) ?? [];
+                  const byTeam = new Map<
+                    string,
+                    { teamId: string; color: string | null; name: string; nicknames: string[] }
+                  >();
+                  for (const p of parts) {
+                    const entry =
+                      byTeam.get(p.team.id) ??
+                      { teamId: p.team.id, color: p.team.color, name: p.team.name, nicknames: [] };
+                    entry.nicknames.push(p.member.nickname);
+                    byTeam.set(p.team.id, entry);
+                  }
+                  const sides = Array.from(byTeam.values());
+                  const live = liveByMatch.get(row.match.id);
+                  return (
+                    <MatchLiveRow
+                      key={row.match.id}
+                      slug={slug}
+                      matchId={row.match.id}
+                      format={row.match.format}
+                      sides={sides}
+                      upA={live?.upA ?? 0}
+                      upB={live?.upB ?? 0}
+                      aTeamId={live?.aTeamId ?? null}
+                      bTeamId={live?.bTeamId ?? null}
+                      holesPlayed={live?.holesPlayed ?? 0}
+                      totalHoles={live?.totalHoles ?? 18}
+                      statusText={live?.statusText ?? '—'}
+                    />
+                  );
+                })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
