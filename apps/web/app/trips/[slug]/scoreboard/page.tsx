@@ -127,17 +127,30 @@ async function TripDailyCupBoard({
   slug: string;
 }) {
   // Pull rounds with date + courseId. We bucket by ET date.
-  const tripRounds = await db
+  const tripRoundsRaw = await db
     .select({
       id: rounds.id,
       date: rounds.date,
       label: rounds.label,
       order: rounds.order,
       tripId: rounds.tripId,
+      isHidden: rounds.isHidden,
     })
     .from(rounds)
     .where(eq(rounds.tripId, tripId))
     .orderBy(asc(rounds.order));
+
+  // Drop hidden rounds AND any whose date falls outside the trip's
+  // [startDate, endDate] window. Stray seed/test rounds with a random
+  // date were leaking into the day tabs as a "D0 Tue 5/12" ghost tab.
+  const startKey = tripStartDate ? trimToETDate(tripStartDate) : null;
+  const tripRounds = tripRoundsRaw.filter((r) => {
+    if (r.isHidden) return false;
+    if (!r.date) return false;
+    const key = trimToETDate(r.date);
+    if (startKey && key < startKey) return false;
+    return true;
+  });
 
   if (tripRounds.length === 0) return null;
 
