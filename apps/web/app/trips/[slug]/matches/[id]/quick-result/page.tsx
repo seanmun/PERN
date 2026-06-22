@@ -18,6 +18,7 @@ import {
   isAnyCaptainOnTrip,
 } from '@/lib/auth/permissions';
 import QuickResultForm from '@/components/QuickResultForm';
+import { getScratchHandicap } from '@/lib/scoring/recompute';
 
 export default async function QuickResultPage({
   params,
@@ -78,13 +79,35 @@ export default async function QuickResultPage({
   if (distinctTeams[0]) sideByTeam.set(distinctTeams[0].id, 'A');
   if (distinctTeams[1]) sideByTeam.set(distinctTeams[1].id, 'B');
 
+  // Strokes each player receives across the 18 holes = max(0, hcp - scratch).
+  // Same formula the live engine uses (foursome scratch baseline).
+  const scratch = await getScratchHandicap(
+    id,
+    row.match.teeTimeId,
+    row.round.id,
+  );
+  const minH = scratch ?? Math.min(
+    ...partRows
+      .map((r) => (r.tripHandicap ? Number(r.tripHandicap) : Number.POSITIVE_INFINITY))
+      .filter((n) => Number.isFinite(n)),
+  );
+  const strokesByPlayer = new Map<string, number>();
+  for (const r of partRows) {
+    const hcp = r.tripHandicap ? Number(r.tripHandicap) : null;
+    const strokes = hcp != null && Number.isFinite(minH)
+      ? Math.max(0, Math.round(hcp - minH))
+      : 0;
+    strokesByPlayer.set(r.participantId, strokes);
+  }
+
   const participants = partRows.map((r) => ({
     tripMemberId: r.participantId,
     nickname: r.nickname,
     tripHandicap: r.tripHandicap,
     teamName: r.teamName,
     teamColor: r.teamColor,
-    side: sideByTeam.get(r.teamId) ?? 'A',
+    side: (sideByTeam.get(r.teamId) ?? 'A') as 'A' | 'B',
+    strokesGiven: strokesByPlayer.get(r.participantId) ?? 0,
   }));
 
   const sideALabel = distinctTeams[0]?.name ?? 'Side A';
