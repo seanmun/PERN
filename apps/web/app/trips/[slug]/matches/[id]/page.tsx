@@ -15,7 +15,7 @@ import {
   users,
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { isPlatformAdmin, isTripAdminOf, isAnyCaptainOnTrip } from '@/lib/auth/permissions';
 import {
   formatTripTime,
   formatTripDayLong,
@@ -131,6 +131,15 @@ export default async function MatchDetailPage({
 
   const canEdit =
     isPlatformAdmin(ctx) || isTripAdminOf(ctx, match.round.tripId);
+  // Quick result is captain-friendly too — any captain on the trip can
+  // file totals + verdict, not just admins.
+  const canQuickResult =
+    canEdit || isAnyCaptainOnTrip(ctx, match.round.tripId);
+  // Don't surface the quick CTA once anyone has tapped in real
+  // hole-by-hole scores; the action layer also blocks this, but the
+  // button shouldn't tease them.
+  const noHoleScoresYet =
+    !match.match.resultText || match.match.resultText.endsWith('(quick entry)');
 
   // Live status from the scoring engine. Branches on the match's
   // scoring mode (match_play vs stableford), then on team vs player
@@ -338,6 +347,15 @@ export default async function MatchDetailPage({
           </p>
         )}
       </div>
+
+      {canQuickResult && noHoleScoresYet && (
+        <Link
+          href={`/trips/${slug}/matches/${match.match.id}/quick-result`}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
+        >
+          Quick result (totals + winner)
+        </Link>
+      )}
 
       {liveMatch && liveMatch.holesPlayed > 0 && scoringData && (
         <HoleScorecard

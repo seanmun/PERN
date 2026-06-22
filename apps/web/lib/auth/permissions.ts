@@ -16,6 +16,17 @@ export function isCaptainOf(ctx: AuthContext, teamId: string): boolean {
   return Boolean(ctx.tripMember?.isCaptain && ctx.tripMember.teamId === teamId);
 }
 
+/**
+ * True when the caller is a captain of ANY team on the given trip.
+ * Lets quick-result-style actions accept either captain without forcing
+ * the caller to know which side the match is on.
+ */
+export function isAnyCaptainOnTrip(ctx: AuthContext, tripId: string): boolean {
+  return Boolean(
+    ctx.tripMember?.tripId === tripId && ctx.tripMember.isCaptain,
+  );
+}
+
 export function isSelfTripMember(ctx: AuthContext, tripMemberId: string): boolean {
   return ctx.tripMember?.id === tripMemberId;
 }
