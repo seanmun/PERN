@@ -151,6 +151,10 @@ export default async function QuickResultPage({
           sideALabel={sideALabel}
           sideBLabel={sideBLabel}
           cancelHref={`/trips/${slug}/matches/${id}`}
+          segmentsEnabled={row.match.pointsFront9 > 0 || row.match.pointsBack9 > 0}
+          pointsOverall={row.match.pointsOverall}
+          pointsFront9={row.match.pointsFront9}
+          pointsBack9={row.match.pointsBack9}
         />
       )}
     </div>

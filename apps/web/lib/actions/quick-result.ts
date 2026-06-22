@@ -88,32 +88,69 @@ export async function quickResultMatch(formData: FormData): Promise<void> {
     );
   }
 
-  // ── Parse per-player F9 + B9 ─────────────────────────────────────
+  // Mode toggles whether we collected F9 + B9 separately ("segments")
+  // or a single total ("overall"). Comes from the hidden input the form
+  // writes when the match has F9/B9 point splits configured.
+  const mode = String(formData.get('mode') ?? 'segments') === 'overall'
+    ? 'overall'
+    : 'segments';
+
+  // ── Parse per-player gross (either F9 + B9 or one total) ─────────
   const f9by = new Map<string, number>();
   const b9by = new Map<string, number>();
-  for (const p of participants) {
-    const f = Number(String(formData.get(`f9gross:${p.tripMemberId}`) ?? '').trim());
-    const b = Number(String(formData.get(`b9gross:${p.tripMemberId}`) ?? '').trim());
-    if (!Number.isFinite(f) || f < 9 || f > 100) {
-      throw new Error('Invalid Front 9 gross');
+  if (mode === 'segments') {
+    for (const p of participants) {
+      const f = Number(String(formData.get(`f9gross:${p.tripMemberId}`) ?? '').trim());
+      const b = Number(String(formData.get(`b9gross:${p.tripMemberId}`) ?? '').trim());
+      if (!Number.isFinite(f) || f < 9 || f > 100) {
+        throw new Error('Invalid Front 9 gross');
+      }
+      if (!Number.isFinite(b) || b < 9 || b > 100) {
+        throw new Error('Invalid Back 9 gross');
+      }
+      f9by.set(p.tripMemberId, Math.floor(f));
+      b9by.set(p.tripMemberId, Math.floor(b));
     }
-    if (!Number.isFinite(b) || b < 9 || b > 100) {
-      throw new Error('Invalid Back 9 gross');
+  } else {
+    for (const p of participants) {
+      const t = Number(String(formData.get(`total:${p.tripMemberId}`) ?? '').trim());
+      if (!Number.isFinite(t) || t < 18 || t > 200) {
+        throw new Error('Invalid total gross');
+      }
+      // Distribute total roughly 9/9; the action below dumps each
+      // half across its 9 holes, so this just decides the F9/B9 split.
+      const half = Math.floor(t / 2);
+      f9by.set(p.tripMemberId, half);
+      b9by.set(p.tripMemberId, t - half);
     }
-    f9by.set(p.tripMemberId, Math.floor(f));
-    b9by.set(p.tripMemberId, Math.floor(b));
   }
 
-  // ── Parse holes won per side per segment ─────────────────────────
-  const f9wonA = clampWon(formData.get('f9won:A'));
-  const f9wonB = clampWon(formData.get('f9won:B'));
-  const b9wonA = clampWon(formData.get('b9won:A'));
-  const b9wonB = clampWon(formData.get('b9won:B'));
-  if (f9wonA + f9wonB > 9) {
-    throw new Error('Front 9 holes won + halves must fit in 9 holes');
-  }
-  if (b9wonA + b9wonB > 9) {
-    throw new Error('Back 9 holes won + halves must fit in 9 holes');
+  // ── Parse holes won (per segment OR overall) ─────────────────────
+  let f9wonA = 0, f9wonB = 0, b9wonA = 0, b9wonB = 0;
+  if (mode === 'segments') {
+    f9wonA = clampWon(formData.get('f9won:A'), 9);
+    f9wonB = clampWon(formData.get('f9won:B'), 9);
+    b9wonA = clampWon(formData.get('b9won:A'), 9);
+    b9wonB = clampWon(formData.get('b9won:B'), 9);
+    if (f9wonA + f9wonB > 9) {
+      throw new Error('Front 9 holes won + halves must fit in 9 holes');
+    }
+    if (b9wonA + b9wonB > 9) {
+      throw new Error('Back 9 holes won + halves must fit in 9 holes');
+    }
+  } else {
+    const wonA = clampWon(formData.get('won:A'), 18);
+    const wonB = clampWon(formData.get('won:B'), 18);
+    if (wonA + wonB > 18) {
+      throw new Error('Holes won + halves must fit in 18 holes');
+    }
+    // In overall mode F9/B9 segment winners aren't meaningful; we just
+    // mirror the overall outcome onto both halves so the points-aware
+    // recompute uses the same verdict everywhere.
+    f9wonA = wonA;
+    b9wonA = 0;
+    f9wonB = wonB;
+    b9wonB = 0;
   }
 
   // ── Determine winners per segment + overall ──────────────────────
@@ -135,10 +172,21 @@ export async function quickResultMatch(formData: FormData): Promise<void> {
 
   const winningTeamId =
     overall === 'halved' ? null : teamOfSide(overall) ?? null;
+  // In overall mode the F9/B9 winners are not meaningful (no segment
+  // points configured). Mirror the overall to avoid downstream nulls
+  // confusing other consumers.
   const front9WinningTeamId =
-    f9Winner === 'halved' ? null : teamOfSide(f9Winner) ?? null;
+    mode === 'overall'
+      ? winningTeamId
+      : f9Winner === 'halved'
+        ? null
+        : teamOfSide(f9Winner) ?? null;
   const back9WinningTeamId =
-    b9Winner === 'halved' ? null : teamOfSide(b9Winner) ?? null;
+    mode === 'overall'
+      ? winningTeamId
+      : b9Winner === 'halved'
+        ? null
+        : teamOfSide(b9Winner) ?? null;
   const isHalved = overall === 'halved';
 
   // ── Write hole_scores: F9 rows for holes 1..9, B9 for 10..18 ─────
@@ -208,8 +256,8 @@ export async function quickResultMatch(formData: FormData): Promise<void> {
   redirect(`/trips/${tripSlug}/matches/${matchId}`);
 }
 
-function clampWon(raw: FormDataEntryValue | null): number {
+function clampWon(raw: FormDataEntryValue | null, max: number): number {
   const n = Number(String(raw ?? '0').trim());
   if (!Number.isFinite(n) || n < 0) return 0;
-  return Math.min(9, Math.floor(n));
+  return Math.min(max, Math.floor(n));
 }
