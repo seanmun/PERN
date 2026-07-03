@@ -18,7 +18,8 @@ export type FormatId =
   | 'two_man_aggregate'
   | 'scramble'
   | 'alternate_shot'
-  | 'stroke';
+  | 'stroke'
+  | 'best_two_of_three';
 
 export type InputMode = 'individual' | 'team';
 
@@ -39,6 +40,12 @@ export type FormatMeta = {
   //   'team'       — the side records ONE gross per hole. There is no
   //                  per-player gross for this match.
   inputMode: InputMode;
+  // Sum of the N lowest nets on a side, for formats where more than one
+  // player's net counts but not ALL of them (e.g. "best 2 of 3" — 3-player
+  // side, sum the two lowest). Omitted for every other format; the engine
+  // falls back to its built-in best-ball (single lowest) / aggregate (sum
+  // all) rules when this is absent, so existing formats are unaffected.
+  countBest?: number;
 };
 
 export const FORMAT_META: Record<FormatId, FormatMeta> = {
@@ -83,6 +90,18 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
     allowedSideSizes: [1, 2, 3, 4],
     requiresSameFoursomePerSide: false,
     inputMode: 'individual',
+  },
+  best_two_of_three: {
+    id: 'best_two_of_three',
+    label: 'Best 2 of 3',
+    // 3v3, sum of each side's two lowest nets per hole, decided by low
+    // cumulative total across 18 (stroke play — pair with scoring:
+    // 'stroke' when building the match). See packages/scoring/engine.ts
+    // computeStrokePlayMatch.
+    allowedSideSizes: [3],
+    requiresSameFoursomePerSide: true,
+    inputMode: 'individual',
+    countBest: 2,
   },
 };
 

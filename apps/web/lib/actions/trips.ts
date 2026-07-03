@@ -9,6 +9,7 @@ import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import { getTripAuthContext } from '@/lib/auth/trip-context';
 import { AuthorizationError, canEditTrip } from '@/lib/auth/permissions';
 import { slugifyTripName } from '@/lib/slug';
+import { resolveRedirect } from '@/lib/actions/wizard-redirect';
 
 const TRIP_TZ_OFFSET = '-04:00';
 
@@ -134,7 +135,11 @@ export async function createTrip(formData: FormData): Promise<void> {
     .where(eq(users.id, ctx.user.id));
 
   revalidatePath('/home');
-  redirect(`/trips/${slug}/admin/players`);
+  // Optional override so the event-creation wizard can land the admin on
+  // its own next step instead of the classic admin/players page. Absent
+  // for every existing caller — default behavior is unchanged.
+  const dest = resolveRedirect(formData, `/trips/${slug}/admin/players`);
+  if (dest) redirect(dest);
 }
 
 export async function updateTrip(formData: FormData): Promise<void> {

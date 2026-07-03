@@ -26,19 +26,24 @@ import { getScratchHandicap } from '@/lib/scoring/recompute';
 import {
   computeMatch,
   computeStableford,
+  computeStrokePlayMatch,
   computeTeamMatch,
   DEFAULT_STABLEFORD_POINTS,
   formatStatus,
   formatStatusWithWinner,
+  formatStrokePlayStatus,
   type ComputedStableford,
+  type ComputedStrokePlay,
   type HoleResult,
   type PlayerInputFormat,
 } from '@buddycup/scoring/engine';
+import { FORMAT_META, type FormatId } from '@buddycup/scoring/formats';
 
 const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
   'best_ball',
   'singles',
   'two_man_aggregate',
+  'best_two_of_three',
 ]);
 
 export default async function MatchDetailPage({
@@ -155,6 +160,7 @@ export default async function MatchDetailPage({
     : undefined;
   let liveMatch = null;
   let liveStableford: ComputedStableford | null = null;
+  let liveStrokePlay: ComputedStrokePlay | null = null;
   if (scoringData) {
     if (scoringData.match.scoring === 'stableford') {
       liveStableford = computeStableford({
@@ -169,6 +175,20 @@ export default async function MatchDetailPage({
           doublePlus:
             scoringData.match.ptsDoublePlus ?? DEFAULT_STABLEFORD_POINTS.doublePlus,
         },
+      });
+    } else if (
+      scoringData.match.scoring === 'stroke' &&
+      scoringData.inputMode !== 'team'
+    ) {
+      liveStrokePlay = computeStrokePlayMatch({
+        players: scoringData.enginePlayers,
+        holes: scoringData.engineHoles,
+        scores: scoringData.engineScores,
+        format: PLAYER_INPUT_FORMATS.has(scoringData.match.format)
+          ? (scoringData.match.format as PlayerInputFormat)
+          : 'best_ball',
+        scratchHandicap,
+        countBest: FORMAT_META[scoringData.match.format as FormatId]?.countBest,
       });
     } else if (
       scoringData.inputMode === 'team' &&
@@ -189,6 +209,7 @@ export default async function MatchDetailPage({
           ? (scoringData.match.format as PlayerInputFormat)
           : 'best_ball',
         scratchHandicap,
+        countBest: FORMAT_META[scoringData.match.format as FormatId]?.countBest,
       });
     }
   }
@@ -315,6 +336,9 @@ export default async function MatchDetailPage({
           {scoringData?.match.scoring === 'stableford' && (
             <span className="ml-2 text-yellow-800 dark:text-yellow-500">· Stableford</span>
           )}
+          {scoringData?.match.scoring === 'stroke' && (
+            <span className="ml-2 text-yellow-800 dark:text-yellow-500">· Stroke Play</span>
+          )}
         </p>
         {liveStableford && liveStableford.holesPlayed > 0 ? (
           <>
@@ -330,6 +354,16 @@ export default async function MatchDetailPage({
                   (liveStableford.status.winner === 'halved'
                     ? 'Halved'
                     : 'Final')}
+            </p>
+          </>
+        ) : liveStrokePlay && liveStrokePlay.holesPlayed > 0 ? (
+          <>
+            <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
+              {formatStrokePlayStatus(liveStrokePlay.status)}
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+              {liveStrokePlay.holesPlayed} of {liveStrokePlay.totalHoles} holes
+              {liveStrokePlay.status.kind === 'final' && ' · Final'}
             </p>
           </>
         ) : liveMatch && liveMatch.holesPlayed > 0 ? (
@@ -376,6 +410,16 @@ export default async function MatchDetailPage({
           stableford={liveStableford}
           participants={scoringData.participants}
           holes={scoringData.engineHoles}
+        />
+      )}
+
+      {liveStrokePlay && liveStrokePlay.holesPlayed > 0 && scoringData && (
+        <StrokePlayScorecard
+          strokePlay={liveStrokePlay}
+          aTeamName={scoringData.participants.find((p) => p.side === 'A')?.team.name ?? 'A'}
+          bTeamName={scoringData.participants.find((p) => p.side === 'B')?.team.name ?? 'B'}
+          aTeamColor={scoringData.participants.find((p) => p.side === 'A')?.team.color ?? null}
+          bTeamColor={scoringData.participants.find((p) => p.side === 'B')?.team.color ?? null}
         />
       )}
 
@@ -916,6 +960,97 @@ function StablefordScorecard({
         <span className="col-span-2 uppercase tracking-widest text-zinc-500 text-[10px]">Total</span>
         <span className="text-center" style={{ color: aColor }}>{stableford.aPoints}</span>
         <span className="text-center" style={{ color: bColor }}>{stableford.bPoints}</span>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Stroke-play scorecard — cumulative running totals, low score wins.
+ * Deliberately NOT HoleScorecard's up/down match-play rendering (no
+ * per-hole "winner," no A-vs-B lead tracking) — stroke play is decided
+ * by comparing 18-hole sums, not hole-by-hole.
+ */
+function StrokePlayScorecard({
+  strokePlay,
+  aTeamName,
+  bTeamName,
+  aTeamColor,
+  bTeamColor,
+}: {
+  strokePlay: ComputedStrokePlay;
+  aTeamName: string;
+  bTeamName: string;
+  aTeamColor: string | null;
+  bTeamColor: string | null;
+}) {
+  const colorA = aTeamColor ?? '#71717a';
+  const colorB = bTeamColor ?? '#71717a';
+
+  let aRunning = 0;
+  let bRunning = 0;
+  const rows = strokePlay.holeResults.map((r) => {
+    if (r.aTotal != null) aRunning += r.aTotal;
+    if (r.bTotal != null) bRunning += r.bTotal;
+    return { ...r, aRunning, bRunning };
+  });
+
+  return (
+    <section className="mt-6 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
+      <div className="border-b border-zinc-200 dark:border-zinc-900 px-3 py-2.5">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+          Stroke Play · running total
+        </p>
+      </div>
+
+      <div className="grid grid-cols-[28px_28px_1fr_1fr] items-center gap-2 border-b border-zinc-200 dark:border-zinc-900 bg-zinc-100 dark:bg-zinc-900/30 px-3 py-2 font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
+        <span>#</span>
+        <span>Par</span>
+        <span className="truncate" style={{ color: colorA }} title={aTeamName}>
+          {aTeamName}
+        </span>
+        <span className="truncate text-right" style={{ color: colorB }} title={bTeamName}>
+          {bTeamName}
+        </span>
+      </div>
+
+      <div className="divide-y divide-zinc-200 dark:divide-zinc-900">
+        {rows.map((r) => {
+          const aLeads = r.aTotal != null && r.bTotal != null && r.aTotal < r.bTotal;
+          const bLeads = r.aTotal != null && r.bTotal != null && r.bTotal < r.aTotal;
+          return (
+            <div
+              key={r.holeNumber}
+              className="grid grid-cols-[28px_28px_1fr_1fr] items-center gap-2 px-3 py-2 font-mono text-xs tabular-nums"
+            >
+              <span className="font-semibold text-zinc-700 dark:text-zinc-300">{r.holeNumber}</span>
+              <span className="text-zinc-600 dark:text-zinc-400">{r.par}</span>
+              <span
+                className={`rounded-sm px-2 py-1 text-center font-bold ${
+                  aLeads ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-500'
+                }`}
+                style={aLeads ? { background: `${colorA}33`, boxShadow: `inset 0 0 0 1px ${colorA}` } : undefined}
+              >
+                {r.aTotal ?? '—'}
+              </span>
+              <span
+                className={`rounded-sm px-2 py-1 text-center font-bold ${
+                  bLeads ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-500'
+                }`}
+                style={bLeads ? { background: `${colorB}33`, boxShadow: `inset 0 0 0 1px ${colorB}` } : undefined}
+              >
+                {r.bTotal ?? '—'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Totals footer */}
+      <div className="grid grid-cols-[28px_28px_1fr_1fr] items-center gap-2 border-t-2 border-zinc-400 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900/30 px-3 py-2.5 font-mono text-sm font-bold tabular-nums">
+        <span className="col-span-2 uppercase tracking-widest text-zinc-500 text-[10px]">Total</span>
+        <span className="text-center" style={{ color: colorA }}>{strokePlay.totalA}</span>
+        <span className="text-center" style={{ color: colorB }}>{strokePlay.totalB}</span>
       </div>
     </section>
   );

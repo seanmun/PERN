@@ -21,6 +21,7 @@ import {
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
 import type { AuthContext } from '@/lib/auth/current-user';
+import { resolveRedirect } from '@/lib/actions/wizard-redirect';
 
 /**
  * Auto-populate tee_time_participants from a match's participants when
@@ -466,7 +467,13 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
   }
 
   revalidatePath(`/trips/${tripSlug}/schedule`);
-  redirect(`/trips/${tripSlug}/matches/${match.id}`);
+  revalidatePath(`/trips/${tripSlug}/setup/matches`);
+  // Event-creation wizard's Matches step reuses this action and stays in
+  // place ("none") so the newly-created match appears in the same page
+  // render instead of navigating to the match detail page. Absent for
+  // every other caller (the standalone match builder) — unchanged.
+  const dest = resolveRedirect(formData, `/trips/${tripSlug}/matches/${match.id}`);
+  if (dest) redirect(dest);
 }
 
 export async function deleteMatch(formData: FormData): Promise<void> {

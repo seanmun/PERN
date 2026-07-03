@@ -55,6 +55,17 @@ Reference table:
 | `scramble` (4-man) | 4v4 | **Yes** | team |
 | `alternate_shot` | 2v2 | **Yes** | team |
 | `stroke` | N-vN | No | individual |
+| `best_two_of_three` | 3v3 | **Yes** | individual |
+
+`best_two_of_three` ("Best 2 of 3"): each side is 3 players sharing a
+foursome. Per hole, the side's score is the SUM of its two lowest nets
+(the 3rd/worst score doesn't count). Pair with `matches.scoring =
+'stroke'` — the match is decided by comparing 18-hole cumulative totals
+(low total wins), not hole-by-hole up/down. See `computeStrokePlayMatch`
+and the shared `aggregateSideNet` helper in `packages/scoring/engine.ts`.
+`FormatMeta.countBest` (2 for this format) drives the "sum of N lowest"
+rule; every other format omits it and keeps its original behavior
+(best-ball's single lowest / two-man-aggregate's sum of both).
 
 > 2v2 vs 4v4 best ball: same format ID, different template size. The admin picks the size at match-create time. Same for scramble. We may model this as `format` + `sideSize` rather than baking sizes into the enum — see open Qs.
 

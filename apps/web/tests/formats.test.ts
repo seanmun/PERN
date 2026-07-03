@@ -27,6 +27,7 @@ describe('FORMAT_META', () => {
         'scramble',
         'alternate_shot',
         'stroke',
+        'best_two_of_three',
       ].sort(),
     );
   });

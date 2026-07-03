@@ -8,7 +8,7 @@
  * one tap per buddy instead of re-typing nicknames + emails.
  */
 
-import { and, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, ne, notInArray, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   matchParticipants,
@@ -148,4 +148,61 @@ export async function getBuddies(
         b.matchesPlayedTogether - a.matchesPlayedTogether ||
         a.recentNickname.localeCompare(b.recentNickname),
     );
+}
+
+/**
+ * Search every platform user by name/email — not just buddies (people
+ * you've played with before). Backs the event-creation wizard's Players
+ * step so an admin can add someone they haven't shared a match with yet.
+ *
+ * `excludeUserIds` filters out users already on the current trip (same
+ * convention as getBuddies). Returns the same shape as Buddy so the
+ * Players step UI can render both lists with one component —
+ * matchesPlayedTogether is always 0 here (no relationship signal to
+ * rank on; results sort alphabetically instead).
+ */
+export async function searchPlatformUsers(
+  query: string,
+  excludeUserIds: string[] = [],
+  limit = 20,
+): Promise<Buddy[]> {
+  const q = query.trim();
+  if (!q) return [];
+
+  const rows = await db
+    .select({
+      userId: users.id,
+      displayName: users.displayName,
+      fullName: users.fullName,
+      email: users.email,
+      avatarUrl: users.avatarUrl,
+      arcadePortraitUrl: users.arcadePortraitUrl,
+      handicap: users.handicap,
+    })
+    .from(users)
+    .where(
+      and(
+        sql`(
+          ${users.displayName} ILIKE ${`%${q}%`}
+          OR ${users.fullName} ILIKE ${`%${q}%`}
+          OR ${users.email} ILIKE ${`%${q}%`}
+        )`,
+        excludeUserIds.length ? notInArray(users.id, excludeUserIds) : undefined,
+      ),
+    )
+    .limit(limit);
+
+  return rows
+    .map((r) => ({
+      userId: r.userId,
+      displayName: r.displayName,
+      fullName: r.fullName,
+      email: r.email,
+      avatarUrl: r.avatarUrl,
+      arcadePortraitUrl: r.arcadePortraitUrl,
+      recentNickname: r.displayName ?? r.fullName ?? r.email.split('@')[0],
+      recentHandicap: r.handicap,
+      matchesPlayedTogether: 0,
+    }))
+    .sort((a, b) => a.recentNickname.localeCompare(b.recentNickname));
 }

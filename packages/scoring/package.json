@@ -6,6 +6,7 @@
   "exports": {
     "./engine": "./engine.ts",
     "./formats": "./formats.ts",
+    "./team-split": "./team-split.ts",
     "./validation/match-builder": "./validation/match-builder.ts"
   }
 }

@@ -13,6 +13,7 @@ import {
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
 import type { AuthContext } from '@/lib/auth/current-user';
+import { resolveRedirect } from '@/lib/actions/wizard-redirect';
 
 const TRIP_TZ_OFFSET = '-04:00';
 
@@ -64,7 +65,15 @@ export async function createTeeTime(formData: FormData): Promise<void> {
   const tripSlug = await getTripSlugById(round.tripId);
   revalidatePath(`/trips/${tripSlug}/schedule`);
   revalidatePath(`/trips/${tripSlug}/admin/rounds/${roundId}/edit`);
-  redirect(`/trips/${tripSlug}/admin/rounds/${roundId}/edit`);
+  revalidatePath(`/trips/${tripSlug}/setup/groups`);
+  // Event-creation wizard's Groups step reuses this action and stays in
+  // place ("none") so the freshly-created group appears in the same
+  // page render. Absent for every other caller — unchanged.
+  const dest = resolveRedirect(
+    formData,
+    `/trips/${tripSlug}/admin/rounds/${roundId}/edit`,
+  );
+  if (dest) redirect(dest);
 }
 
 export async function updateTeeTime(formData: FormData): Promise<void> {
@@ -189,7 +198,15 @@ export async function updateTeeTimeRoster(formData: FormData): Promise<void> {
   revalidatePath(`/trips/${tripSlug}/admin/tee-times/${teeTimeId}/edit`);
   revalidatePath(`/trips/${tripSlug}/tee-times/${teeTimeId}/score`);
   revalidatePath(`/trips/${tripSlug}/schedule`);
-  redirect(`/trips/${tripSlug}/admin/rounds/${row.round.id}/edit`);
+  revalidatePath(`/trips/${tripSlug}/setup/groups`);
+  // Event-creation wizard's Groups step reuses this action and stays in
+  // place ("none") instead of navigating to the classic round-edit page.
+  // Absent for every other caller — unchanged.
+  const dest = resolveRedirect(
+    formData,
+    `/trips/${tripSlug}/admin/rounds/${row.round.id}/edit`,
+  );
+  if (dest) redirect(dest);
 }
 
 export async function deleteTeeTime(formData: FormData): Promise<void> {

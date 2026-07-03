@@ -21,6 +21,7 @@ import {
   isTripAdminOf,
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
+import { resolveRedirect } from '@/lib/actions/wizard-redirect';
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;
@@ -123,7 +124,12 @@ export async function createPlayer(formData: FormData): Promise<void> {
   revalidatePath(`/trips/${tripSlug}/admin/players`);
   revalidatePath(`/trips/${tripSlug}/schedule`);
   revalidatePath(`/trips/${tripSlug}/scoreboard`);
-  redirect(`/trips/${tripSlug}/admin/players`);
+  revalidatePath(`/trips/${tripSlug}/setup/players`);
+  // Event-creation wizard reuses this action from its Players step and
+  // stays in place ("none") instead of navigating to the classic
+  // admin/players page. Absent for every other caller — unchanged.
+  const dest = resolveRedirect(formData, `/trips/${tripSlug}/admin/players`);
+  if (dest) redirect(dest);
 }
 
 /**
@@ -270,6 +276,7 @@ export async function addBuddyToTrip(formData: FormData): Promise<void> {
   if (existing) {
     const tripSlug = await getTripSlugById(tripId);
     revalidatePath(`/trips/${tripSlug}/admin/players`);
+    revalidatePath(`/trips/${tripSlug}/setup/players`);
     return;
   }
 
@@ -296,6 +303,7 @@ export async function addBuddyToTrip(formData: FormData): Promise<void> {
 
   const tripSlug = await getTripSlugById(tripId);
   revalidatePath(`/trips/${tripSlug}/admin/players`);
+  revalidatePath(`/trips/${tripSlug}/setup/players`);
 }
 
 export async function updatePlayer(formData: FormData): Promise<void> {
@@ -477,5 +485,9 @@ export async function deletePlayer(formData: FormData): Promise<void> {
 
   const tripSlug = await getTripSlugById(existing.tripId);
   revalidatePath(`/trips/${tripSlug}`, 'layout');
-  redirect(`/trips/${tripSlug}/admin/players`);
+  // Event-creation wizard's Players step reuses this action as an
+  // "undo add" and stays in place ("none"). Absent for every other
+  // caller — unchanged.
+  const dest = resolveRedirect(formData, `/trips/${tripSlug}/admin/players`);
+  if (dest) redirect(dest);
 }

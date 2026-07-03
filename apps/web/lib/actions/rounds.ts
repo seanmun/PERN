@@ -13,6 +13,7 @@ import {
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
 import type { AuthContext } from '@/lib/auth/current-user';
+import { resolveRedirect } from '@/lib/actions/wizard-redirect';
 
 type RoundFormat = 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate';
 const VALID_FORMATS: ReadonlySet<RoundFormat> = new Set([
@@ -131,7 +132,16 @@ export async function createRound(formData: FormData): Promise<void> {
   const tripSlug = await getTripSlugById(tripId);
   revalidatePath(`/trips/${tripSlug}/schedule`);
   revalidatePath(`/trips/${tripSlug}/admin/rounds`);
-  redirect(`/trips/${tripSlug}/admin/rounds/${created.id}/edit`);
+  // Event-creation wizard's Groups step reuses this action and lands
+  // back on its own round-setup page instead of the classic round-edit
+  // page. The new round's id doesn't exist until after the insert above,
+  // so the wizard passes a "{roundId}" placeholder for us to fill in.
+  // Absent for every other caller — unchanged.
+  const dest = resolveRedirect(
+    formData,
+    `/trips/${tripSlug}/admin/rounds/${created.id}/edit`,
+  );
+  if (dest) redirect(dest.replace('{roundId}', created.id));
 }
 
 export async function updateRound(formData: FormData): Promise<void> {

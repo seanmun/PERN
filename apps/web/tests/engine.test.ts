@@ -14,6 +14,8 @@ import { describe, it, expect } from 'vitest';
 import {
   computeStrokes,
   computeMatch,
+  computeStrokePlayMatch,
+  formatStrokePlayStatus,
   computeTeamMatch,
   computeTeamHandicap,
   computeStableford,
@@ -217,6 +219,217 @@ describe('computeMatch — Two-Man Aggregate', () => {
     });
     expect(fullComputed.upA).toBe(1);
     expect(fullComputed.upB).toBe(0);
+  });
+});
+
+describe('computeMatch — countBest ("Best 2 of 3") aggregation', () => {
+  const players3v3: EnginePlayer[] = [
+    { id: 'A1', handicap: 10, teamSide: 'A' },
+    { id: 'A2', handicap: 10, teamSide: 'A' },
+    { id: 'A3', handicap: 10, teamSide: 'A' },
+    { id: 'B1', handicap: 10, teamSide: 'B' },
+    { id: 'B2', handicap: 10, teamSide: 'B' },
+    { id: 'B3', handicap: 10, teamSide: 'B' },
+  ];
+
+  it('needs at least `countBest` players scored — 1 of 3 is not enough', () => {
+    const scores: EngineScore[] = [
+      { playerId: 'A1', holeNumber: 1, gross: 4 },
+      { playerId: 'B1', holeNumber: 1, gross: 4 },
+      { playerId: 'B2', holeNumber: 1, gross: 4 },
+    ];
+    const computed = computeMatch({
+      players: players3v3,
+      holes: HOLES_18,
+      scores,
+      format: 'best_two_of_three',
+      countBest: 2,
+    });
+    expect(computed.holesPlayed).toBe(0);
+    expect(computed.holeResults[0].aBestNet).toBeNull();
+  });
+
+  it('2 of 3 scored is enough — sums the two lowest nets, ignores the unscored 3rd', () => {
+    // A: 4, 6 scored (5th player A3 unscored) → best 2 of {4,6} = 10
+    // B: 5, 5, 9 scored (all 3) → best 2 of {5,5,9} = 10 → halved hole
+    const scores: EngineScore[] = [
+      { playerId: 'A1', holeNumber: 1, gross: 4 },
+      { playerId: 'A2', holeNumber: 1, gross: 6 },
+      { playerId: 'B1', holeNumber: 1, gross: 5 },
+      { playerId: 'B2', holeNumber: 1, gross: 5 },
+      { playerId: 'B3', holeNumber: 1, gross: 9 },
+    ];
+    const computed = computeMatch({
+      players: players3v3,
+      holes: HOLES_18,
+      scores,
+      format: 'best_two_of_three',
+      countBest: 2,
+    });
+    expect(computed.holeResults[0].aBestNet).toBe(10);
+    expect(computed.holeResults[0].bBestNet).toBe(10);
+    expect(computed.holeResults[0].winner).toBe('halved');
+  });
+
+  it('the 3rd (worst) score never drags the total down once 2 are known', () => {
+    // A: 3, 4, 20 (blow-up hole) — best 2 = 3+4 = 7, the 20 is ignored.
+    const scores: EngineScore[] = [
+      { playerId: 'A1', holeNumber: 1, gross: 3 },
+      { playerId: 'A2', holeNumber: 1, gross: 4 },
+      { playerId: 'A3', holeNumber: 1, gross: 20 },
+      { playerId: 'B1', holeNumber: 1, gross: 4 },
+      { playerId: 'B2', holeNumber: 1, gross: 5 },
+    ];
+    const computed = computeMatch({
+      players: players3v3,
+      holes: HOLES_18,
+      scores,
+      format: 'best_two_of_three',
+      countBest: 2,
+    });
+    expect(computed.holeResults[0].aBestNet).toBe(7);
+  });
+
+  it('omitting countBest leaves best_ball/two_man_aggregate behavior untouched', () => {
+    // Same fixture as the existing "aggregate sums both nets" test above,
+    // called WITHOUT countBest — proves the new optional param changes
+    // nothing when absent.
+    const players: EnginePlayer[] = [
+      { id: 'A1', handicap: 10, teamSide: 'A' },
+      { id: 'A2', handicap: 10, teamSide: 'A' },
+      { id: 'B1', handicap: 10, teamSide: 'B' },
+      { id: 'B2', handicap: 10, teamSide: 'B' },
+    ];
+    const full: EngineScore[] = [
+      { playerId: 'A1', holeNumber: 1, gross: 4 },
+      { playerId: 'A2', holeNumber: 1, gross: 4 },
+      { playerId: 'B1', holeNumber: 1, gross: 5 },
+      { playerId: 'B2', holeNumber: 1, gross: 5 },
+    ];
+    const computed = computeMatch({
+      players,
+      holes: HOLES_18,
+      scores: full,
+      format: 'two_man_aggregate',
+    });
+    expect(computed.upA).toBe(1);
+    expect(computed.upB).toBe(0);
+  });
+});
+
+describe('computeStrokePlayMatch — "Best 2 of 3" / low total wins', () => {
+  const players3v3: EnginePlayer[] = [
+    { id: 'A1', handicap: 0, teamSide: 'A' },
+    { id: 'A2', handicap: 0, teamSide: 'A' },
+    { id: 'A3', handicap: 0, teamSide: 'A' },
+    { id: 'B1', handicap: 0, teamSide: 'B' },
+    { id: 'B2', handicap: 0, teamSide: 'B' },
+    { id: 'B3', handicap: 0, teamSide: 'B' },
+  ];
+
+  function scoreEveryHole(
+    ids: string[],
+    grossPerHole: (hole: number) => number,
+    upToHole = 18,
+  ): EngineScore[] {
+    const scores: EngineScore[] = [];
+    for (let h = 1; h <= upToHole; h++) {
+      for (const id of ids) {
+        scores.push({ playerId: id, holeNumber: h, gross: grossPerHole(h) });
+      }
+    }
+    return scores;
+  }
+
+  it('not_started with zero comparable holes', () => {
+    const computed = computeStrokePlayMatch({
+      players: players3v3,
+      holes: HOLES_18,
+      scores: [],
+      format: 'best_two_of_three',
+      countBest: 2,
+    });
+    expect(computed.status.kind).toBe('not_started');
+  });
+
+  it('in_progress once some but not all holes are comparable', () => {
+    const scores = scoreEveryHole(
+      ['A1', 'A2', 'A3', 'B1', 'B2', 'B3'],
+      () => 4,
+      10, // only 10 of 18 holes scored
+    );
+    const computed = computeStrokePlayMatch({
+      players: players3v3,
+      holes: HOLES_18,
+      scores,
+      format: 'best_two_of_three',
+      countBest: 2,
+    });
+    expect(computed.status.kind).toBe('in_progress');
+    expect(computed.holesPlayed).toBe(10);
+  });
+
+  it('final + lower cumulative total wins, no early closure', () => {
+    // A's best-2 sum every hole: 4+4=8. B's: 5+5=10. A wins by 2*18=36
+    // strokes, but crucially the match does NOT close before all 18 —
+    // stroke play has no dormie/early-closure concept.
+    const scores = [
+      ...scoreEveryHole(['A1', 'A2'], () => 4),
+      ...scoreEveryHole(['A3'], () => 9), // worst score, never counts
+      ...scoreEveryHole(['B1', 'B2'], () => 5),
+      ...scoreEveryHole(['B3'], () => 9),
+    ];
+    const computed = computeStrokePlayMatch({
+      players: players3v3,
+      holes: HOLES_18,
+      scores,
+      format: 'best_two_of_three',
+      countBest: 2,
+    });
+    expect(computed.status.kind).toBe('final');
+    if (computed.status.kind === 'final') {
+      expect(computed.status.winner).toBe('A');
+      expect(computed.status.totalA).toBe(8 * 18);
+      expect(computed.status.totalB).toBe(10 * 18);
+    }
+  });
+
+  it('equal totals halve the match', () => {
+    const scores = [
+      ...scoreEveryHole(['A1', 'A2', 'A3'], () => 4),
+      ...scoreEveryHole(['B1', 'B2', 'B3'], () => 4),
+    ];
+    const computed = computeStrokePlayMatch({
+      players: players3v3,
+      holes: HOLES_18,
+      scores,
+      format: 'best_two_of_three',
+      countBest: 2,
+    });
+    expect(computed.status.kind).toBe('final');
+    if (computed.status.kind === 'final') {
+      expect(computed.status.winner).toBe('halved');
+    }
+  });
+
+  it('formatStrokePlayStatus renders totals + hole count', () => {
+    const inProgress = computeStrokePlayMatch({
+      players: players3v3,
+      holes: HOLES_18,
+      scores: scoreEveryHole(['A1', 'A2', 'A3', 'B1', 'B2', 'B3'], () => 4, 5),
+      format: 'best_two_of_three',
+      countBest: 2,
+    });
+    expect(formatStrokePlayStatus(inProgress.status)).toBe('40-40 thru 5');
+
+    const halved = computeStrokePlayMatch({
+      players: players3v3,
+      holes: HOLES_18,
+      scores: scoreEveryHole(['A1', 'A2', 'A3', 'B1', 'B2', 'B3'], () => 4),
+      format: 'best_two_of_three',
+      countBest: 2,
+    });
+    expect(formatStrokePlayStatus(halved.status)).toBe('Halved 144-144');
   });
 });
 

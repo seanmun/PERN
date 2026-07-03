@@ -71,17 +71,21 @@ export async function getScratchHandicap(
 import {
   computeMatch,
   computeStableford,
+  computeStrokePlayMatch,
   computeTeamMatch,
   DEFAULT_STABLEFORD_POINTS,
   formatStatus,
+  formatStrokePlayStatus,
   type PlayerInputFormat,
   type StablefordPoints,
 } from '@buddycup/scoring/engine';
+import { FORMAT_META, type FormatId } from '@buddycup/scoring/formats';
 
 const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
   'best_ball',
   'singles',
   'two_man_aggregate',
+  'best_two_of_three',
 ]);
 
 export async function recomputeMatchStatus(matchId: string): Promise<void> {
@@ -142,6 +146,43 @@ export async function recomputeMatchStatus(matchId: string): Promise<void> {
         }
         break;
     }
+  } else if (
+    data.match.scoring === 'stroke' &&
+    data.inputMode !== 'team'
+  ) {
+    // Stroke play ("low total wins") — e.g. Best 2 of 3. Team-input
+    // formats (scramble/alt-shot) fall through to match-play below;
+    // stroke resolution for those isn't built yet.
+    const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
+      ? (data.match.format as PlayerInputFormat)
+      : 'best_ball';
+    const countBest = FORMAT_META[data.match.format as FormatId]?.countBest;
+    const sp = computeStrokePlayMatch({
+      players: data.enginePlayers,
+      holes: data.engineHoles,
+      scores: data.engineScores,
+      format: fmt,
+      scratchHandicap,
+      countBest,
+    });
+    switch (sp.status.kind) {
+      case 'not_started':
+        nextStatus = 'scheduled';
+        break;
+      case 'in_progress':
+        nextStatus = 'in_progress';
+        resultText = formatStrokePlayStatus(sp.status);
+        break;
+      case 'final':
+        nextStatus = 'completed';
+        if (sp.status.winner === 'halved') {
+          isHalved = true;
+        } else {
+          winningTeamId = teamIdByside.get(sp.status.winner) ?? null;
+        }
+        resultText = formatStrokePlayStatus(sp.status);
+        break;
+    }
   } else {
     let computed;
     if (
@@ -158,12 +199,14 @@ export async function recomputeMatchStatus(matchId: string): Promise<void> {
       const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
         ? (data.match.format as PlayerInputFormat)
         : 'best_ball';
+      const countBest = FORMAT_META[data.match.format as FormatId]?.countBest;
       computed = computeMatch({
         players: data.enginePlayers,
         holes: data.engineHoles,
         scores: data.engineScores,
         format: fmt,
         scratchHandicap,
+        countBest,
       });
     }
 
@@ -190,9 +233,14 @@ export async function recomputeMatchStatus(matchId: string): Promise<void> {
   }
 
   // Segment winners — front 9 + back 9 run the engine on their own slice.
+  // Stroke-scored matches are overall-only (confirmed for Best 2 of 3;
+  // no front/back split semantics wired up for stroke play yet).
   let front9WinningTeamId: string | null = null;
   let back9WinningTeamId: string | null = null;
-  if (data.match.scoring !== 'stableford' && data.engineHoles.length >= 18) {
+  if (
+    data.match.scoring === 'match_play' &&
+    data.engineHoles.length >= 18
+  ) {
     const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
       ? (data.match.format as PlayerInputFormat)
       : 'best_ball';

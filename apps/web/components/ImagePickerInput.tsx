@@ -11,6 +11,7 @@ export default function ImagePickerInput({
   value,
   onChange,
   aspect = '16/9',
+  previewMaxWidth,
 }: {
   name: string;
   defaultValue?: string;
@@ -20,6 +21,11 @@ export default function ImagePickerInput({
   value?: string;
   onChange?: (url: string) => void;
   aspect?: string;
+  // Caps the PREVIEW square's width (px) without narrowing the upload
+  // button / URL input below it. Default (unset) keeps the preview
+  // full-width — right for a 16:9 course hero, wrong for a 1:1 icon on
+  // a long form (see EventWizard's DetailsStep).
+  previewMaxWidth?: number;
 }) {
   const isControlled = value !== undefined;
   const [internalUrl, setInternalUrl] = useState<string>(defaultValue ?? '');
@@ -68,7 +74,10 @@ export default function ImagePickerInput({
 
       <div
         className="w-full overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950"
-        style={{ aspectRatio: aspect }}
+        style={{
+          aspectRatio: aspect,
+          maxWidth: previewMaxWidth,
+        }}
       >
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element

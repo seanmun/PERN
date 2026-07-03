@@ -29,6 +29,7 @@ const BUILDER_FORMATS: readonly FormatId[] = [
   'two_man_aggregate',
   'scramble',
   'stroke',
+  'best_two_of_three',
 ];
 import {
   validateBuilderState,
@@ -61,6 +62,7 @@ export default function MatchBuilder({
   teeTimes,
   defaultFormat,
   defaultTeeTimeId,
+  redirectTo,
 }: {
   tripSlug: string;
   roundId: string;
@@ -69,6 +71,10 @@ export default function MatchBuilder({
   teeTimes: TeeTimeSummary[];
   defaultFormat: FormatId;
   defaultTeeTimeId?: string | null;
+  // Event-creation wizard passes "none" so the Matches step stays in
+  // place after each add instead of navigating to the match detail
+  // page. Omitted everywhere else — unchanged default behavior.
+  redirectTo?: string;
 }) {
   const [format, setFormat] = useState<FormatId>(defaultFormat);
   const meta = FORMAT_META[format];
@@ -134,6 +140,12 @@ export default function MatchBuilder({
     const nextMeta = FORMAT_META[f];
     if (!nextMeta.allowedSideSizes.includes(sideSize)) {
       changeSideSize(nextMeta.allowedSideSizes[0]);
+    }
+    // Best 2 of 3 is always meant to be decided by 18-hole cumulative
+    // total, not hole-by-hole up/down — default scoring to stroke so
+    // picking the format doesn't silently leave it on match play.
+    if (f === 'best_two_of_three') {
+      setScoring('stroke');
     }
   }
 
@@ -239,6 +251,7 @@ export default function MatchBuilder({
         <input type="hidden" name="roundId" value={roundId} />
         <input type="hidden" name="tripSlug" value={tripSlug} />
         <input type="hidden" name="state" value={payload} />
+        {redirectTo && <input type="hidden" name="redirectTo" value={redirectTo} />}
         <input type="hidden" name="scoring" value={scoring} />
         <input type="hidden" name="pointsOverall" value={matchPoints.overall} />
         <input type="hidden" name="pointsFront9" value={matchPoints.front9} />

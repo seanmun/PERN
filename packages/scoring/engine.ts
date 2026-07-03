@@ -18,7 +18,11 @@
  * their own stroke allocation; sums happen at net-comparison time, not earlier).
  */
 
-export type PlayerInputFormat = 'best_ball' | 'singles' | 'two_man_aggregate';
+export type PlayerInputFormat =
+  | 'best_ball'
+  | 'singles'
+  | 'two_man_aggregate'
+  | 'best_two_of_three';
 
 export type EnginePlayer = {
   id: string;
@@ -110,6 +114,54 @@ export function computeStrokes(
 }
 
 /**
+ * Reduce one side's per-player nets on a hole to a single number, for
+ * side-vs-side comparison. Shared between match-play (computeMatch) and
+ * stroke-play (computeStrokePlayMatch) resolution — both must agree on
+ * what a side "shot" on a given hole.
+ *
+ * Default aggregation (countBest omitted, i.e. every caller before
+ * "best 2 of 3" existed): two_man_aggregate sums ALL of the side's nets
+ * (needs every player scored, else null); everything else takes the
+ * single lowest net, best-ball style (needs at least one player scored).
+ * This branch is untouched from the original implementation — existing
+ * formats compute identically to before.
+ *
+ * Explicit countBest: sum of the `countBest` LOWEST nets on the side.
+ * Needs at least `countBest` players scored to produce a value — used by
+ * formats like "best 2 of 3" (3-player side, sum the two lowest nets;
+ * the 3rd player's score isn't required to know the answer once 2 are in).
+ */
+function aggregateSideNet(
+  side: EnginePlayer[],
+  holeNumber: number,
+  scoreByPlayerHole: Map<string, Map<number, number>>,
+  strokesByPlayer: Map<string, Map<number, number>>,
+  format: PlayerInputFormat,
+  countBest?: number,
+): number | null {
+  const nets: number[] = [];
+  for (const p of side) {
+    const gross = scoreByPlayerHole.get(p.id)?.get(holeNumber);
+    if (gross == null) {
+      if (countBest == null && format === 'two_man_aggregate') return null;
+      continue;
+    }
+    const strokes = strokesByPlayer.get(p.id)?.get(holeNumber) ?? 0;
+    nets.push(gross - strokes);
+  }
+  if (countBest != null) {
+    if (nets.length < countBest) return null;
+    nets.sort((a, b) => a - b);
+    return nets.slice(0, countBest).reduce((a, b) => a + b, 0);
+  }
+  if (nets.length === 0) return null;
+  if (format === 'two_man_aggregate') {
+    return nets.reduce((a, b) => a + b, 0);
+  }
+  return Math.min(...nets);
+}
+
+/**
  * Compute the running state of a match from gross scores. Stops "playing" once
  * the match is mathematically decided — extra scores past closure are ignored
  * (matches the real-world rule).
@@ -121,6 +173,9 @@ export function computeMatch(input: {
   format?: PlayerInputFormat;
   /** Foursome scratch baseline. See computeStrokes(scratchHandicap) docs. */
   scratchHandicap?: number;
+  /** See aggregateSideNet doc — omit for every format except "best 2 of 3"
+   * style aggregations. */
+  countBest?: number;
 }): ComputedMatch {
   const { players, holes } = input;
   const format = input.format ?? 'best_ball';
@@ -140,17 +195,6 @@ export function computeMatch(input: {
 
   const sortedHoles = [...holes].sort((a, b) => a.number - b.number);
 
-  /**
-   * Reduce one side's per-player nets on a hole down to a single number we can
-   * compare against the other side. Best Ball / Singles → min; Aggregate → sum.
-   * Returns null when no player on that side has a score yet (best ball/agg
-   * both need at least one score; aggregate strictly speaking needs BOTH but
-   * we still show running totals once any player scores).
-   *
-   * For aggregate, a missing partner score causes the hole to be uncountable —
-   * comparing a partial sum to the other side's full sum would lie. We only
-   * count the hole once every player on the side has scored.
-   */
   /** Max strokes any player on the side is getting for that hole.
    * Drives the "+1" indicator on the scorecard. */
   function holeStrokes(side: EnginePlayer[], holeNumber: number): number {
@@ -163,21 +207,14 @@ export function computeMatch(input: {
   }
 
   function sideNetOnHole(side: EnginePlayer[], holeNumber: number): number | null {
-    const nets: number[] = [];
-    for (const p of side) {
-      const gross = scoreByPlayerHole.get(p.id)?.get(holeNumber);
-      if (gross == null) {
-        if (format === 'two_man_aggregate') return null;
-        continue;
-      }
-      const strokes = strokesByPlayer.get(p.id)?.get(holeNumber) ?? 0;
-      nets.push(gross - strokes);
-    }
-    if (nets.length === 0) return null;
-    if (format === 'two_man_aggregate') {
-      return nets.reduce((a, b) => a + b, 0);
-    }
-    return Math.min(...nets);
+    return aggregateSideNet(
+      side,
+      holeNumber,
+      scoreByPlayerHole,
+      strokesByPlayer,
+      format,
+      input.countBest,
+    );
   }
 
   /** For best-ball / singles, the player whose net was the side's best
@@ -382,6 +419,144 @@ export function formatStatusWithWinner(
   const name = leaderSide === 'A' ? sideAName : sideBName;
   if (!name) return base;
   return `${name} ${base}`;
+}
+
+// ───────────────────────── STROKE PLAY ─────────────────────────
+//
+// "Low total wins" resolution — as opposed to match-play's hole-by-hole
+// UP/DOWN with early closure. Per-hole side aggregation is IDENTICAL to
+// computeMatch (shared via aggregateSideNet); what differs is how the
+// per-hole numbers combine into a result: summed across all 18 holes and
+// compared once, not decided hole-by-hole. Individual-input formats only
+// (scramble/alternate_shot's team-scored gross isn't wired through here).
+
+export type StrokePlayHoleResult = {
+  holeNumber: number;
+  par: number;
+  // This hole's side aggregate (NOT a running total) — null until enough
+  // of the side has scored to know it (see aggregateSideNet).
+  aTotal: number | null;
+  bTotal: number | null;
+  aStrokes: number;
+  bStrokes: number;
+};
+
+export type StrokePlayStatus =
+  | { kind: 'not_started' }
+  | { kind: 'in_progress'; totalA: number; totalB: number; holesPlayed: number }
+  | { kind: 'final'; totalA: number; totalB: number; winner: 'A' | 'B' | 'halved' };
+
+export type ComputedStrokePlay = {
+  status: StrokePlayStatus;
+  holesPlayed: number;
+  totalHoles: number;
+  totalA: number;
+  totalB: number;
+  holeResults: StrokePlayHoleResult[];
+  strokesByPlayer: Map<string, Map<number, number>>;
+};
+
+export function computeStrokePlayMatch(input: {
+  players: EnginePlayer[];
+  holes: EngineHole[];
+  scores: EngineScore[];
+  format?: PlayerInputFormat;
+  scratchHandicap?: number;
+  /** See aggregateSideNet doc — e.g. 2 for "best 2 of 3." */
+  countBest?: number;
+}): ComputedStrokePlay {
+  const { players, holes } = input;
+  const format = input.format ?? 'best_ball';
+  const totalHoles = holes.length;
+  const strokesByPlayer = computeStrokes(players, holes, input.scratchHandicap);
+
+  const scoreByPlayerHole = new Map<string, Map<number, number>>();
+  for (const s of input.scores) {
+    const inner = scoreByPlayerHole.get(s.playerId) ?? new Map<number, number>();
+    inner.set(s.holeNumber, s.gross);
+    scoreByPlayerHole.set(s.playerId, inner);
+  }
+
+  const sideA = players.filter((p) => p.teamSide === 'A');
+  const sideB = players.filter((p) => p.teamSide === 'B');
+  const sortedHoles = [...holes].sort((a, b) => a.number - b.number);
+
+  function holeStrokes(side: EnginePlayer[], holeNumber: number): number {
+    let max = 0;
+    for (const p of side) {
+      const n = strokesByPlayer.get(p.id)?.get(holeNumber) ?? 0;
+      if (n > max) max = n;
+    }
+    return max;
+  }
+
+  let totalA = 0;
+  let totalB = 0;
+  let holesPlayed = 0;
+  const holeResults: StrokePlayHoleResult[] = [];
+
+  for (const hole of sortedHoles) {
+    const aTotal = aggregateSideNet(
+      sideA, hole.number, scoreByPlayerHole, strokesByPlayer, format, input.countBest,
+    );
+    const bTotal = aggregateSideNet(
+      sideB, hole.number, scoreByPlayerHole, strokesByPlayer, format, input.countBest,
+    );
+    // Only count holes where BOTH sides have a value — keeps the running
+    // totals comparable instead of one side racing ahead just because
+    // its players entered scores first.
+    if (aTotal != null && bTotal != null) {
+      totalA += aTotal;
+      totalB += bTotal;
+      holesPlayed += 1;
+    }
+    holeResults.push({
+      holeNumber: hole.number,
+      par: hole.par,
+      aTotal,
+      bTotal,
+      aStrokes: holeStrokes(sideA, hole.number),
+      bStrokes: holeStrokes(sideB, hole.number),
+    });
+  }
+
+  let status: StrokePlayStatus;
+  if (holesPlayed === 0) {
+    status = { kind: 'not_started' };
+  } else if (holesPlayed < totalHoles) {
+    status = { kind: 'in_progress', totalA, totalB, holesPlayed };
+  } else {
+    // Stroke play: no early closure. Decided only once all 18 holes are
+    // in for both sides — lower total wins.
+    const winner: 'A' | 'B' | 'halved' =
+      totalA < totalB ? 'A' : totalB < totalA ? 'B' : 'halved';
+    status = { kind: 'final', totalA, totalB, winner };
+  }
+
+  return {
+    status,
+    holesPlayed,
+    totalHoles,
+    totalA,
+    totalB,
+    holeResults,
+    strokesByPlayer,
+  };
+}
+
+/** Human-readable stroke-play status: "58-61 thru 14", "58-61" (final),
+ * "Halved 58-58". */
+export function formatStrokePlayStatus(s: StrokePlayStatus): string {
+  switch (s.kind) {
+    case 'not_started':
+      return '—';
+    case 'in_progress':
+      return `${s.totalA}-${s.totalB} thru ${s.holesPlayed}`;
+    case 'final':
+      return s.winner === 'halved'
+        ? `Halved ${s.totalA}-${s.totalB}`
+        : `${s.totalA}-${s.totalB}`;
+  }
 }
 
 // ───────────────────────── TEAM-INPUT FORMATS ─────────────────────────
