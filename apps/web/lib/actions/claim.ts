@@ -1,16 +1,28 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { currentUser } from '@clerk/nextjs/server';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { tripMembers } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
+import { clerkEmails } from '@/lib/auth/clerk-emails';
 import { AuthorizationError } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
 
+/** Every email we'll accept as proof of ownership for a claim: all the
+ * addresses on the Clerk account, plus the users-row email as a fallback
+ * (covers the moment right after an email change before sync). */
+async function claimantEmails(ctxEmail: string): Promise<string[]> {
+  const clerkUser = await currentUser();
+  const all = clerkUser ? clerkEmails(clerkUser) : [];
+  return Array.from(new Set([...all, ctxEmail.toLowerCase()]));
+}
+
 /**
  * Explicit claim of a specific tripMember by id. The row's email must match
- * the calling user's email (case-insensitive) — that's the security check.
+ * one of the calling user's emails (case-insensitive) — that's the security
+ * check.
  *
  * Used when getGlobalAuthContext's lazy-claim missed a row (e.g. an admin set the
  * email AFTER the user's first sign-in, so the auto-claim never re-ran).
@@ -35,8 +47,8 @@ export async function claimTripMember(formData: FormData): Promise<void> {
     );
   }
 
-  const userEmail = ctx.user.email.toLowerCase();
-  if (member.email.toLowerCase() !== userEmail) {
+  const myEmails = await claimantEmails(ctx.user.email);
+  if (!myEmails.includes(member.email.toLowerCase())) {
     throw new AuthorizationError(
       "This slot's email doesn't match your account. Ask the trip admin to update it.",
     );
@@ -44,7 +56,7 @@ export async function claimTripMember(formData: FormData): Promise<void> {
 
   await db
     .update(tripMembers)
-    .set({ userId: ctx.user.id, email: userEmail })
+    .set({ userId: ctx.user.id })
     .where(eq(tripMembers.id, member.id));
 
   const tripSlug = await getTripSlugById(member.tripId);
@@ -61,8 +73,8 @@ export type ClaimableSlot = {
 };
 
 /**
- * List every tripMember row matching the user's email that hasn't been
- * claimed yet (userId IS NULL). The standard lazy-claim already claims
+ * List every tripMember row matching any of the user's emails that hasn't
+ * been claimed yet (userId IS NULL). The standard lazy-claim already claims
  * these on sign-in — this is a belt-and-suspenders read for the /me page
  * so we can render a "claim missed slot" CTA if any slip through.
  */
@@ -70,7 +82,11 @@ export async function listClaimableSlots(): Promise<ClaimableSlot[]> {
   const ctx = await getGlobalAuthContext();
   if (!ctx) return [];
 
-  const email = ctx.user.email.toLowerCase();
+  const myEmails = await claimantEmails(ctx.user.email);
+  const emailList = sql.join(
+    myEmails.map((e) => sql`${e}`),
+    sql`, `,
+  );
   const rows = await db
     .select({
       tripMemberId: tripMembers.id,
@@ -81,7 +97,7 @@ export async function listClaimableSlots(): Promise<ClaimableSlot[]> {
     })
     .from(tripMembers)
     .where(
-      sql`lower(${tripMembers.email}) = ${email} AND ${tripMembers.userId} IS NULL`,
+      sql`lower(${tripMembers.email}) IN (${emailList}) AND ${tripMembers.userId} IS NULL`,
     );
   return rows;
 }

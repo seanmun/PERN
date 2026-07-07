@@ -178,6 +178,22 @@ export async function updatePlayerField(formData: FormData): Promise<void> {
         throw new Error('Email looks invalid');
       }
       patch.email = v || null;
+      // Same stale-link guard as updatePlayer (the Gerry bug): if the row
+      // is linked to a user whose email no longer matches the new value,
+      // drop the link so lazy-claim can re-attach the RIGHT person.
+      // Without this, the slot stays owned by the old user forever and
+      // the new owner gets "already claimed."
+      if (existing.userId) {
+        const [linkedUser] = await db
+          .select({ email: users.email })
+          .from(users)
+          .where(eq(users.id, existing.userId))
+          .limit(1);
+        const linkedEmailLower = linkedUser?.email?.toLowerCase() ?? null;
+        if (!v || linkedEmailLower !== v) {
+          patch.userId = null;
+        }
+      }
       break;
     }
     case 'role': {
@@ -212,6 +228,23 @@ export async function updatePlayerField(formData: FormData): Promise<void> {
   }
 
   await db.update(tripMembers).set(patch).where(eq(tripMembers.id, id));
+
+  // If the email edit dropped a stale user link and the new address
+  // belongs to someone who's ALREADY signed up, claim immediately
+  // instead of waiting for their next sign-in — mirrors updatePlayer.
+  if (field === 'email' && patch.userId === null && patch.email) {
+    const [matchingUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(sql`lower(${users.email}) = ${patch.email}`)
+      .limit(1);
+    if (matchingUser) {
+      await db
+        .update(tripMembers)
+        .set({ userId: matchingUser.id })
+        .where(eq(tripMembers.id, id));
+    }
+  }
 
   // When team changes, sync the new teamId onto every uncompleted match
   // this player is in. Mirrors the logic in updatePlayer so admin can
