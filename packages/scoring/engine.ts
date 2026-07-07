@@ -18,11 +18,7 @@
  * their own stroke allocation; sums happen at net-comparison time, not earlier).
  */
 
-export type PlayerInputFormat =
-  | 'best_ball'
-  | 'singles'
-  | 'two_man_aggregate'
-  | 'best_two_of_three';
+export type PlayerInputFormat = 'best_ball' | 'singles' | 'two_man_aggregate';
 
 export type EnginePlayer = {
   id: string;
@@ -40,6 +36,10 @@ export type EngineScore = {
   playerId: string;
   holeNumber: number;
   gross: number;
+  // "30 Ball" only — whether this specific score has been selected to
+  // count toward the side's 30-score budget. Ignored by every other
+  // format/engine function. See computeThirtyBallMatch.
+  counted?: boolean;
 };
 
 export type HoleResult = {
@@ -119,17 +119,9 @@ export function computeStrokes(
  * stroke-play (computeStrokePlayMatch) resolution — both must agree on
  * what a side "shot" on a given hole.
  *
- * Default aggregation (countBest omitted, i.e. every caller before
- * "best 2 of 3" existed): two_man_aggregate sums ALL of the side's nets
- * (needs every player scored, else null); everything else takes the
- * single lowest net, best-ball style (needs at least one player scored).
- * This branch is untouched from the original implementation — existing
- * formats compute identically to before.
- *
- * Explicit countBest: sum of the `countBest` LOWEST nets on the side.
- * Needs at least `countBest` players scored to produce a value — used by
- * formats like "best 2 of 3" (3-player side, sum the two lowest nets;
- * the 3rd player's score isn't required to know the answer once 2 are in).
+ * two_man_aggregate sums ALL of the side's nets (needs every player
+ * scored, else null); everything else takes the single lowest net,
+ * best-ball style (needs at least one player scored).
  */
 function aggregateSideNet(
   side: EnginePlayer[],
@@ -137,22 +129,16 @@ function aggregateSideNet(
   scoreByPlayerHole: Map<string, Map<number, number>>,
   strokesByPlayer: Map<string, Map<number, number>>,
   format: PlayerInputFormat,
-  countBest?: number,
 ): number | null {
   const nets: number[] = [];
   for (const p of side) {
     const gross = scoreByPlayerHole.get(p.id)?.get(holeNumber);
     if (gross == null) {
-      if (countBest == null && format === 'two_man_aggregate') return null;
+      if (format === 'two_man_aggregate') return null;
       continue;
     }
     const strokes = strokesByPlayer.get(p.id)?.get(holeNumber) ?? 0;
     nets.push(gross - strokes);
-  }
-  if (countBest != null) {
-    if (nets.length < countBest) return null;
-    nets.sort((a, b) => a - b);
-    return nets.slice(0, countBest).reduce((a, b) => a + b, 0);
   }
   if (nets.length === 0) return null;
   if (format === 'two_man_aggregate') {
@@ -173,9 +159,6 @@ export function computeMatch(input: {
   format?: PlayerInputFormat;
   /** Foursome scratch baseline. See computeStrokes(scratchHandicap) docs. */
   scratchHandicap?: number;
-  /** See aggregateSideNet doc — omit for every format except "best 2 of 3"
-   * style aggregations. */
-  countBest?: number;
 }): ComputedMatch {
   const { players, holes } = input;
   const format = input.format ?? 'best_ball';
@@ -207,14 +190,7 @@ export function computeMatch(input: {
   }
 
   function sideNetOnHole(side: EnginePlayer[], holeNumber: number): number | null {
-    return aggregateSideNet(
-      side,
-      holeNumber,
-      scoreByPlayerHole,
-      strokesByPlayer,
-      format,
-      input.countBest,
-    );
+    return aggregateSideNet(side, holeNumber, scoreByPlayerHole, strokesByPlayer, format);
   }
 
   /** For best-ball / singles, the player whose net was the side's best
@@ -462,8 +438,6 @@ export function computeStrokePlayMatch(input: {
   scores: EngineScore[];
   format?: PlayerInputFormat;
   scratchHandicap?: number;
-  /** See aggregateSideNet doc — e.g. 2 for "best 2 of 3." */
-  countBest?: number;
 }): ComputedStrokePlay {
   const { players, holes } = input;
   const format = input.format ?? 'best_ball';
@@ -496,12 +470,8 @@ export function computeStrokePlayMatch(input: {
   const holeResults: StrokePlayHoleResult[] = [];
 
   for (const hole of sortedHoles) {
-    const aTotal = aggregateSideNet(
-      sideA, hole.number, scoreByPlayerHole, strokesByPlayer, format, input.countBest,
-    );
-    const bTotal = aggregateSideNet(
-      sideB, hole.number, scoreByPlayerHole, strokesByPlayer, format, input.countBest,
-    );
+    const aTotal = aggregateSideNet(sideA, hole.number, scoreByPlayerHole, strokesByPlayer, format);
+    const bTotal = aggregateSideNet(sideB, hole.number, scoreByPlayerHole, strokesByPlayer, format);
     // Only count holes where BOTH sides have a value — keeps the running
     // totals comparable instead of one side racing ahead just because
     // its players entered scores first.
@@ -547,6 +517,179 @@ export function computeStrokePlayMatch(input: {
 /** Human-readable stroke-play status: "58-61 thru 14", "58-61" (final),
  * "Halved 58-58". */
 export function formatStrokePlayStatus(s: StrokePlayStatus): string {
+  switch (s.kind) {
+    case 'not_started':
+      return '—';
+    case 'in_progress':
+      return `${s.totalA}-${s.totalB} thru ${s.holesPlayed}`;
+    case 'final':
+      return s.winner === 'halved'
+        ? `Halved ${s.totalA}-${s.totalB}`
+        : `${s.totalA}-${s.totalB}`;
+  }
+}
+
+// ───────────────────────── "30 BALL" ─────────────────────────
+//
+// 3v3. All 6 players play their own ball, full round. Each side has a
+// budget of THIRTY_BALL_BUDGET (30) scores they get to select — out of
+// up to 3 players × 18 holes = 54 possible — to count toward their
+// total. Per hole a side can select 0, 1, 2, or 3 of its players'
+// scores; whichever gets selected gets SUMMED (not best-of). Decided by
+// low 18-hole cumulative total, same as stroke play. The budget itself
+// isn't engine-enforced (captains self-police hitting exactly 30 by
+// hole 18) — the engine just sums whatever's marked counted and reports
+// the running count so the UI can show "22/30 selected."
+
+export const THIRTY_BALL_BUDGET = 30;
+
+export type ThirtyBallHoleResult = {
+  holeNumber: number;
+  par: number;
+  // Sum of counted nets on this side this hole. 0 if the side selected
+  // nothing — a deliberate choice, not "unknown."
+  aTotal: number;
+  bTotal: number;
+  // How many of the side's players were counted this hole (0-3).
+  aSelectedCount: number;
+  bSelectedCount: number;
+  aStrokes: number;
+  bStrokes: number;
+};
+
+export type ThirtyBallStatus =
+  | { kind: 'not_started' }
+  | { kind: 'in_progress'; totalA: number; totalB: number; holesPlayed: number }
+  | { kind: 'final'; totalA: number; totalB: number; winner: 'A' | 'B' | 'halved' };
+
+export type ComputedThirtyBall = {
+  status: ThirtyBallStatus;
+  holesPlayed: number;
+  totalHoles: number;
+  totalA: number;
+  totalB: number;
+  // Cumulative count of counted=true scores so far, per side — the "X
+  // of 30" the UI displays. Not clamped; if a side over-selects past 30
+  // that's visible here too (self-policing, per house rules).
+  selectedCountA: number;
+  selectedCountB: number;
+  holeResults: ThirtyBallHoleResult[];
+  strokesByPlayer: Map<string, Map<number, number>>;
+};
+
+export function computeThirtyBallMatch(input: {
+  players: EnginePlayer[];
+  holes: EngineHole[];
+  scores: EngineScore[];
+  scratchHandicap?: number;
+}): ComputedThirtyBall {
+  const { players, holes } = input;
+  const totalHoles = holes.length;
+  const strokesByPlayer = computeStrokes(players, holes, input.scratchHandicap);
+
+  const scoreByPlayerHole = new Map<string, Map<number, number>>();
+  const countedByPlayerHole = new Map<string, Map<number, boolean>>();
+  for (const s of input.scores) {
+    const inner = scoreByPlayerHole.get(s.playerId) ?? new Map<number, number>();
+    inner.set(s.holeNumber, s.gross);
+    scoreByPlayerHole.set(s.playerId, inner);
+
+    const countedInner =
+      countedByPlayerHole.get(s.playerId) ?? new Map<number, boolean>();
+    countedInner.set(s.holeNumber, s.counted ?? false);
+    countedByPlayerHole.set(s.playerId, countedInner);
+  }
+
+  const sideA = players.filter((p) => p.teamSide === 'A');
+  const sideB = players.filter((p) => p.teamSide === 'B');
+  const sortedHoles = [...holes].sort((a, b) => a.number - b.number);
+
+  function holeStrokes(side: EnginePlayer[], holeNumber: number): number {
+    let max = 0;
+    for (const p of side) {
+      const n = strokesByPlayer.get(p.id)?.get(holeNumber) ?? 0;
+      if (n > max) max = n;
+    }
+    return max;
+  }
+
+  function selectedSideNet(
+    side: EnginePlayer[],
+    holeNumber: number,
+  ): { total: number; count: number } {
+    let total = 0;
+    let count = 0;
+    for (const p of side) {
+      const counted = countedByPlayerHole.get(p.id)?.get(holeNumber) ?? false;
+      if (!counted) continue;
+      const gross = scoreByPlayerHole.get(p.id)?.get(holeNumber);
+      if (gross == null) continue;
+      const strokes = strokesByPlayer.get(p.id)?.get(holeNumber) ?? 0;
+      total += gross - strokes;
+      count += 1;
+    }
+    return { total, count };
+  }
+
+  // Round progress: a hole counts as "played" once ANY of the 6 players
+  // has a recorded gross — independent of selection. A side validly
+  // selecting zero scores on a hole doesn't make the hole "not played."
+  const scoredHoles = new Set<number>();
+  for (const s of input.scores) scoredHoles.add(s.holeNumber);
+
+  let totalA = 0;
+  let totalB = 0;
+  let selectedCountA = 0;
+  let selectedCountB = 0;
+  const holeResults: ThirtyBallHoleResult[] = [];
+
+  for (const hole of sortedHoles) {
+    const a = selectedSideNet(sideA, hole.number);
+    const b = selectedSideNet(sideB, hole.number);
+    totalA += a.total;
+    totalB += b.total;
+    selectedCountA += a.count;
+    selectedCountB += b.count;
+    holeResults.push({
+      holeNumber: hole.number,
+      par: hole.par,
+      aTotal: a.total,
+      bTotal: b.total,
+      aSelectedCount: a.count,
+      bSelectedCount: b.count,
+      aStrokes: holeStrokes(sideA, hole.number),
+      bStrokes: holeStrokes(sideB, hole.number),
+    });
+  }
+
+  const holesPlayed = scoredHoles.size;
+  let status: ThirtyBallStatus;
+  if (holesPlayed === 0) {
+    status = { kind: 'not_started' };
+  } else if (holesPlayed < totalHoles) {
+    status = { kind: 'in_progress', totalA, totalB, holesPlayed };
+  } else {
+    const winner: 'A' | 'B' | 'halved' =
+      totalA < totalB ? 'A' : totalB < totalA ? 'B' : 'halved';
+    status = { kind: 'final', totalA, totalB, winner };
+  }
+
+  return {
+    status,
+    holesPlayed,
+    totalHoles,
+    totalA,
+    totalB,
+    selectedCountA,
+    selectedCountB,
+    holeResults,
+    strokesByPlayer,
+  };
+}
+
+/** Human-readable "30 Ball" status: "58-61 thru 14", "58-61" (final),
+ * "Halved 58-58". */
+export function formatThirtyBallStatus(s: ThirtyBallStatus): string {
   switch (s.kind) {
     case 'not_started':
       return '—';

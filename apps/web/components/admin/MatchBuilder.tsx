@@ -29,7 +29,7 @@ const BUILDER_FORMATS: readonly FormatId[] = [
   'two_man_aggregate',
   'scramble',
   'stroke',
-  'best_two_of_three',
+  'thirty_ball',
 ];
 import {
   validateBuilderState,
@@ -141,10 +141,12 @@ export default function MatchBuilder({
     if (!nextMeta.allowedSideSizes.includes(sideSize)) {
       changeSideSize(nextMeta.allowedSideSizes[0]);
     }
-    // Best 2 of 3 is always meant to be decided by 18-hole cumulative
-    // total, not hole-by-hole up/down — default scoring to stroke so
-    // picking the format doesn't silently leave it on match play.
-    if (f === 'best_two_of_three') {
+    // 30 Ball is always decided by 18-hole cumulative total, not
+    // hole-by-hole up/down — default scoring to stroke so picking the
+    // format doesn't silently leave it on match play (recompute.ts
+    // resolves 30 Ball the same way regardless, but this keeps the
+    // scoring dropdown honest about what's actually happening).
+    if (f === 'thirty_ball') {
       setScoring('stroke');
     }
   }

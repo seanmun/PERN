@@ -34,7 +34,7 @@ export type ClientParticipant = {
 
 export type ClientMatch = {
   id: string;
-  format: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot';
+  format: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot' | 'thirty_ball';
   resultText: string | null;
   participants: ClientParticipant[];
 };
@@ -49,6 +49,7 @@ const MATCH_FORMAT_ORDER: Record<ClientMatch['format'], number> = {
   alternate_shot: 3,
   singles: 4,
   stroke: 5,
+  thirty_ball: 6,
 };
 
 export type ClientGolfItem = {
@@ -63,7 +64,7 @@ export type ClientGolfItem = {
   groupNumber: number;
   roundOrder: number;
   roundLabel: string | null;
-  roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot';
+  roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot' | 'thirty_ball';
   courseName: string;
   courseLocation: string | null;
   // One "Enter scores" button per foursome routes to the WIDEST match in
@@ -94,7 +95,7 @@ export type ClientEmptyRoundItem = {
   roundId: string;
   roundOrder: number;
   roundLabel: string | null;
-  roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot';
+  roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot' | 'thirty_ball';
   courseName: string;
   courseLocation: string | null;
 };
@@ -420,6 +421,7 @@ function EmptyRoundRow({
       case 'stroke': return 'Stroke';
       case 'two_man_aggregate': return 'Aggregate';
       case 'alternate_shot': return 'Alt Shot';
+      case 'thirty_ball': return '30 Ball';
     }
   };
   return (
@@ -471,6 +473,7 @@ function formatLabel(fmt: ClientGolfItem['roundFormat']): string {
     case 'stroke':            return 'Stroke Play';
     case 'two_man_aggregate': return 'Two-Man Aggregate';
     case 'alternate_shot':    return 'Alternate Shot';
+    case 'thirty_ball':       return '30 Ball · 3v3';
   }
 }
 
@@ -482,6 +485,7 @@ function formatShortLabel(fmt: ClientMatch['format']): string {
     case 'stroke':            return 'Stroke';
     case 'two_man_aggregate': return 'Aggregate';
     case 'alternate_shot':    return 'Alt Shot';
+    case 'thirty_ball':       return '30 Ball';
   }
 }
 

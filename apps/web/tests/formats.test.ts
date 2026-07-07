@@ -27,9 +27,16 @@ describe('FORMAT_META', () => {
         'scramble',
         'alternate_shot',
         'stroke',
-        'best_two_of_three',
+        'thirty_ball',
       ].sort(),
     );
+  });
+
+  it('30 ball is 3v3, foursome-locked per side, individual input', () => {
+    const f = getFormatMeta('thirty_ball');
+    expect(f.allowedSideSizes).toEqual([3]);
+    expect(f.requiresSameFoursomePerSide).toBe(true);
+    expect(f.inputMode).toBe('individual');
   });
 
   it('singles is 1v1, no foursome constraint, individual input', () => {

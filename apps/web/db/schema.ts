@@ -29,6 +29,7 @@ export const roundFormatEnum = pgEnum('round_format', [
   'scramble',
   'stroke',
   'two_man_aggregate',
+  'thirty_ball',
 ]);
 
 export const matchStatusEnum = pgEnum('match_status', [
@@ -294,6 +295,10 @@ export const holeScores = pgTable(
     gross: integer('gross'),
     net: integer('net'),
     strokesReceived: integer('strokes_received').default(0).notNull(),
+    // "30 Ball" only — whether this score has been selected to count
+    // toward the side's 30-score budget. Meaningless/unused for every
+    // other format (default false is inert for them).
+    counted: boolean('counted').default(false).notNull(),
     enteredBy: uuid('entered_by').references(() => users.id),
     enteredAt: timestamp('entered_at', { withTimezone: true }).defaultNow().notNull(),
   },

@@ -19,7 +19,7 @@ export type FormatId =
   | 'scramble'
   | 'alternate_shot'
   | 'stroke'
-  | 'best_two_of_three';
+  | 'thirty_ball';
 
 export type InputMode = 'individual' | 'team';
 
@@ -40,12 +40,6 @@ export type FormatMeta = {
   //   'team'       — the side records ONE gross per hole. There is no
   //                  per-player gross for this match.
   inputMode: InputMode;
-  // Sum of the N lowest nets on a side, for formats where more than one
-  // player's net counts but not ALL of them (e.g. "best 2 of 3" — 3-player
-  // side, sum the two lowest). Omitted for every other format; the engine
-  // falls back to its built-in best-ball (single lowest) / aggregate (sum
-  // all) rules when this is absent, so existing formats are unaffected.
-  countBest?: number;
 };
 
 export const FORMAT_META: Record<FormatId, FormatMeta> = {
@@ -91,17 +85,18 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
     requiresSameFoursomePerSide: false,
     inputMode: 'individual',
   },
-  best_two_of_three: {
-    id: 'best_two_of_three',
-    label: 'Best 2 of 3',
-    // 3v3, sum of each side's two lowest nets per hole, decided by low
-    // cumulative total across 18 (stroke play — pair with scoring:
-    // 'stroke' when building the match). See packages/scoring/engine.ts
-    // computeStrokePlayMatch.
+  thirty_ball: {
+    id: 'thirty_ball',
+    label: '30 Ball',
+    // 3v3. Each side gets a budget of 30 scores (out of up to 3 players
+    // x 18 holes = 54) they choose to count toward their total — 0 to 3
+    // per hole, any combination. Decided by low 18-hole cumulative
+    // total. See packages/scoring/engine.ts computeThirtyBallMatch —
+    // this is its own bespoke resolution, not the generic match-play /
+    // stroke-play engines the other formats share.
     allowedSideSizes: [3],
     requiresSameFoursomePerSide: true,
     inputMode: 'individual',
-    countBest: 2,
   },
 };
 

@@ -233,6 +233,7 @@ export async function getMatchScoringData(
       playerId: s.tripMemberId,
       holeNumber: s.holeNumber,
       gross: s.gross!,
+      counted: s.counted,
     }));
 
   // Team-input formats: collapse participants into 2 virtual "team players"

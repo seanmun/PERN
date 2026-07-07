@@ -73,19 +73,19 @@ import {
   computeStableford,
   computeStrokePlayMatch,
   computeTeamMatch,
+  computeThirtyBallMatch,
   DEFAULT_STABLEFORD_POINTS,
   formatStatus,
   formatStrokePlayStatus,
+  formatThirtyBallStatus,
   type PlayerInputFormat,
   type StablefordPoints,
 } from '@buddycup/scoring/engine';
-import { FORMAT_META, type FormatId } from '@buddycup/scoring/formats';
 
 const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
   'best_ball',
   'singles',
   'two_man_aggregate',
-  'best_two_of_three',
 ]);
 
 export async function recomputeMatchStatus(matchId: string): Promise<void> {
@@ -113,7 +113,35 @@ export async function recomputeMatchStatus(matchId: string): Promise<void> {
   let isHalved = false;
   let resultText: string | null = null;
 
-  if (data.match.scoring === 'stableford') {
+  if (data.match.format === 'thirty_ball') {
+    // Bespoke resolution regardless of the `scoring` field — this format
+    // is always "sum of selected nets, low 18-hole total wins." See
+    // computeThirtyBallMatch.
+    const tb = computeThirtyBallMatch({
+      players: data.enginePlayers,
+      holes: data.engineHoles,
+      scores: data.engineScores,
+      scratchHandicap,
+    });
+    switch (tb.status.kind) {
+      case 'not_started':
+        nextStatus = 'scheduled';
+        break;
+      case 'in_progress':
+        nextStatus = 'in_progress';
+        resultText = formatThirtyBallStatus(tb.status);
+        break;
+      case 'final':
+        nextStatus = 'completed';
+        if (tb.status.winner === 'halved') {
+          isHalved = true;
+        } else {
+          winningTeamId = teamIdByside.get(tb.status.winner) ?? null;
+        }
+        resultText = formatThirtyBallStatus(tb.status);
+        break;
+    }
+  } else if (data.match.scoring === 'stableford') {
     const pts: StablefordPoints = {
       eagle: data.match.ptsEagle ?? DEFAULT_STABLEFORD_POINTS.eagle,
       birdie: data.match.ptsBirdie ?? DEFAULT_STABLEFORD_POINTS.birdie,
@@ -150,20 +178,18 @@ export async function recomputeMatchStatus(matchId: string): Promise<void> {
     data.match.scoring === 'stroke' &&
     data.inputMode !== 'team'
   ) {
-    // Stroke play ("low total wins") — e.g. Best 2 of 3. Team-input
-    // formats (scramble/alt-shot) fall through to match-play below;
-    // stroke resolution for those isn't built yet.
+    // Stroke play ("low total wins"). Team-input formats
+    // (scramble/alt-shot) fall through to match-play below; stroke
+    // resolution for those isn't built yet.
     const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
       ? (data.match.format as PlayerInputFormat)
       : 'best_ball';
-    const countBest = FORMAT_META[data.match.format as FormatId]?.countBest;
     const sp = computeStrokePlayMatch({
       players: data.enginePlayers,
       holes: data.engineHoles,
       scores: data.engineScores,
       format: fmt,
       scratchHandicap,
-      countBest,
     });
     switch (sp.status.kind) {
       case 'not_started':
@@ -199,14 +225,12 @@ export async function recomputeMatchStatus(matchId: string): Promise<void> {
       const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
         ? (data.match.format as PlayerInputFormat)
         : 'best_ball';
-      const countBest = FORMAT_META[data.match.format as FormatId]?.countBest;
       computed = computeMatch({
         players: data.enginePlayers,
         holes: data.engineHoles,
         scores: data.engineScores,
         format: fmt,
         scratchHandicap,
-        countBest,
       });
     }
 
@@ -233,12 +257,13 @@ export async function recomputeMatchStatus(matchId: string): Promise<void> {
   }
 
   // Segment winners — front 9 + back 9 run the engine on their own slice.
-  // Stroke-scored matches are overall-only (confirmed for Best 2 of 3;
-  // no front/back split semantics wired up for stroke play yet).
+  // Stroke-scored and 30 Ball matches are overall-only — no front/back
+  // split semantics wired up for either yet.
   let front9WinningTeamId: string | null = null;
   let back9WinningTeamId: string | null = null;
   if (
     data.match.scoring === 'match_play' &&
+    data.match.format !== 'thirty_ball' &&
     data.engineHoles.length >= 18
   ) {
     const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)

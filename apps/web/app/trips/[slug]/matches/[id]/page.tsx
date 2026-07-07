@@ -23,27 +23,30 @@ import {
 } from '@/lib/format';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
 import { getScratchHandicap } from '@/lib/scoring/recompute';
+import ThirtyBallScorecard from '@/components/scorecard/ThirtyBallScorecard';
 import {
   computeMatch,
   computeStableford,
   computeStrokePlayMatch,
   computeTeamMatch,
+  computeThirtyBallMatch,
   DEFAULT_STABLEFORD_POINTS,
   formatStatus,
   formatStatusWithWinner,
   formatStrokePlayStatus,
+  formatThirtyBallStatus,
+  THIRTY_BALL_BUDGET,
   type ComputedStableford,
   type ComputedStrokePlay,
+  type ComputedThirtyBall,
   type HoleResult,
   type PlayerInputFormat,
 } from '@buddycup/scoring/engine';
-import { FORMAT_META, type FormatId } from '@buddycup/scoring/formats';
 
 const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
   'best_ball',
   'singles',
   'two_man_aggregate',
-  'best_two_of_three',
 ]);
 
 export default async function MatchDetailPage({
@@ -161,8 +164,17 @@ export default async function MatchDetailPage({
   let liveMatch = null;
   let liveStableford: ComputedStableford | null = null;
   let liveStrokePlay: ComputedStrokePlay | null = null;
+  let liveThirtyBall: ComputedThirtyBall | null = null;
   if (scoringData) {
-    if (scoringData.match.scoring === 'stableford') {
+    if (scoringData.match.format === 'thirty_ball') {
+      // Bespoke resolution regardless of `scoring` — see recompute.ts.
+      liveThirtyBall = computeThirtyBallMatch({
+        players: scoringData.enginePlayers,
+        holes: scoringData.engineHoles,
+        scores: scoringData.engineScores,
+        scratchHandicap,
+      });
+    } else if (scoringData.match.scoring === 'stableford') {
       liveStableford = computeStableford({
         players: scoringData.enginePlayers,
         holes: scoringData.engineHoles,
@@ -188,7 +200,6 @@ export default async function MatchDetailPage({
           ? (scoringData.match.format as PlayerInputFormat)
           : 'best_ball',
         scratchHandicap,
-        countBest: FORMAT_META[scoringData.match.format as FormatId]?.countBest,
       });
     } else if (
       scoringData.inputMode === 'team' &&
@@ -209,7 +220,6 @@ export default async function MatchDetailPage({
           ? (scoringData.match.format as PlayerInputFormat)
           : 'best_ball',
         scratchHandicap,
-        countBest: FORMAT_META[scoringData.match.format as FormatId]?.countBest,
       });
     }
   }
@@ -336,11 +346,26 @@ export default async function MatchDetailPage({
           {scoringData?.match.scoring === 'stableford' && (
             <span className="ml-2 text-yellow-800 dark:text-yellow-500">· Stableford</span>
           )}
-          {scoringData?.match.scoring === 'stroke' && (
+          {scoringData?.match.scoring === 'stroke' && scoringData.match.format !== 'thirty_ball' && (
             <span className="ml-2 text-yellow-800 dark:text-yellow-500">· Stroke Play</span>
           )}
+          {scoringData?.match.format === 'thirty_ball' && (
+            <span className="ml-2 text-yellow-800 dark:text-yellow-500">· 30 Ball</span>
+          )}
         </p>
-        {liveStableford && liveStableford.holesPlayed > 0 ? (
+        {liveThirtyBall && liveThirtyBall.holesPlayed > 0 ? (
+          <>
+            <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
+              {formatThirtyBallStatus(liveThirtyBall.status)}
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+              {liveThirtyBall.holesPlayed} of {liveThirtyBall.totalHoles} holes
+              {liveThirtyBall.status.kind === 'final' && ' · Final'}
+              {' · '}
+              {liveThirtyBall.selectedCountA}/{THIRTY_BALL_BUDGET} · {liveThirtyBall.selectedCountB}/{THIRTY_BALL_BUDGET} selected
+            </p>
+          </>
+        ) : liveStableford && liveStableford.holesPlayed > 0 ? (
           <>
             <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
               {liveStableford.aPoints}
@@ -420,6 +445,17 @@ export default async function MatchDetailPage({
           bTeamName={scoringData.participants.find((p) => p.side === 'B')?.team.name ?? 'B'}
           aTeamColor={scoringData.participants.find((p) => p.side === 'A')?.team.color ?? null}
           bTeamColor={scoringData.participants.find((p) => p.side === 'B')?.team.color ?? null}
+        />
+      )}
+
+      {liveThirtyBall && scoringData && (
+        <ThirtyBallScorecard
+          matchId={id}
+          strokePlay={liveThirtyBall}
+          participants={scoringData.participants}
+          holes={scoringData.engineHoles}
+          scores={scoringData.scores}
+          canEdit={canEnterScores}
         />
       )}
 

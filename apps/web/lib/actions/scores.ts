@@ -193,6 +193,66 @@ export async function upsertHoleScore(formData: FormData): Promise<void> {
 }
 
 /**
+ * "30 Ball" only — toggle whether one player's already-recorded gross on
+ * one hole counts toward their side's 30-score budget. Unlike
+ * upsertHoleScore this does NOT fan out to sibling matches — "counted"
+ * is a per-match decision (this specific 30-ball match), not a property
+ * of the round-wide gross.
+ */
+export async function toggleHoleScoreCounted(formData: FormData): Promise<void> {
+  const ctx = await getGlobalAuthContext();
+  requireAuth(ctx);
+
+  const matchId = String(formData.get('matchId') ?? '').trim();
+  const tripMemberId = String(formData.get('tripMemberId') ?? '').trim();
+  const holeNumberRaw = String(formData.get('holeNumber') ?? '').trim();
+  const counted = String(formData.get('counted') ?? '') === 'true';
+  if (!matchId || !tripMemberId || !holeNumberRaw) {
+    throw new Error('matchId, tripMemberId, holeNumber required');
+  }
+  const holeNumber = Number(holeNumberRaw);
+  if (!Number.isFinite(holeNumber) || holeNumber < 1 || holeNumber > 18) {
+    throw new Error('Invalid hole number');
+  }
+
+  const [target] = await db
+    .select({ member: tripMembers, round: rounds, match: matches })
+    .from(matchParticipants)
+    .innerJoin(matches, eq(matchParticipants.matchId, matches.id))
+    .innerJoin(rounds, eq(matches.roundId, rounds.id))
+    .innerJoin(tripMembers, eq(matchParticipants.tripMemberId, tripMembers.id))
+    .where(
+      and(
+        eq(matchParticipants.matchId, matchId),
+        eq(matchParticipants.tripMemberId, tripMemberId),
+      ),
+    )
+    .limit(1);
+  if (!target) throw new Error('Match participant not found');
+
+  if (!canEnterScoreFor(ctx, target.member)) {
+    throw new AuthorizationError('Not authorized to select scores for this player');
+  }
+
+  await db
+    .update(holeScores)
+    .set({ counted })
+    .where(
+      and(
+        eq(holeScores.matchId, matchId),
+        eq(holeScores.tripMemberId, tripMemberId),
+        eq(holeScores.holeNumber, holeNumber),
+      ),
+    );
+
+  await recomputeMatchStatus(matchId);
+
+  const tripSlug = await getTripSlugById(target.round.tripId);
+  revalidatePath(`/trips/${tripSlug}/matches/${matchId}`);
+  revalidatePath(`/trips/${tripSlug}/scoreboard`);
+}
+
+/**
  * Team-input score upsert — for Scramble and Alternate Shot. One gross per
  * team per hole; the action writes it to every teammate's holeScores row
  * (the storage layer stays per-player, so any consumer not aware of team

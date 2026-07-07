@@ -55,17 +55,30 @@ Reference table:
 | `scramble` (4-man) | 4v4 | **Yes** | team |
 | `alternate_shot` | 2v2 | **Yes** | team |
 | `stroke` | N-vN | No | individual |
-| `best_two_of_three` | 3v3 | **Yes** | individual |
+| `thirty_ball` ("30 Ball") | 3v3 | **Yes** | individual |
 
-`best_two_of_three` ("Best 2 of 3"): each side is 3 players sharing a
-foursome. Per hole, the side's score is the SUM of its two lowest nets
-(the 3rd/worst score doesn't count). Pair with `matches.scoring =
-'stroke'` — the match is decided by comparing 18-hole cumulative totals
-(low total wins), not hole-by-hole up/down. See `computeStrokePlayMatch`
-and the shared `aggregateSideNet` helper in `packages/scoring/engine.ts`.
-`FormatMeta.countBest` (2 for this format) drives the "sum of N lowest"
-rule; every other format omits it and keeps its original behavior
-(best-ball's single lowest / two-man-aggregate's sum of both).
+`thirty_ball` ("30 Ball"): a house budget-selection game, NOT a
+derived-aggregation format like everything else in this table. All 6
+players (3v3) play their own ball every hole, full round. Each side has
+a budget of `THIRTY_BALL_BUDGET` (30) scores — out of up to 3 players x
+18 holes = 54 possible — that they choose to count toward their total.
+Per hole a side can select 0, 1, 2, or 3 of its players' scores; any
+combination. Selected nets are SUMMED (not best-of). The side with the
+lower 18-hole cumulative total wins; equal totals halve. The budget
+itself is NOT engine-enforced — captains self-police hitting exactly 30
+by hole 18; the engine just sums whatever's marked counted and reports
+the running count.
+
+This needs a genuinely bespoke resolution (`computeThirtyBallMatch` in
+`packages/scoring/engine.ts`) — it's the one format whose per-hole
+"score" is a live human decision (which grosses count), not something
+derivable from the grosses alone the way best-ball/aggregate/stableford
+are. `hole_scores.counted` (boolean, default false) stores that
+decision per player per hole per match; toggled via
+`toggleHoleScoreCounted` in `lib/actions/scores.ts`, surfaced on the
+match detail page (`ThirtyBallScorecard` — the one exception to that
+page being read-only, since "which scores count" isn't the same
+question as "what did you shoot").
 
 > 2v2 vs 4v4 best ball: same format ID, different template size. The admin picks the size at match-create time. Same for scramble. We may model this as `format` + `sideSize` rather than baking sizes into the enum — see open Qs.
 
