@@ -121,6 +121,11 @@ export const trips = pgTable('trips', {
   endDate: timestamp('end_date', { withTimezone: true }),
   description: text('description'),
   imageUrl: text('image_url'),                                    // trip icon — shown on /me cards, trip header, etc.
+  // Pre-selected handicap method for every new match on this trip.
+  // Admin can still override per match in the builder.
+  defaultHandicapMethod: handicapMethodEnum('default_handicap_method')
+    .default('group_low')
+    .notNull(),
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

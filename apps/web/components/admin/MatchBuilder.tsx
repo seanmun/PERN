@@ -64,6 +64,7 @@ export default function MatchBuilder({
   defaultTeeTimeId,
   redirectTo,
   teeHasSlopeRating = true,
+  defaultHandicapMethod = 'group_low',
 }: {
   tripSlug: string;
   roundId: string;
@@ -79,6 +80,9 @@ export default function MatchBuilder({
   // Whether the round's tee has slope + rating (and the course has
   // hole data) — drives the warning when "Course handicap" is picked.
   teeHasSlopeRating?: boolean;
+  // Trip-level default (trips.default_handicap_method) — pre-selects
+  // the Handicaps dropdown; admin can still override per match.
+  defaultHandicapMethod?: 'group_low' | 'match_low' | 'course';
 }) {
   const [format, setFormat] = useState<FormatId>(defaultFormat);
   const meta = FORMAT_META[format];
@@ -97,7 +101,7 @@ export default function MatchBuilder({
   // handicap (index converted via the tee's slope/rating).
   const [handicapMethod, setHandicapMethod] = useState<
     'group_low' | 'match_low' | 'course'
-  >('group_low');
+  >(defaultHandicapMethod);
   // Stableford point overrides — null per slot = use the default.
   // Shown only when scoring === 'stableford'.
   const [pts, setPts] = useState<{

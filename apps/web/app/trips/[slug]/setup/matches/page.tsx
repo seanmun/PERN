@@ -62,7 +62,14 @@ export default async function SetupMatchesPage({
         ) : (
           <div className="mt-6 space-y-6">
             {tripRounds.map(({ round, course }) => (
-              <RoundMatchesBlock key={round.id} tripSlug={slug} round={round} courseName={course.name} allTeams={allTeams} />
+              <RoundMatchesBlock
+                key={round.id}
+                tripSlug={slug}
+                round={round}
+                courseName={course.name}
+                allTeams={allTeams}
+                defaultHandicapMethod={trip.defaultHandicapMethod}
+              />
             ))}
           </div>
         )}
@@ -91,11 +98,13 @@ async function RoundMatchesBlock({
   round,
   courseName,
   allTeams,
+  defaultHandicapMethod,
 }: {
   tripSlug: string;
   round: typeof rounds.$inferSelect;
   courseName: string;
   allTeams: (typeof teams.$inferSelect)[];
+  defaultHandicapMethod: 'group_low' | 'match_low' | 'course';
 }) {
   const allTeeTimes = await db
     .select()
@@ -204,6 +213,7 @@ async function RoundMatchesBlock({
             defaultFormat={round.format as FormatId}
             redirectTo="none"
             teeHasSlopeRating={teeHasSlopeRating}
+            defaultHandicapMethod={defaultHandicapMethod}
           />
         </div>
       </details>

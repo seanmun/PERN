@@ -90,6 +90,21 @@ export default async function AdminTripDetailsPage({
           />
         </Field>
 
+        <Field
+          label="Default handicaps"
+          hint="Pre-selected for every new match on this trip. You can still override per match in the builder."
+        >
+          <select
+            name="defaultHandicapMethod"
+            defaultValue={trip.defaultHandicapMethod}
+            className={inputCls}
+          >
+            <option value="group_low">Off group low — lowest in the foursome plays scratch</option>
+            <option value="match_low">Off match low — lowest in the match plays scratch</option>
+            <option value="course">Course handicap — everyone gets full strokes (slope-adjusted)</option>
+          </select>
+        </Field>
+
         <div>
           <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
             Trip icon

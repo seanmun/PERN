@@ -172,9 +172,15 @@ export async function updateTrip(formData: FormData): Promise<void> {
   const description = trim(formData.get('description'));
   const imageUrl = trim(formData.get('imageUrl'));
 
+  const methodRaw = trim(formData.get('defaultHandicapMethod'));
+  const defaultHandicapMethod: 'group_low' | 'match_low' | 'course' =
+    methodRaw === 'match_low' || methodRaw === 'course'
+      ? methodRaw
+      : 'group_low';
+
   await db
     .update(trips)
-    .set({ name, startDate, endDate, description, imageUrl })
+    .set({ name, startDate, endDate, description, imageUrl, defaultHandicapMethod })
     .where(eq(trips.id, id));
 
   revalidatePath('/home');

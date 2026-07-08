@@ -166,6 +166,7 @@ export default async function NewMatchPage({
   }));
 
   const teeHasSlopeRating = await roundTeeHasSlopeRating(roundId);
+  const tripDefault = trip.defaultHandicapMethod;
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-24 pt-6">
@@ -191,6 +192,7 @@ export default async function NewMatchPage({
           defaultFormat={round.round.format as FormatId}
           defaultTeeTimeId={sp.teeTimeId ?? null}
           teeHasSlopeRating={teeHasSlopeRating}
+          defaultHandicapMethod={tripDefault}
         />
       </div>
     </div>
