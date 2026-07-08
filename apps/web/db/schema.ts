@@ -48,6 +48,18 @@ export const matchScoringEnum = pgEnum('match_scoring', [
   'stroke',
 ]);
 
+// How strokes are computed for a match, orthogonal to format AND scoring:
+//   group_low : differential vs the lowest handicap in the FOURSOME
+//               (the original Cup convention — default)
+//   match_low : differential vs the lowest handicap in the MATCH
+//   course    : full course handicap per player — trip handicap treated as
+//               an index, converted via the round tee's slope/rating
+export const handicapMethodEnum = pgEnum('handicap_method', [
+  'group_low',
+  'match_low',
+  'course',
+]);
+
 export const mediaTypeEnum = pgEnum('media_type', ['image', 'video']);
 
 export const moderationStatusEnum = pgEnum('moderation_status', [
@@ -233,6 +245,9 @@ export const matches = pgTable('matches', {
   // Resolution mode — independent of format. Defaults to match_play so
   // every existing match keeps its current behavior.
   scoring: matchScoringEnum('scoring').default('match_play').notNull(),
+  // Stroke-computation basis — see handicapMethodEnum. Defaults to the
+  // original foursome-low convention so existing matches are unchanged.
+  handicapMethod: handicapMethodEnum('handicap_method').default('group_low').notNull(),
   // Per-match stableford point overrides. Null = use the global default
   // (eagle=4, birdie=3, par=2, bogey=1, double+=0). Admin can dial these
   // per match to get Modified Stableford (5/2/0/-1/-3) or any custom

@@ -63,6 +63,7 @@ export default function MatchBuilder({
   defaultFormat,
   defaultTeeTimeId,
   redirectTo,
+  teeHasSlopeRating = true,
 }: {
   tripSlug: string;
   roundId: string;
@@ -75,6 +76,9 @@ export default function MatchBuilder({
   // place after each add instead of navigating to the match detail
   // page. Omitted everywhere else — unchanged default behavior.
   redirectTo?: string;
+  // Whether the round's tee has slope + rating (and the course has
+  // hole data) — drives the warning when "Course handicap" is picked.
+  teeHasSlopeRating?: boolean;
 }) {
   const [format, setFormat] = useState<FormatId>(defaultFormat);
   const meta = FORMAT_META[format];
@@ -87,6 +91,13 @@ export default function MatchBuilder({
   const [scoring, setScoring] = useState<'match_play' | 'stableford' | 'stroke'>(
     'match_play',
   );
+  // Stroke-computation basis. group_low (foursome's lowest plays
+  // scratch) is the house default; match_low floats scratch to the
+  // match's own lowest; course gives everyone their full course
+  // handicap (index converted via the tee's slope/rating).
+  const [handicapMethod, setHandicapMethod] = useState<
+    'group_low' | 'match_low' | 'course'
+  >('group_low');
   // Stableford point overrides — null per slot = use the default.
   // Shown only when scoring === 'stableford'.
   const [pts, setPts] = useState<{
@@ -255,6 +266,7 @@ export default function MatchBuilder({
         <input type="hidden" name="state" value={payload} />
         {redirectTo && <input type="hidden" name="redirectTo" value={redirectTo} />}
         <input type="hidden" name="scoring" value={scoring} />
+        <input type="hidden" name="handicapMethod" value={handicapMethod} />
         <input type="hidden" name="pointsOverall" value={matchPoints.overall} />
         <input type="hidden" name="pointsFront9" value={matchPoints.front9} />
         <input type="hidden" name="pointsBack9" value={matchPoints.back9} />
@@ -328,6 +340,40 @@ export default function MatchBuilder({
             <option value="stableford">Stableford — points per hole</option>
           </select>
         </label>
+
+        {/* Handicap method — how strokes are computed, orthogonal to
+            both format and scoring. */}
+        <label className="block">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+            Handicaps
+          </span>
+          <select
+            value={handicapMethod}
+            onChange={(e) =>
+              setHandicapMethod(e.target.value as 'group_low' | 'match_low' | 'course')
+            }
+            className="mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
+          >
+            <option value="group_low">Off group low — lowest in the foursome plays scratch</option>
+            <option value="match_low">Off match low — lowest in this match plays scratch</option>
+            <option value="course">Course handicap — everyone gets full strokes (slope-adjusted)</option>
+          </select>
+        </label>
+
+        {handicapMethod === 'course' && !teeHasSlopeRating && (
+          <div className="rounded-sm border border-yellow-600/40 bg-yellow-500/5 p-3">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-400">
+              Tee is missing slope / rating
+            </p>
+            <p className="mt-1 text-[11px] text-zinc-600 dark:text-zinc-400">
+              This round&apos;s tee has no slope and rating, so course
+              handicaps will fall back to each player&apos;s raw trip
+              handicap. Add slope/rating on the course admin page (or
+              re-run the scorecard extraction) to get true course
+              handicaps.
+            </p>
+          </div>
+        )}
 
         {scoring === 'stableford' && (
           <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3">

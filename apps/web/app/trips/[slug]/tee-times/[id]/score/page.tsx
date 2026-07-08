@@ -5,6 +5,8 @@ import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { getTeeTimeScoringData } from '@/lib/data/tee-time-scoring';
 import { computeStrokes, computeTeamMatch } from '@buddycup/scoring/engine';
+import { toCourseHandicap } from '@buddycup/scoring/handicap';
+import { teeRatingOf, resolveMatchHandicaps } from '@/lib/scoring/handicap-method';
 import ScoreEntryClient, {
   type ScoreClientPlayer,
   type ScoreClientHole,
@@ -73,13 +75,32 @@ export default async function TeeTimeScoreEntryPage({
 
   // Build engine players from the FULL foursome roster so stroke
   // allocation includes everyone on the scorecard, not just the
-  // primary match's participants.
-  const engineRoster = data.rosterPlayers.map((p) => ({
-    id: p.member.id,
-    handicap: p.member.tripHandicap ? Number(p.member.tripHandicap) : 18,
-    teamSide: p.side,
-  }));
-  const strokesMap = computeStrokes(engineRoster, data.engineHoles);
+  // primary match's participants. The stroke dots follow the PRIMARY
+  // match's handicap_method (a physical card can't render two
+  // allocations at once; stacked side matches with a different method
+  // still resolve their own strokes on their match pages):
+  //   course    → convert each roster handicap via the tee, scratch 0
+  //   match_low → scratch = lowest handicap among the match's players
+  //   group_low → engine default over the roster = foursome's lowest
+  const method = data.match.handicapMethod;
+  const tee = teeRatingOf(data);
+  const engineRoster = data.rosterPlayers.map((p) => {
+    const raw = p.member.tripHandicap ? Number(p.member.tripHandicap) : 18;
+    return {
+      id: p.member.id,
+      handicap: method === 'course' ? toCourseHandicap(raw, tee) : raw,
+      teamSide: p.side,
+    };
+  });
+  const scratchOverride =
+    method === 'course'
+      ? 0
+      : method === 'match_low'
+        ? data.enginePlayers.length
+          ? Math.min(...data.enginePlayers.map((p) => p.handicap))
+          : undefined
+        : undefined;
+  const strokesMap = computeStrokes(engineRoster, data.engineHoles, scratchOverride);
 
   const holes: ScoreClientHole[] = data.engineHoles.map((h) => ({
     number: h.number,
@@ -118,17 +139,20 @@ export default async function TeeTimeScoreEntryPage({
   // engine; the UI renders the result.
   let teamsForClient: ScoreClientTeam[] = [];
   let initialTeamScores: ScoreClientTeamScore[] = [];
+  // For 'course' method, team handicaps are recomputed from the players'
+  // converted course handicaps — same resolver every compute site uses.
+  const { engineTeams } = await resolveMatchHandicaps(data);
   if (
     data.inputMode === 'team' &&
-    data.engineTeams &&
-    data.engineTeams.length === 2
+    engineTeams &&
+    engineTeams.length === 2
   ) {
     const teamComputed = computeTeamMatch({
-      teams: [data.engineTeams[0], data.engineTeams[1]],
+      teams: [engineTeams[0], engineTeams[1]],
       holes: data.engineHoles,
       scores: data.engineTeamScores ?? [],
     });
-    teamsForClient = data.engineTeams.map((et) => {
+    teamsForClient = engineTeams.map((et) => {
       const teammates = data.participants.filter((p) => p.team.id === et.id);
       const team = teammates[0]?.team;
       const memberLine = teammates

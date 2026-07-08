@@ -16,6 +16,7 @@ import {
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import MatchBuilder from '@/components/admin/MatchBuilder';
+import { roundTeeHasSlopeRating } from '@/lib/scoring/handicap-method';
 import { type FormatId } from '@buddycup/scoring/formats';
 
 /**
@@ -164,6 +165,8 @@ export default async function NewMatchPage({
     groupNumber: t.groupNumber,
   }));
 
+  const teeHasSlopeRating = await roundTeeHasSlopeRating(roundId);
+
   return (
     <div className="mx-auto max-w-3xl px-4 pb-24 pt-6">
       <Link
@@ -187,6 +190,7 @@ export default async function NewMatchPage({
           teeTimes={builderTeeTimes}
           defaultFormat={round.round.format as FormatId}
           defaultTeeTimeId={sp.teeTimeId ?? null}
+          teeHasSlopeRating={teeHasSlopeRating}
         />
       </div>
     </div>

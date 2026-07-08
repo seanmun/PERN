@@ -7,6 +7,7 @@ import { matches, matchParticipants, rounds, teeTimes, teams, tripMembers } from
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { getLeaderboard, type PlayerTotal, type TeamTotal } from '@/lib/data/leaderboard';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
+import { resolveMatchHandicaps } from '@/lib/scoring/handicap-method';
 import LeaderboardSortTabs from '@/components/scoreboard/LeaderboardSortTabs';
 import DayTabs, { type DayTab } from '@/components/scoreboard/DayTabs';
 import {
@@ -763,6 +764,11 @@ async function computeLive(matchId: string) {
   const data = await getMatchScoringData(matchId);
   if (!data) return null;
 
+  // Strokes per the match's handicap_method — same resolver recompute
+  // uses, so the cup tab's live numbers agree with the persisted status.
+  const { enginePlayers, engineTeams, scratchHandicap } =
+    await resolveMatchHandicaps(data);
+
   const aTeamId =
     data.participants.find((p) => p.side === 'A')?.team.id ?? null;
   const bTeamId =
@@ -773,7 +779,7 @@ async function computeLive(matchId: string) {
   // MatchLiveRow's existing "A · B" big-number renderer reads correctly.
   if (data.match.scoring === 'stableford') {
     const sb = computeStableford({
-      players: data.enginePlayers,
+      players: enginePlayers,
       holes: data.engineHoles,
       scores: data.engineScores,
       points: {
@@ -783,6 +789,7 @@ async function computeLive(matchId: string) {
         bogey: data.match.ptsBogey ?? DEFAULT_STABLEFORD_POINTS.bogey,
         doublePlus: data.match.ptsDoublePlus ?? DEFAULT_STABLEFORD_POINTS.doublePlus,
       },
+      scratchHandicap,
     });
     const statusText =
       sb.status.kind === 'final'
@@ -807,11 +814,11 @@ async function computeLive(matchId: string) {
   let computed;
   if (
     data.inputMode === 'team' &&
-    data.engineTeams &&
-    data.engineTeams.length === 2
+    engineTeams &&
+    engineTeams.length === 2
   ) {
     computed = computeTeamMatch({
-      teams: [data.engineTeams[0], data.engineTeams[1]],
+      teams: [engineTeams[0], engineTeams[1]],
       holes: data.engineHoles,
       scores: data.engineTeamScores ?? [],
     });
@@ -820,10 +827,11 @@ async function computeLive(matchId: string) {
       ? (data.match.format as PlayerInputFormat)
       : 'best_ball';
     computed = computeMatch({
-      players: data.enginePlayers,
+      players: enginePlayers,
       holes: data.engineHoles,
       scores: data.engineScores,
       format: fmt,
+      scratchHandicap,
     });
   }
 

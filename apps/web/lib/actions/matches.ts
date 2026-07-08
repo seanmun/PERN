@@ -386,6 +386,14 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
     scoringRaw === 'stableford' || scoringRaw === 'stroke'
       ? scoringRaw
       : 'match_play';
+
+  // Handicap method — defaults to the house group-low convention when
+  // not posted (legacy callers).
+  const methodRaw = String(formData.get('handicapMethod') ?? 'group_low').trim();
+  const handicapMethod: 'group_low' | 'match_low' | 'course' =
+    methodRaw === 'match_low' || methodRaw === 'course'
+      ? methodRaw
+      : 'group_low';
   let stablefordPts: {
     eagle?: number;
     birdie?: number;
@@ -433,6 +441,7 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
       templateSizeA: state.sideSize,
       templateSizeB: state.sideSize,
       scoring,
+      handicapMethod,
       ptsEagle: stablefordPts.eagle ?? null,
       ptsBirdie: stablefordPts.birdie ?? null,
       ptsPar: stablefordPts.par ?? null,

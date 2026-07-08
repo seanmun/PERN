@@ -22,7 +22,7 @@ import {
   roundFormatLabel,
 } from '@/lib/format';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
-import { getScratchHandicap } from '@/lib/scoring/recompute';
+import { resolveMatchHandicaps } from '@/lib/scoring/handicap-method';
 import ThirtyBallScorecard from '@/components/scorecard/ThirtyBallScorecard';
 import {
   computeMatch,
@@ -153,14 +153,10 @@ export default async function MatchDetailPage({
   // scoring mode (match_play vs stableford), then on team vs player
   // input. Only one of liveMatch / liveStableford is populated.
   const scoringData = await getMatchScoringData(id);
-  // Cup scratch baseline = foursome's lowest handicap (not the match's).
-  const scratchHandicap = scoringData
-    ? await getScratchHandicap(
-        id,
-        scoringData.match.teeTimeId,
-        scoringData.round.id,
-      )
-    : undefined;
+  // Strokes per the match's handicap_method — same resolver recompute
+  // uses, so this page's live status matches the persisted result.
+  const resolved = scoringData ? await resolveMatchHandicaps(scoringData) : null;
+  const scratchHandicap = resolved?.scratchHandicap;
   let liveMatch = null;
   let liveStableford: ComputedStableford | null = null;
   let liveStrokePlay: ComputedStrokePlay | null = null;
@@ -169,16 +165,17 @@ export default async function MatchDetailPage({
     if (scoringData.match.format === 'thirty_ball') {
       // Bespoke resolution regardless of `scoring` — see recompute.ts.
       liveThirtyBall = computeThirtyBallMatch({
-        players: scoringData.enginePlayers,
+        players: resolved?.enginePlayers ?? scoringData.enginePlayers,
         holes: scoringData.engineHoles,
         scores: scoringData.engineScores,
         scratchHandicap,
       });
     } else if (scoringData.match.scoring === 'stableford') {
       liveStableford = computeStableford({
-        players: scoringData.enginePlayers,
+        players: resolved?.enginePlayers ?? scoringData.enginePlayers,
         holes: scoringData.engineHoles,
         scores: scoringData.engineScores,
+        scratchHandicap,
         points: {
           eagle: scoringData.match.ptsEagle ?? DEFAULT_STABLEFORD_POINTS.eagle,
           birdie: scoringData.match.ptsBirdie ?? DEFAULT_STABLEFORD_POINTS.birdie,
@@ -193,7 +190,7 @@ export default async function MatchDetailPage({
       scoringData.inputMode !== 'team'
     ) {
       liveStrokePlay = computeStrokePlayMatch({
-        players: scoringData.enginePlayers,
+        players: resolved?.enginePlayers ?? scoringData.enginePlayers,
         holes: scoringData.engineHoles,
         scores: scoringData.engineScores,
         format: PLAYER_INPUT_FORMATS.has(scoringData.match.format)
@@ -203,17 +200,17 @@ export default async function MatchDetailPage({
       });
     } else if (
       scoringData.inputMode === 'team' &&
-      scoringData.engineTeams &&
-      scoringData.engineTeams.length === 2
+      resolved?.engineTeams &&
+      resolved.engineTeams.length === 2
     ) {
       liveMatch = computeTeamMatch({
-        teams: [scoringData.engineTeams[0], scoringData.engineTeams[1]],
+        teams: [resolved.engineTeams[0], resolved.engineTeams[1]],
         holes: scoringData.engineHoles,
         scores: scoringData.engineTeamScores ?? [],
       });
     } else {
       liveMatch = computeMatch({
-        players: scoringData.enginePlayers,
+        players: resolved?.enginePlayers ?? scoringData.enginePlayers,
         holes: scoringData.engineHoles,
         scores: scoringData.engineScores,
         format: PLAYER_INPUT_FORMATS.has(scoringData.match.format)

@@ -296,6 +296,58 @@ export async function setDefaultTee(formData: FormData): Promise<void> {
 }
 
 /**
+ * Manually set a tee's slope + rating. The scorecard extraction fills
+ * these when the photo shows them, but plenty of cards don't — and the
+ * course-handicap method needs them. Bounds mirror the extractor's
+ * validation (rating 50–100, slope 55–200). Blank clears the value.
+ */
+export async function updateTeeRating(formData: FormData): Promise<void> {
+  const tripId = await ensureCourseAdmin(formData);
+
+  const courseId = String(formData.get('courseId') ?? '').trim();
+  const teeId = String(formData.get('teeId') ?? '').trim();
+  if (!courseId || !teeId) throw new Error('courseId and teeId required');
+
+  const [tee] = await db
+    .select()
+    .from(courseTees)
+    .where(eq(courseTees.id, teeId))
+    .limit(1);
+  if (!tee || tee.courseId !== courseId) {
+    throw new Error('Tee does not belong to this course');
+  }
+
+  const ratingRaw = String(formData.get('rating') ?? '').trim();
+  const slopeRaw = String(formData.get('slope') ?? '').trim();
+
+  let rating: string | null = null;
+  if (ratingRaw) {
+    const n = Number(ratingRaw);
+    if (!Number.isFinite(n) || n < 50 || n > 100) {
+      throw new Error('Rating must be between 50 and 100 (e.g. 72.5)');
+    }
+    rating = n.toFixed(1);
+  }
+  let slope: number | null = null;
+  if (slopeRaw) {
+    const n = Number(slopeRaw);
+    if (!Number.isFinite(n) || n < 55 || n > 200) {
+      throw new Error('Slope must be between 55 and 200 (e.g. 130)');
+    }
+    slope = Math.round(n);
+  }
+
+  await db
+    .update(courseTees)
+    .set({ rating, slope })
+    .where(eq(courseTees.id, teeId));
+
+  const tripSlug = await getTripSlugById(tripId);
+  revalidatePath(`/trips/${tripSlug}/admin/courses/${courseId}/edit`);
+  revalidatePath(`/trips/${tripSlug}/admin/courses`);
+}
+
+/**
  * Manual re-extract for an existing course. Useful when the admin tunes the
  * scorecard photo or wants to retry after a failed first pass.
  */

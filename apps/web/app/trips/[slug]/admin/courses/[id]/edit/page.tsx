@@ -11,7 +11,7 @@ import {
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
-import { setDefaultTee, updateCourse } from '@/lib/actions/courses';
+import { setDefaultTee, updateCourse, updateTeeRating } from '@/lib/actions/courses';
 import ImagePickerInput from '@/components/ImagePickerInput';
 import CourseHolesEditor from '@/components/admin/CourseHolesEditor';
 import ExtractScorecardButton from '@/components/admin/ExtractScorecardButton';
@@ -243,14 +243,54 @@ export default async function EditCoursePage({
                       )}
                     </div>
                     <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-                      {[
-                        t.rating ? `${t.rating} rating` : null,
-                        t.slope != null ? `slope ${t.slope}` : null,
-                        t.totalYardage != null ? `${t.totalYardage} yds` : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ') || '—'}
+                      {t.totalYardage != null ? `${t.totalYardage} yds` : '—'}
                     </p>
+                    {/* Slope + rating feed the course-handicap method.
+                        Extraction fills them when the card shows them;
+                        this is the manual patch-up for cards that don't. */}
+                    <form
+                      action={updateTeeRating}
+                      className="mt-2 flex items-end gap-2"
+                    >
+                      <input type="hidden" name="tripId" value={trip.id} />
+                      <input type="hidden" name="courseId" value={course.id} />
+                      <input type="hidden" name="teeId" value={t.id} />
+                      <label className="block">
+                        <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
+                          Rating
+                        </span>
+                        <input
+                          type="number"
+                          name="rating"
+                          step="0.1"
+                          min={50}
+                          max={100}
+                          defaultValue={t.rating ?? ''}
+                          placeholder="72.5"
+                          className="mt-1 block w-20 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2 py-1.5 text-right font-mono text-sm tabular-nums focus:border-yellow-500 focus:outline-none"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
+                          Slope
+                        </span>
+                        <input
+                          type="number"
+                          name="slope"
+                          min={55}
+                          max={200}
+                          defaultValue={t.slope ?? ''}
+                          placeholder="130"
+                          className="mt-1 block w-20 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2 py-1.5 text-right font-mono text-sm tabular-nums focus:border-yellow-500 focus:outline-none"
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        className="rounded-sm border border-zinc-400 dark:border-zinc-700 px-2.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:border-yellow-500/40 hover:text-yellow-400"
+                      >
+                        Save
+                      </button>
+                    </form>
                   </div>
                   {!t.isDefault && (
                     <form action={setDefaultTee}>

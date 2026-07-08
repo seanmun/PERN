@@ -974,9 +974,12 @@ export function computeStableford(input: {
   holes: EngineHole[];
   scores: EngineScore[];
   points?: StablefordPoints;
+  /** Scratch baseline override — same semantics as computeMatch's.
+   * Omitted = lowest handicap in the match (historic behavior). */
+  scratchHandicap?: number;
 }): ComputedStableford {
   const pts = input.points ?? DEFAULT_STABLEFORD_POINTS;
-  const strokesByPlayer = computeStrokes(input.players, input.holes);
+  const strokesByPlayer = computeStrokes(input.players, input.holes, input.scratchHandicap);
 
   const grossByPH = new Map<string, number>();
   for (const s of input.scores) {

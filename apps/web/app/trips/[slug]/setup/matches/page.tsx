@@ -16,6 +16,7 @@ import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { type FormatId, FORMAT_META } from '@buddycup/scoring/formats';
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
 import MatchBuilder from '@/components/admin/MatchBuilder';
+import { roundTeeHasSlopeRating } from '@/lib/scoring/handicap-method';
 
 export default async function SetupMatchesPage({
   params,
@@ -150,6 +151,8 @@ async function RoundMatchesBlock({
   const builderTeams = allTeams.map((t) => ({ id: t.id, name: t.name, color: t.color }));
   const builderTeeTimes = allTeeTimes.map((t) => ({ id: t.id, groupNumber: t.groupNumber }));
 
+  const teeHasSlopeRating = await roundTeeHasSlopeRating(round.id);
+
   // Existing matches, grouped by participant for a compact summary row.
   const partsByMatch = new Map<string, typeof participantRows>();
   for (const p of participantRows) {
@@ -200,6 +203,7 @@ async function RoundMatchesBlock({
             teeTimes={builderTeeTimes}
             defaultFormat={round.format as FormatId}
             redirectTo="none"
+            teeHasSlopeRating={teeHasSlopeRating}
           />
         </div>
       </details>

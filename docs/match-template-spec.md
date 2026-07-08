@@ -145,6 +145,31 @@ Off the foursomes, one-click templates for the common shapes:
 
 Admin can drag to tweak after the preset fills. Presets are pure UI helpers — they call the same create-match endpoint as manual builds.
 
+## Handicap methods
+
+Every match carries a `handicap_method` (enum, default `group_low`)
+deciding how strokes are computed — orthogonal to both format and
+scoring. Resolved in one place: `apps/web/lib/scoring/handicap-method.ts`
+(`resolveMatchHandicaps`), used by recompute, the match page, the cup
+tab's live rows, both score-entry surfaces, and quick-result.
+
+| Method | Strokes basis |
+|---|---|
+| `group_low` (default) | Differential vs the lowest handicap in the FOURSOME (tee-time roster; falls back to match participants for cross-foursome matches). The original Cup convention. |
+| `match_low` | Differential vs the lowest handicap in the MATCH. |
+| `course` | Full course handicap per player: trip handicap treated as a GHIN index, converted via the round tee's slope/rating — `round(Index × Slope/113 + (Rating − Par))` (`packages/scoring/handicap.ts`). Scratch baseline 0. Falls back to the raw handicap when the tee lacks slope/rating; the match builder warns and the course admin page has manual slope/rating inputs per tee (extraction also fills them from the scorecard photo). |
+
+The **individual leaderboard** ignores per-match methods entirely — it
+always uses the full course-handicap basis (net, stableford points, and
+the "+N" chip all derive from one allocation per player per round), so
+the season-long race is consistent regardless of how any given match
+was handicapped.
+
+The foursome score-entry card's stroke dots follow the PRIMARY match's
+method (a physical card can't render two allocations at once); stacked
+side matches with a different method still resolve their own strokes on
+their own match pages.
+
 ## Cup-point overlap
 
 Same 4 players, three overlapping matches: 1v1 singles + 2v2 best ball + 4v4 best ball. Each match's result wants to award Cup points off the same shots — that triples the round's points pool unless we decide otherwise.

@@ -8,6 +8,7 @@ import {
 } from '@/lib/auth/permissions';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
 import { computeStrokes, computeTeamMatch } from '@buddycup/scoring/engine';
+import { resolveMatchHandicaps } from '@/lib/scoring/handicap-method';
 import ScoreEntryClient, {
   type ScoreClientPlayer,
   type ScoreClientHole,
@@ -68,7 +69,10 @@ export default async function ScoreEntryPage({
     redirect(`/trips/${slug}/matches/${id}`);
   }
 
-  const strokesMap = computeStrokes(data.enginePlayers, data.engineHoles);
+  // Strokes per the match's handicap_method (resolver converts hcps for
+  // 'course' and supplies the right scratch baseline for the rest).
+  const { enginePlayers, scratchHandicap } = await resolveMatchHandicaps(data);
+  const strokesMap = computeStrokes(enginePlayers, data.engineHoles, scratchHandicap);
 
   const holes: ScoreClientHole[] = data.engineHoles.map((h) => ({
     number: h.number,

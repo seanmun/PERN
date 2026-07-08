@@ -18,7 +18,8 @@ import {
   isAnyCaptainOnTrip,
 } from '@/lib/auth/permissions';
 import QuickResultForm from '@/components/QuickResultForm';
-import { getScratchHandicap } from '@/lib/scoring/recompute';
+import { getMatchScoringData } from '@/lib/data/match-scoring';
+import { resolveMatchHandicaps } from '@/lib/scoring/handicap-method';
 
 export default async function QuickResultPage({
   params,
@@ -79,25 +80,22 @@ export default async function QuickResultPage({
   if (distinctTeams[0]) sideByTeam.set(distinctTeams[0].id, 'A');
   if (distinctTeams[1]) sideByTeam.set(distinctTeams[1].id, 'B');
 
-  // Strokes each player receives across the 18 holes = max(0, hcp - scratch).
-  // Same formula the live engine uses (foursome scratch baseline).
-  const scratch = await getScratchHandicap(
-    id,
-    row.match.teeTimeId,
-    row.round.id,
-  );
-  const minH = scratch ?? Math.min(
-    ...partRows
-      .map((r) => (r.tripHandicap ? Number(r.tripHandicap) : Number.POSITIVE_INFINITY))
-      .filter((n) => Number.isFinite(n)),
-  );
+  // Strokes each player receives across the 18 holes, per the match's
+  // handicap_method — same resolver every live compute uses.
+  const scoringData = await getMatchScoringData(id);
   const strokesByPlayer = new Map<string, number>();
-  for (const r of partRows) {
-    const hcp = r.tripHandicap ? Number(r.tripHandicap) : null;
-    const strokes = hcp != null && Number.isFinite(minH)
-      ? Math.max(0, Math.round(hcp - minH))
-      : 0;
-    strokesByPlayer.set(r.participantId, strokes);
+  if (scoringData) {
+    const { enginePlayers, scratchHandicap } =
+      await resolveMatchHandicaps(scoringData);
+    const baseline =
+      scratchHandicap ??
+      Math.min(...enginePlayers.map((p) => p.handicap), Number.POSITIVE_INFINITY);
+    for (const p of enginePlayers) {
+      const strokes = Number.isFinite(baseline)
+        ? Math.max(0, Math.round(p.handicap - baseline))
+        : 0;
+      strokesByPlayer.set(p.id, strokes);
+    }
   }
 
   const participants = partRows.map((r) => ({
