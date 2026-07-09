@@ -43,10 +43,7 @@ export default async function SetupTeamsPage({
     <div className="pb-24">
       <WizardShell active="teams" tripSlug={slug} />
       <div className="mx-auto max-w-xl px-4 pt-6">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
-          Step 4
-        </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">Set the sides.</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Teams.</h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           Rename and recolor the two teams, then split the roster.
         </p>
@@ -64,7 +61,7 @@ export default async function SetupTeamsPage({
             href={`/trips/${slug}/setup/groups`}
             className="rounded-sm bg-yellow-500 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.4)] hover:bg-yellow-400"
           >
-            Continue →
+            Groups →
           </a>
         </div>
       </div>

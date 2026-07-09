@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Flag, ImageIcon, Settings, Trophy, Users } from 'lucide-react';
+import { ChevronRight, ImageIcon, Settings, Trophy, Users } from 'lucide-react';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin } from '@/lib/auth/permissions';
 import ComingSoon from '@/components/ComingSoon';
@@ -38,34 +38,28 @@ export default async function AdminPage({
 
       <div className="mt-8 space-y-3">
         <AdminLink
-          href={`/trips/${slug}/admin/details`}
+          href={`/trips/${slug}/setup/details`}
           icon={<Settings size={16} />}
-          label="Trip details"
-          hint="Name, dates, description, and the trip icon."
-        />
-        <AdminLink
-          href={`/trips/${slug}/admin/teams`}
-          icon={<Flag size={16} />}
-          label="Teams"
-          hint="Rename and recolor the two teams competing for the cup."
+          label="Event settings"
+          hint="Details, players, teams, groups, matches — the tabbed setup surface."
         />
         <AdminLink
           href={`/trips/${slug}/admin/players`}
           icon={<Users size={16} />}
-          label="Players"
-          hint="Photos, handicaps, teams, captains, scouting reports."
+          label="Players (deep edit)"
+          hint="Photos, handicaps, captains, scouting reports, invites."
         />
         <AdminLink
           href={`/trips/${slug}/admin/rounds`}
           icon={<Trophy size={16} />}
-          label="Rounds"
-          hint="Golf events — course, date, format, tee times, matchups."
+          label="Rounds (deep edit)"
+          hint="Per-round labels, tees, recompute, delete."
         />
         <AdminLink
           href={`/trips/${slug}/admin/courses`}
           icon={<ImageIcon size={16} />}
           label="Courses"
-          hint="Landscape photos used as match-detail backgrounds."
+          hint="Shared course library — holes, tees, slope/rating, photos."
         />
       </div>
     </div>

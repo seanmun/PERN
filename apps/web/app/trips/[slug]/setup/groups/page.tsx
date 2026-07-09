@@ -54,10 +54,7 @@ export default async function SetupGroupsPage({
     <div className="pb-24">
       <WizardShell active="groups" tripSlug={slug} />
       <div className="mx-auto max-w-xl px-4 pt-6">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
-          Step 5
-        </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">Tee groups.</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Tee groups.</h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           Add a round for each day/course you&apos;re playing, then build the
           foursomes inside it.
@@ -88,7 +85,7 @@ export default async function SetupGroupsPage({
             href={`/trips/${slug}/setup/matches`}
             className="rounded-sm bg-yellow-500 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.4)] hover:bg-yellow-400"
           >
-            Continue →
+            Matches →
           </a>
         </div>
       </div>
@@ -115,11 +112,19 @@ async function RoundBlock({
 
   return (
     <section className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
-      <div className="border-b border-zinc-200 dark:border-zinc-900 px-4 py-3">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
-          Round {round.order}{round.label ? ` · ${round.label}` : ''}
-        </p>
-        <p className="mt-0.5 text-sm font-semibold">{courseName}</p>
+      <div className="flex items-start justify-between gap-3 border-b border-zinc-200 dark:border-zinc-900 px-4 py-3">
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
+            Round {round.order}{round.label ? ` · ${round.label}` : ''}
+          </p>
+          <p className="mt-0.5 text-sm font-semibold">{courseName}</p>
+        </div>
+        <a
+          href={`/trips/${tripSlug}/admin/rounds/${round.id}/edit`}
+          className="shrink-0 rounded-sm border border-zinc-400 dark:border-zinc-700 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:border-yellow-500/40 hover:text-yellow-400"
+        >
+          Edit round
+        </a>
       </div>
 
       <div className="space-y-4 p-4">

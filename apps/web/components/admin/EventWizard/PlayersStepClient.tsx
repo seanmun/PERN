@@ -124,16 +124,21 @@ export default function PlayersStepClient({
             </p>
           ) : (
             initialMembers.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 rounded-sm px-2 py-2">
-                <PlayerAvatar name={m.nickname} avatarUrl={m.avatarUrl} color={m.teamColor} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{m.nickname}</p>
-                  {m.teamName && (
-                    <p className="font-mono text-[9px] uppercase tracking-widest" style={{ color: m.teamColor ?? undefined }}>
-                      {m.teamName}
-                    </p>
-                  )}
-                </div>
+              <div key={m.id} className="flex items-center gap-3 rounded-sm px-2 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/40">
+                <a
+                  href={`/trips/${tripSlug}/admin/players/${m.id}/edit`}
+                  className="flex min-w-0 flex-1 items-center gap-3"
+                >
+                  <PlayerAvatar name={m.nickname} avatarUrl={m.avatarUrl} color={m.teamColor} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{m.nickname}</p>
+                    {m.teamName && (
+                      <p className="font-mono text-[9px] uppercase tracking-widest" style={{ color: m.teamColor ?? undefined }}>
+                        {m.teamName}
+                      </p>
+                    )}
+                  </div>
+                </a>
                 {m.tripHandicap && (
                   <span className="font-mono text-xs tabular-nums text-zinc-500">{m.tripHandicap}</span>
                 )}

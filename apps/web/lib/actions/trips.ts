@@ -178,12 +178,22 @@ export async function updateTrip(formData: FormData): Promise<void> {
       ? methodRaw
       : 'group_low';
 
+  // Kind is editable post-creation (it only drives how the cup tab
+  // renders — no data depends on it). Absent from the form → unchanged.
+  const kindRaw = trim(formData.get('kind'));
+  const kind: 'trip' | 'outing' | 'match' =
+    kindRaw === 'outing' || kindRaw === 'match'
+      ? kindRaw
+      : kindRaw === 'trip'
+        ? 'trip'
+        : existing.kind;
+
   await db
     .update(trips)
-    .set({ name, startDate, endDate, description, imageUrl, defaultHandicapMethod })
+    .set({ name, kind, startDate, endDate, description, imageUrl, defaultHandicapMethod })
     .where(eq(trips.id, id));
 
   revalidatePath('/home');
   revalidatePath(`/trips/${existing.slug}`, 'layout');
-  redirect(`/trips/${existing.slug}/admin/details`);
+  redirect(`/trips/${existing.slug}/setup/details`);
 }

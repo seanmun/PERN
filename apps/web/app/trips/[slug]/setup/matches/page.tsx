@@ -46,10 +46,7 @@ export default async function SetupMatchesPage({
     <div className="pb-24">
       <WizardShell active="matches" tripSlug={slug} />
       <div className="mx-auto max-w-2xl px-4 pt-6">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
-          Step 6
-        </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">Layer the matches.</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Matches.</h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           Build a matchup per round. Anyone can be in several matches at once,
           even across foursomes.
@@ -85,7 +82,7 @@ export default async function SetupMatchesPage({
             href={`/trips/${slug}/setup/review`}
             className="rounded-sm bg-yellow-500 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.4)] hover:bg-yellow-400"
           >
-            Continue →
+            Review →
           </a>
         </div>
       </div>

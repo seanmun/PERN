@@ -48,10 +48,7 @@ export default async function SetupReviewPage({
     <div className="pb-24">
       <WizardShell active="review" tripSlug={slug} />
       <div className="mx-auto max-w-xl px-4 pt-6">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
-          Step 7
-        </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">Review &amp; send.</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Review &amp; send.</h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           Everything below is already saved. Sending invites is the last step.
         </p>
