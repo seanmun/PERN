@@ -3,6 +3,7 @@ import { Check } from 'lucide-react';
 
 export type WizardStepKey =
   | 'type'
+  | 'course'
   | 'details'
   | 'players'
   | 'teams'
@@ -10,13 +11,19 @@ export type WizardStepKey =
   | 'matches'
   | 'review';
 
-// Pre-creation wizard (no trip exists yet): two real steps. The rest of
-// the flow only becomes reachable once the trip row exists, at which
-// point the shell renders as settings TABS instead (below).
-const CREATE_STEPS: { key: WizardStepKey; label: string }[] = [
-  { key: 'type', label: 'Type' },
-  { key: 'details', label: 'Details' },
-];
+// Pre-creation wizard (no trip exists yet). Match/outing put the course
+// first — it's the one constant of a single-day event. Trips set courses
+// up later (multi-course), so their flow skips the step. The rest of the
+// flow only becomes reachable once the trip row exists, at which point
+// the shell renders as settings TABS instead (below).
+function createSteps(kind?: 'trip' | 'outing' | 'match'): { key: WizardStepKey; label: string }[] {
+  const singleDay = kind === 'outing' || kind === 'match';
+  return [
+    { key: 'type', label: 'Type' },
+    ...(singleDay ? [{ key: 'course' as const, label: 'Course' }] : []),
+    { key: 'details', label: 'Details' },
+  ];
+}
 
 // Post-creation: the same pages, framed as a persistent tabbed settings
 // surface. Same order as the creation flow so the muscle memory carries.
@@ -45,9 +52,11 @@ const SETTINGS_TABS: { key: WizardStepKey; label: string }[] = [
 export default function WizardShell({
   active,
   tripSlug,
+  kind,
 }: {
   active: WizardStepKey;
   tripSlug?: string;
+  kind?: 'trip' | 'outing' | 'match';
 }) {
   if (tripSlug) {
     return (
@@ -79,7 +88,8 @@ export default function WizardShell({
     );
   }
 
-  const activeIdx = CREATE_STEPS.findIndex((s) => s.key === active);
+  const steps = createSteps(kind);
+  const activeIdx = steps.findIndex((s) => s.key === active);
   return (
     <div className="border-b border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-black/40">
       <div className="mx-auto max-w-2xl px-4 pt-4">
@@ -88,22 +98,27 @@ export default function WizardShell({
             New event
           </p>
           <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-            Step {activeIdx + 1} / {CREATE_STEPS.length}
+            Step {activeIdx + 1} / {steps.length}
           </span>
         </div>
 
         <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-900">
           <div
             className="h-full bg-yellow-500 transition-all"
-            style={{ width: `${((activeIdx + 1) / CREATE_STEPS.length) * 100}%` }}
+            style={{ width: `${((activeIdx + 1) / steps.length) * 100}%` }}
           />
         </div>
 
         <div className="-mx-4 mt-3 flex gap-1.5 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {CREATE_STEPS.map((s, i) => {
+          {steps.map((s, i) => {
             const isActive = s.key === active;
             const isDone = i < activeIdx;
-            const href = s.key === 'type' ? '/trips/new' : null;
+            const href =
+              s.key === 'type'
+                ? '/trips/new'
+                : s.key === 'course' && kind
+                  ? `/trips/new/course?kind=${kind}`
+                  : null;
             const chipCls = isActive
               ? 'bg-yellow-500 text-black'
               : isDone && href

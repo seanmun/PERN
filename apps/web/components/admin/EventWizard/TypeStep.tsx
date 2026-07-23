@@ -44,7 +44,15 @@ export default function TypeStep() {
         <button
           key={c.id}
           type="button"
-          onClick={() => router.push(`/trips/new/details?kind=${c.id}`)}
+          onClick={() =>
+            // Single-day events pick their course FIRST — it's the one
+            // constant. Trips set courses up later in Groups.
+            router.push(
+              c.id === 'trip'
+                ? `/trips/new/details?kind=${c.id}`
+                : `/trips/new/course?kind=${c.id}`,
+            )
+          }
           className="flex w-full items-center gap-4 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4 text-left transition-colors hover:border-yellow-500/50 hover:bg-yellow-500/5"
         >
           <span className="flex-none text-yellow-800 dark:text-yellow-500">

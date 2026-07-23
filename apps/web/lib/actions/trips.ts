@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { teams, tripMembers, trips, users } from '@/db/schema';
+import { courses, rounds, teams, tripMembers, trips, users } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import { getTripAuthContext } from '@/lib/auth/trip-context';
 import { AuthorizationError, canEditTrip } from '@/lib/auth/permissions';
@@ -133,6 +133,28 @@ export async function createTrip(formData: FormData): Promise<void> {
     .update(users)
     .set({ defaultTripId: trip.id, updatedAt: new Date() })
     .where(eq(users.id, ctx.user.id));
+
+  // Single-day kinds picked their course in the wizard's Course step —
+  // auto-create round 1 on it so a match never touches rounds plumbing
+  // and an outing starts with its first round in place. Bad/missing
+  // courseId just skips this; the admin can add the round in Groups.
+  const courseId = trim(formData.get('courseId'));
+  if (singleDay && courseId) {
+    const [course] = await db
+      .select({ id: courses.id })
+      .from(courses)
+      .where(eq(courses.id, courseId))
+      .limit(1);
+    if (course) {
+      await db.insert(rounds).values({
+        tripId: trip.id,
+        courseId: course.id,
+        format: 'best_ball',
+        date: startDate,
+        order: 1,
+      });
+    }
+  }
 
   revalidatePath('/home');
   // Optional override so the event-creation wizard can land the admin on

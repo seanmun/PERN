@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { MapPin } from 'lucide-react';
 import { createTrip } from '@/lib/actions/trips';
 import { slugifyTripName } from '@/lib/slug';
 import ImagePickerInput from '@/components/ImagePickerInput';
@@ -21,13 +23,20 @@ const KIND_COPY: Record<Kind, { nameLabel: string; namePlaceholder: string }> = 
   match: { nameLabel: 'Match name', namePlaceholder: 'Sat foursome' },
 };
 
-export default function DetailsStep({ kind }: { kind: Kind }) {
+export default function DetailsStep({
+  kind,
+  course,
+}: {
+  kind: Kind;
+  course?: { id: string; name: string; location: string | null } | null;
+}) {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [slugTouched, setSlugTouched] = useState(false);
   const slugInputRef = useRef<HTMLInputElement>(null);
   const copy = KIND_COPY[kind];
   const singleDay = kind === 'outing' || kind === 'match';
+  const backHref = singleDay ? `/trips/new/course?kind=${kind}` : '/trips/new';
 
   useEffect(() => {
     if (!slugTouched) setSlug(slugifyTripName(name));
@@ -46,6 +55,36 @@ export default function DetailsStep({ kind }: { kind: Kind }) {
     <form action={createTrip} className="mt-6 space-y-6">
       <input type="hidden" name="kind" value={kind} />
       {redirectTo && <input type="hidden" name="redirectTo" value={redirectTo} />}
+      {course && <input type="hidden" name="courseId" value={course.id} />}
+
+      {/* The course picked in the previous step — pinned so it's never a
+          mystery what this event is anchored to. Round 1 is auto-created
+          on it. */}
+      {singleDay && (
+        <div className="flex items-center gap-3 rounded-sm border border-yellow-600/30 bg-yellow-500/5 p-3">
+          <MapPin size={16} className="shrink-0 text-yellow-700 dark:text-yellow-500" />
+          <div className="min-w-0 flex-1">
+            {course ? (
+              <>
+                <p className="truncate text-sm font-semibold">{course.name}</p>
+                {course.location && (
+                  <p className="truncate text-xs text-zinc-500">{course.location}</p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-zinc-500">
+                No course yet — you can add it later in Groups.
+              </p>
+            )}
+          </div>
+          <Link
+            href={`/trips/new/course?kind=${kind}`}
+            className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-400 hover:underline"
+          >
+            {course ? 'Change' : 'Pick course'}
+          </Link>
+        </div>
+      )}
 
       <div>
         <label htmlFor="trip-name" className={labelCls}>
@@ -148,7 +187,7 @@ export default function DetailsStep({ kind }: { kind: Kind }) {
           Continue →
         </button>
         <a
-          href="/trips/new"
+          href={backHref}
           className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 hover:text-zinc-300"
         >
           Back

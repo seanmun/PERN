@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import { eq } from 'drizzle-orm';
+import { db } from '@/db/client';
+import { courses } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
 import DetailsStep from '@/components/admin/EventWizard/DetailsStep';
@@ -28,29 +31,43 @@ const COPY: Record<Kind, { title: string; body: string }> = {
 export default async function NewTripDetailsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string }>;
+  searchParams: Promise<{ kind?: string; courseId?: string }>;
 }) {
   const ctx = await getGlobalAuthContext();
   if (!ctx) redirect('/sign-in?redirect_url=/trips/new');
 
-  const { kind: kindRaw } = await searchParams;
+  const { kind: kindRaw, courseId } = await searchParams;
   if (kindRaw !== 'trip' && kindRaw !== 'outing' && kindRaw !== 'match') {
     redirect('/trips/new');
   }
   const kind = kindRaw;
   const copy = COPY[kind];
+  const singleDay = kind === 'outing' || kind === 'match';
+
+  // Course picked in the previous step (match/outing only). Resolve it
+  // server-side so the pinned card shows real data — a bogus id just
+  // degrades to no course rather than erroring.
+  let course: { id: string; name: string; location: string | null } | null = null;
+  if (singleDay && courseId) {
+    const [found] = await db
+      .select({ id: courses.id, name: courses.name, location: courses.location })
+      .from(courses)
+      .where(eq(courses.id, courseId))
+      .limit(1);
+    course = found ?? null;
+  }
 
   return (
     <div className="pb-24">
-      <WizardShell active="details" />
+      <WizardShell active="details" kind={kind} />
       <div className="mx-auto max-w-xl px-4 pt-6">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-yellow-800 dark:text-yellow-500">
-          Step 2
+          Step {singleDay ? 3 : 2}
         </p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight">{copy.title}</h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{copy.body}</p>
 
-        <DetailsStep kind={kind} />
+        <DetailsStep kind={kind} course={course} />
       </div>
     </div>
   );
