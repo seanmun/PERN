@@ -19,6 +19,7 @@ import {
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
 import { extractScorecardFromUrl } from '@/lib/scorecard/extract';
+import { teeRank, pickDefaultTeeIndex } from '@/lib/scorecard/tee-order';
 
 function trim(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;
@@ -34,6 +35,13 @@ function intOrNull(v: FormDataEntryValue | null): number | null {
   return Math.round(n);
 }
 
+function floatOrNull(v: FormDataEntryValue | null): number | null {
+  const s = trim(v);
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
 async function ensureCourseAdmin(formData: FormData): Promise<string> {
   const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
@@ -45,46 +53,6 @@ async function ensureCourseAdmin(formData: FormData): Promise<string> {
     throw new AuthorizationError('Trip admin required');
   }
   return tripId;
-}
-
-// Common tee names roughly ordered longest -> shortest. Used to pick the
-// "default" tee when the model returns multiple, and to order the tee list
-// for display. Match is case-insensitive prefix.
-const TEE_ORDER: ReadonlyArray<string> = [
-  'tournament',
-  'championship',
-  'tips',
-  'black',
-  'blue',
-  'gold',
-  'white',
-  'green',
-  'silver',
-  'yellow',
-  'red',
-  'forward',
-  'senior',
-  'junior',
-];
-
-function teeRank(name: string): number {
-  const lower = name.toLowerCase();
-  for (let i = 0; i < TEE_ORDER.length; i++) {
-    if (lower.includes(TEE_ORDER[i])) return i;
-  }
-  return TEE_ORDER.length; // unknown names fall to the bottom
-}
-
-// Pick a sensible default tee. Prefer "white" / "middle" / "regular" when
-// present; otherwise fall back to the longest tee we recognize.
-function pickDefaultTeeIndex(tees: { name: string }[]): number {
-  if (tees.length === 0) return -1;
-  const preferred = ['white', 'middle', 'regular', 'member'];
-  for (const pref of preferred) {
-    const idx = tees.findIndex((t) => t.name.toLowerCase().includes(pref));
-    if (idx !== -1) return idx;
-  }
-  return 0; // first tee in ranked order
 }
 
 /**
@@ -180,6 +148,8 @@ export async function createCourse(formData: FormData): Promise<void> {
       name,
       location: trim(formData.get('location')),
       address: trim(formData.get('address')),
+      latitude: floatOrNull(formData.get('latitude')),
+      longitude: floatOrNull(formData.get('longitude')),
       totalPar: intOrNull(formData.get('totalPar')),
       imageUrl: trim(formData.get('imageUrl')),
       scorecardImageUrl,

@@ -117,7 +117,24 @@ export const courses = pgTable('courses', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   location: text('location'),
+  address: text('address'),                    // street address for map deep-link
+  latitude: doublePrecision('latitude'),       // distance-sort in course pickers
+  longitude: doublePrecision('longitude'),
+  externalSource: text('external_source'),     // e.g. 'golfcourseapi'
+  externalId: text('external_id'),             // id within that source; (source, id) unique — dedupes re-imports
   totalPar: integer('total_par'),
+  imageUrl: text('image_url'),
+  scorecardImageUrl: text('scorecard_image_url'),
+  scorecardExtractedAt: timestamp('scorecard_extracted_at', { withTimezone: true }),
+});
+
+// Platform-level starred courses — keyed to users, not trip_members,
+// so favorites follow the user across trips. (user_id, course_id) unique.
+export const courseFavorites = pgTable('course_favorites', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  courseId: uuid('course_id').references(() => courses.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const courseHoles = pgTable('course_holes', {

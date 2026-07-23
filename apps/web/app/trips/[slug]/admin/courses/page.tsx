@@ -1,11 +1,12 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { asc } from 'drizzle-orm';
-import { ArrowLeft, ImageIcon, Pencil } from 'lucide-react';
+import { asc, eq } from 'drizzle-orm';
+import { ArrowLeft } from 'lucide-react';
 import { db } from '@/db/client';
-import { courses } from '@/db/schema';
+import { courses, courseFavorites, rounds, tripMembers } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import CourseLibraryList from '@/components/admin/CourseLibraryList';
 
 export default async function AdminCoursesPage({
   params,
@@ -22,7 +23,33 @@ export default async function AdminCoursesPage({
   const canEdit = isPlatformAdmin(ctx) || isTripAdminOf(ctx, trip.id);
   if (!canEdit) redirect(`/trips/${slug}/admin`);
 
-  const list = await db.select().from(courses).orderBy(asc(courses.name));
+  const [list, favorites, playedRows] = await Promise.all([
+    db.select().from(courses).orderBy(asc(courses.name)),
+    db
+      .select({ courseId: courseFavorites.courseId })
+      .from(courseFavorites)
+      .where(eq(courseFavorites.userId, ctx.user.id)),
+    // "Played" = the course has a round on any trip this user is a member of.
+    db
+      .selectDistinct({ courseId: rounds.courseId })
+      .from(rounds)
+      .innerJoin(tripMembers, eq(tripMembers.tripId, rounds.tripId))
+      .where(eq(tripMembers.userId, ctx.user.id)),
+  ]);
+
+  const favoriteIds = new Set(favorites.map((f) => f.courseId));
+  const playedIds = new Set(playedRows.map((p) => p.courseId));
+
+  const rows = list.map((c) => ({
+    id: c.id,
+    name: c.name,
+    location: c.location,
+    imageUrl: c.imageUrl,
+    latitude: c.latitude,
+    longitude: c.longitude,
+    isFavorite: favoriteIds.has(c.id),
+    played: playedIds.has(c.id),
+  }));
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-6">
@@ -37,7 +64,7 @@ export default async function AdminCoursesPage({
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Courses</h1>
           <p className="mt-1 text-xs text-zinc-500">
-            Set the landscape photo that runs behind each match detail page.
+            Star favorites, see courses you&rsquo;ve played, and sort by distance.
           </p>
         </div>
         <Link
@@ -48,48 +75,7 @@ export default async function AdminCoursesPage({
         </Link>
       </div>
 
-      <div className="mt-8 space-y-3">
-        {list.map((c) => (
-          <Link
-            key={c.id}
-            href={`/trips/${slug}/admin/courses/${c.id}/edit`}
-            className="block rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 hover:border-yellow-500/40 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
-          >
-            <div className="flex items-center gap-3 p-3">
-              <div
-                className="relative h-16 w-24 shrink-0 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900"
-                style={
-                  c.imageUrl
-                    ? {
-                        backgroundImage: `url(${c.imageUrl})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                      }
-                    : undefined
-                }
-              >
-                {!c.imageUrl && (
-                  <div className="flex h-full items-center justify-center">
-                    <ImageIcon size={16} className="text-zinc-700" />
-                  </div>
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">{c.name}</p>
-                {c.location && (
-                  <p className="truncate text-xs text-zinc-500">{c.location}</p>
-                )}
-                {!c.imageUrl && (
-                  <p className="mt-1 font-mono text-[9px] uppercase tracking-widest text-zinc-600">
-                    No image
-                  </p>
-                )}
-              </div>
-              <Pencil size={14} className="shrink-0 text-zinc-500" />
-            </div>
-          </Link>
-        ))}
-      </div>
+      <CourseLibraryList rows={rows} slug={slug} />
     </div>
   );
 }

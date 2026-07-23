@@ -1,15 +1,23 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { Loader2, Search } from 'lucide-react';
+import { FileSpreadsheet, Loader2, Search } from 'lucide-react';
 import { createCourse } from '@/lib/actions/courses';
+import { importCourseFromGolfCourseApi } from '@/lib/actions/course-import';
 import ImagePickerInput from '@/components/ImagePickerInput';
 
 type Suggestion = {
   placeId: string;
   mainText: string;
   secondaryText: string;
+};
+
+type DbResult = {
+  id: number;
+  name: string;
+  location: string | null;
+  hasScorecardData: boolean;
 };
 
 /**
@@ -35,12 +43,24 @@ export default function NewCourseForm({
   const [searching, setSearching] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  // Course-database (golfcourseapi.com) results — richer than Places
+  // because a pick imports the full scorecard. Hidden when the server
+  // has no API key configured.
+  const [dbEnabled, setDbEnabled] = useState(true);
+  const [dbResults, setDbResults] = useState<DbResult[]>([]);
+  const [importingId, setImportingId] = useState<number | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importPending, startImport] = useTransition();
 
   // Form values — owned here so the autocomplete can fill them.
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [address, setAddress] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  // Filled by the Places pick; submitted via hidden inputs so pickers can
+  // distance-sort this course later. Cleared if the admin types a new search.
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -51,24 +71,34 @@ export default function NewCourseForm({
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     if (searchQuery.trim().length < 2) {
       setSuggestions([]);
+      setDbResults([]);
       return;
     }
     debounceTimer.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await fetch(
-          `/api/places/golf-courses?q=${encodeURIComponent(searchQuery)}`,
-        );
-        if (res.ok) {
-          const data: { suggestions: Suggestion[] } = await res.json();
+        const [placesRes, dbRes] = await Promise.all([
+          fetch(`/api/places/golf-courses?q=${encodeURIComponent(searchQuery)}`),
+          dbEnabled
+            ? fetch(`/api/course-db/search?q=${encodeURIComponent(searchQuery)}`)
+            : Promise.resolve(null),
+        ]);
+        if (placesRes.ok) {
+          const data: { suggestions: Suggestion[] } = await placesRes.json();
           setSuggestions(data.suggestions);
-          setShowDropdown(true);
         }
+        if (dbRes?.ok) {
+          const data: { enabled: boolean; results: DbResult[] } =
+            await dbRes.json();
+          if (!data.enabled) setDbEnabled(false);
+          setDbResults(data.results);
+        }
+        setShowDropdown(true);
       } finally {
         setSearching(false);
       }
     }, 250);
-  }, [searchQuery]);
+  }, [searchQuery, dbEnabled]);
 
   // Click-outside closes the dropdown.
   useEffect(() => {
@@ -84,6 +114,26 @@ export default function NewCourseForm({
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
+  function pickDbResult(r: DbResult) {
+    setShowDropdown(false);
+    setImportError(null);
+    setImportingId(r.id);
+    // Full import server-side: course + tees + 18 holes, then redirect
+    // to the new course's edit page. (A successful action navigates away;
+    // only the failure path is visible here.)
+    startImport(async () => {
+      try {
+        await importCourseFromGolfCourseApi(tripId, r.id);
+      } catch {
+        setImportError(
+          `Import failed for ${r.name} — try the Google result or manual entry.`,
+        );
+      } finally {
+        setImportingId(null);
+      }
+    });
+  }
+
   async function pickSuggestion(s: Suggestion) {
     setShowDropdown(false);
     setSearchQuery(`${s.mainText}${s.secondaryText ? ` · ${s.secondaryText}` : ''}`);
@@ -98,11 +148,15 @@ export default function NewCourseForm({
           address?: string;
           location?: string;
           imageUrl?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
         } = await res.json();
         if (data.name) setName(data.name);
         if (data.address) setAddress(data.address);
         if (data.location) setLocation(data.location);
         if (data.imageUrl) setImageUrl(data.imageUrl);
+        setLatitude(data.latitude != null ? String(data.latitude) : '');
+        setLongitude(data.longitude != null ? String(data.longitude) : '');
       }
     } finally {
       setResolving(false);
@@ -113,6 +167,8 @@ export default function NewCourseForm({
     <form action={createCourse} className="mt-8 space-y-5">
       <input type="hidden" name="tripId" value={tripId} />
       {redirectTo && <input type="hidden" name="redirectTo" value={redirectTo} />}
+      <input type="hidden" name="latitude" value={latitude} />
+      <input type="hidden" name="longitude" value={longitude} />
 
       {/* Search/autocomplete — fills the form below on selection. */}
       <div className="relative" ref={containerRef}>
@@ -141,30 +197,80 @@ export default function NewCourseForm({
             )}
           </div>
           <p className="mt-1.5 text-[11px] text-zinc-500">
-            Powered by Google. Pick a result to autofill name, address, and a photo.
-            Optional — fill it manually if you'd rather.
+            {dbEnabled
+              ? 'Course-database results import the full scorecard in one tap; Google results autofill name, address, and a photo.'
+              : "Powered by Google. Pick a result to autofill name, address, and a photo. Optional — fill it manually if you'd rather."}
           </p>
+          {importError && (
+            <p className="mt-1.5 text-[11px] text-red-600 dark:text-red-400">{importError}</p>
+          )}
         </label>
 
-        {showDropdown && suggestions.length > 0 && (
-          <ul className="absolute left-0 right-0 z-10 mt-1 max-h-64 overflow-y-auto rounded-sm border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 shadow-lg">
-            {suggestions.map((s) => (
-              <li key={s.placeId}>
-                <button
-                  type="button"
-                  onClick={() => pickSuggestion(s)}
-                  className="flex w-full flex-col items-start gap-0.5 border-b border-zinc-200 dark:border-zinc-800 px-3 py-2.5 text-left text-sm last:border-b-0 hover:bg-yellow-500/10"
-                >
-                  <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                    {s.mainText}
-                  </span>
-                  {s.secondaryText && (
-                    <span className="text-xs text-zinc-500">{s.secondaryText}</span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
+        {showDropdown && (suggestions.length > 0 || dbResults.length > 0) && (
+          <div className="absolute left-0 right-0 z-10 mt-1 max-h-80 overflow-y-auto rounded-sm border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 shadow-lg">
+            {dbResults.length > 0 && (
+              <>
+                <p className="border-b border-zinc-200 dark:border-zinc-800 px-3 py-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+                  Course database · one-tap scorecard import
+                </p>
+                <ul>
+                  {dbResults.map((r) => (
+                    <li key={r.id}>
+                      <button
+                        type="button"
+                        disabled={importPending}
+                        onClick={() => pickDbResult(r)}
+                        className="flex w-full items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 px-3 py-2.5 text-left text-sm hover:bg-yellow-500/10 disabled:opacity-60"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className="block truncate font-semibold text-zinc-900 dark:text-zinc-100">
+                            {r.name}
+                          </span>
+                          {r.location && (
+                            <span className="text-xs text-zinc-500">{r.location}</span>
+                          )}
+                        </div>
+                        {importingId === r.id ? (
+                          <Loader2 size={12} className="shrink-0 animate-spin text-yellow-600 dark:text-yellow-400" />
+                        ) : r.hasScorecardData ? (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-green-600/15 px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-widest text-green-700 dark:text-green-400">
+                            <FileSpreadsheet size={10} /> Scorecard
+                          </span>
+                        ) : null}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {suggestions.length > 0 && (
+              <>
+                {dbResults.length > 0 && (
+                  <p className="border-b border-zinc-200 dark:border-zinc-800 px-3 py-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+                    Google · autofills the form
+                  </p>
+                )}
+                <ul>
+                  {suggestions.map((s) => (
+                    <li key={s.placeId}>
+                      <button
+                        type="button"
+                        onClick={() => pickSuggestion(s)}
+                        className="flex w-full flex-col items-start gap-0.5 border-b border-zinc-200 dark:border-zinc-800 px-3 py-2.5 text-left text-sm last:border-b-0 hover:bg-yellow-500/10"
+                      >
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                          {s.mainText}
+                        </span>
+                        {s.secondaryText && (
+                          <span className="text-xs text-zinc-500">{s.secondaryText}</span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
         )}
       </div>
 

@@ -9,6 +9,8 @@ import {
   pgEnum,
   primaryKey,
   unique,
+  uniqueIndex,
+  doublePrecision,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
@@ -159,16 +161,37 @@ export const tripMembers = pgTable('trip_members', {
   flightDepartureDetails: text('flight_departure_details'),
 });
 
-export const courses = pgTable('courses', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
-  location: text('location'),
-  address: text('address'),                            // street address for map deep-link
-  totalPar: integer('total_par'),
-  imageUrl: text('image_url'),                         // landscape hero photo for match detail backgrounds
-  scorecardImageUrl: text('scorecard_image_url'),      // uploaded scorecard image
-  scorecardExtractedAt: timestamp('scorecard_extracted_at', { withTimezone: true }),
-});
+export const courses = pgTable(
+  'courses',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    location: text('location'),
+    address: text('address'),                            // street address for map deep-link
+    latitude: doublePrecision('latitude'),               // distance-sort in course pickers
+    longitude: doublePrecision('longitude'),
+    externalSource: text('external_source'),             // e.g. 'golfcourseapi'
+    externalId: text('external_id'),                     // id within that source; dedupes re-imports
+    totalPar: integer('total_par'),
+    imageUrl: text('image_url'),                         // landscape hero photo for match detail backgrounds
+    scorecardImageUrl: text('scorecard_image_url'),      // uploaded scorecard image
+    scorecardExtractedAt: timestamp('scorecard_extracted_at', { withTimezone: true }),
+  },
+  (t) => [uniqueIndex('courses_external_source_id_unique').on(t.externalSource, t.externalId)]
+);
+
+// Platform-level starred courses — keyed to users, not trip_members, so
+// favorites follow the user across trips.
+export const courseFavorites = pgTable(
+  'course_favorites',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+    courseId: uuid('course_id').references(() => courses.id, { onDelete: 'cascade' }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique('course_favorites_user_course_unique').on(t.userId, t.courseId)]
+);
 
 export const courseHoles = pgTable(
   'course_holes',

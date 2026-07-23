@@ -39,7 +39,7 @@ export async function GET(
           // Field mask drives both response shape AND billing — keep
           // it minimal.
           'X-Goog-FieldMask':
-            'displayName,formattedAddress,addressComponents,photos',
+            'displayName,formattedAddress,addressComponents,photos,location',
         },
       },
     );
@@ -59,6 +59,7 @@ export async function GET(
       formattedAddress?: string;
       addressComponents?: AddrComp[];
       photos?: Photo[];
+      location?: { latitude?: number; longitude?: number };
     } = await detailsRes.json();
 
     const name = data.displayName?.text ?? '';
@@ -88,7 +89,14 @@ export async function GET(
       }
     }
 
-    return NextResponse.json({ name, address, location, imageUrl });
+    return NextResponse.json({
+      name,
+      address,
+      location,
+      imageUrl,
+      latitude: data.location?.latitude ?? null,
+      longitude: data.location?.longitude ?? null,
+    });
   } catch (err) {
     console.error('[places/details]', err);
     return NextResponse.json(
