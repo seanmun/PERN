@@ -4,13 +4,13 @@ Features parked during scoping, in rough priority order. Each notes dependencies
 
 ## High priority — likely v1.1, before the trip if time allows
 
-### Hole-tagged media uploads
-The **Trip Memoir foundation.** Lets players attach photos and short videos to specific holes (or to a match, or to the trip generally). Two views: chronological feed and per-hole gallery (browse the scorecard, tap a hole, see everyone's shots on that hole). The `media` table already exists in the schema; needs UI + upload pipeline (Vercel Blob or Cloudflare R2).
+### Hole-tagged media uploads — ✅ mostly shipped
+Feed with uploads is live (`/trips/[slug]/feed`, `/api/upload`, `media` table with `hole_number`/`match_id`/`round_id` tagging and moderation). **Remaining:** the per-hole gallery view (browse the scorecard, tap a hole, see everyone's shots on that hole).
 
 *Why it matters:* every other memoir feature downstream depends on having captured media during the trip.
 
-### Trash talk feed / group chat
-Trip-scoped feed. Posts, likes, captain-pinned highlights. Captains can author cross-team jabs that drop as system messages between matchups. The `messages` table already exists.
+### Trash talk feed / group chat — ✅ shipped
+Trip-scoped feed with posts and reactions is live. **Remaining if wanted:** captain-pinned highlights, system-message cross-team jabs between matchups.
 
 ### AI nightly recap article
 End of each day, an LLM ingests results + chat + match data and produces a punchy sports-blog post ("Day 2: D-Bags Claw Back at Tobacco Road"). Auto-posted to the trip feed; optionally emailed to all players. Tone: irreverent broadcast.
@@ -64,14 +64,8 @@ Player takes a photo of the ball relative to the cup. Vision model (Claude, GPT-
 ### Push notifications
 Push or SMS when matches close, when scores flip, when a comeback is happening.
 
-### Multi-tenant unlock
-- Trip-creation flow
-- Invite generation
-- `/cup/[slug]/...` routing
-- Per-trip subdomain option
-- Onboarding wizard
-
-Schema already supports it; this is pure UI work.
+### Multi-tenant unlock — ✅ shipped
+Trip-creation flow (`/trips/new`), invite tokens, and `/trips/[slug]/...` routing are live. **Remaining if wanted:** per-trip subdomain option.
 
 ### Closing ceremony screen
 Trophy reveal animation Saturday night. Losing captain has to do something cringe.

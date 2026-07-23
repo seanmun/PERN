@@ -1,12 +1,18 @@
 # Claude Code — Project Guide
 
-You are working in the **Cup** trip-app repo. Read these docs *in order* before making architectural decisions or proposing new features:
+You are working in the **BuddyCup** (formerly "Cup") trip-app repo. It is an npm-workspaces monorepo:
 
-1. [`docs/product.md`](./docs/product.md) — what we're building, MVP scope, principles
+- `apps/web` — the entire Next.js app (App Router, all root scripts delegate here via `-w web`)
+- `packages/scoring` (`@buddycup/scoring`) — the pure-TS scoring engine, framework-free so a future mobile app can share it
+
+Read these docs before making architectural decisions or proposing new features:
+
+1. [`docs/product.md`](./docs/product.md) — what we're building, principles
 2. [`docs/architecture.md`](./docs/architecture.md) — stack, role model, multi-tenant approach
 3. [`docs/schema.md`](./docs/schema.md) — data model + Drizzle schema
-4. [`docs/pinehurst.md`](./docs/pinehurst.md) — Pinehurst Cup trip seed data
-5. [`docs/backlog.md`](./docs/backlog.md) — post-MVP backlog
+4. [`docs/pinehurst.md`](./docs/pinehurst.md) — Pinehurst Cup trip seed data (the first real trip: Aug 19–22, 2026)
+5. [`docs/event-setup-spec.md`](./docs/event-setup-spec.md) — event-creation/match-setup domain rules (shipped, but the domain rules still govern)
+6. [`docs/backlog.md`](./docs/backlog.md) — backlog
 
 ## Stack — non-negotiable
 
@@ -16,17 +22,20 @@ You are working in the **Cup** trip-app repo. Read these docs *in order* before 
 - **Styling:** Tailwind v4. No CSS-in-JS libraries.
 - **Server state:** TanStack Query. No Redux, no Zustand unless explicitly approved.
 - **Realtime:** Polling via TanStack Query for now. SSE only when scoped. No WebSockets without discussion.
-- **Animation:** Framer Motion (inherited from PERN).
+- **Animation:** Framer Motion.
+- **Package manager:** npm workspaces. Do not reintroduce pnpm — it was removed because Vercel builds were unwinnable (`07fc00b`).
 
 ## Conventions
 
 - File naming: `kebab-case` for directories, `PascalCase.tsx` for React components, `camelCase.ts` for utilities.
-- Drizzle schema lives in `db/schema.ts`. Migrations via Drizzle Kit.
+- Drizzle schema lives in `apps/web/db/schema.ts`. Migrations generate into `apps/web/db/migrations/`.
+- **Migrations are applied by pasting SQL into the Neon SQL editor** (never `db:migrate`), and must be applied BEFORE any code depending on them is pushed — main auto-deploys to prod.
+- Run `npm run build` locally before pushing non-trivial changes — Turbopack dev tolerates type errors the prod build rejects.
 - Server actions over API routes for mutations when reasonable.
-- All trip-scoped queries must filter by `trip_id`. There is no global player list.
-- All permission checks go through `lib/auth/permissions.ts` helpers — never inline.
-- `numeric` for handicaps; Drizzle returns these as strings. Don't `parseFloat` casually — pass them to the match-play engine which knows how to handle them.
-- The match-play scoring engine in `lib/scoring/` is pure functions. Heavily unit-test it. It's the most algorithmically important code in the app.
+- All trip-scoped queries must filter by `trip_id`. There is no global player list (but `users` + buddies exist platform-level).
+- All permission checks go through `apps/web/lib/auth/permissions.ts` helpers — never inline.
+- `numeric` for handicaps; Drizzle returns these as strings. Don't `parseFloat` casually — pass them to the scoring engine which knows how to handle them.
+- The scoring engine in `packages/scoring/` is pure functions (engine, formats, handicap, team-split, match-builder validation). Heavily unit-test it (`apps/web/tests/`, vitest, `npm test`). App-side glue (recompute/persistence) lives in `apps/web/lib/scoring/`. It's the most algorithmically important code in the app.
 
 ## Do not
 
@@ -36,22 +45,19 @@ You are working in the **Cup** trip-app repo. Read these docs *in order* before 
 - Do not create new tables without updating `docs/schema.md` in the same PR.
 - Do not regenerate the Drizzle schema from the database — the schema *is* the source of truth, the DB is downstream.
 
-## Multi-tenant note
+## Multi-tenant status
 
-The schema is multi-tenant from day one (`trip_id` on every domain table). **However:**
-
-- v1 UI is *hardcoded for the Pinehurst trip*. No trip-switcher, no slug-routing, no trip-creation form.
-- The single Pinehurst trip is seeded by `db/seed.ts`.
-- Do not add multi-trip UI without explicit go-ahead. Bolting it on later is cheap; building it now is wasted scope.
+Multi-tenancy is **live**: `/trips/[slug]/...` routing, `/trips/new` creation flow, invite tokens, trip kinds (`trip` / `outing` / `match`). The Pinehurst Cup is the flagship first trip, not a hardcoded assumption. New features should be trip-agnostic by default.
 
 ## Role model — quick reference
 
 | Role | Source | Can do |
 |---|---|---|
 | `platform_admin` | env var `PLATFORM_ADMIN_EMAILS` (Sean / Munley) | godmode across all trips |
-| `trip_admin` | `trip_members.role = 'trip_admin'` (Dan) | full control of own trip |
-| Captain | `trip_members.is_captain = true` (Dan, Ian) | edit own team, set TBD matchups, pick scramble teams |
+| `trip_admin` | `trip_members.role = 'trip_admin'` | full control of own trip |
+| Captain | `trip_members.is_captain = true` | edit own team, set TBD matchups, pick scramble teams |
 | Player | `trip_members.role = 'player'` | view, enter own scores, edit own profile |
+| Viewer | `trip_members.role = 'viewer'` | read-only spectator |
 
 Permission resolution always cascades: platform → trip → captain → self.
 

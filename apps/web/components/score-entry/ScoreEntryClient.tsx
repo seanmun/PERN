@@ -101,6 +101,36 @@ export default function ScoreEntryClient({
     );
   }
 
+  return (
+    <PlayerScoreEntry
+      matchId={matchId}
+      matchIdByPlayer={matchIdByPlayer}
+      holes={holes}
+      players={players}
+      initialScores={initialScores}
+      canEdit={canEdit}
+      selfTripMemberId={selfTripMemberId}
+    />
+  );
+}
+
+function PlayerScoreEntry({
+  matchId,
+  matchIdByPlayer,
+  holes,
+  players,
+  initialScores,
+  canEdit,
+  selfTripMemberId,
+}: {
+  matchId: string;
+  matchIdByPlayer?: Record<string, string>;
+  holes: ScoreClientHole[];
+  players: ScoreClientPlayer[];
+  initialScores: ScoreClientScore[];
+  canEdit: boolean;
+  selfTripMemberId: string | null;
+}) {
   const [view, setView] = useState<'hole' | 'card'>('hole');
   const [restored, setRestored] = useState(false);
   // Auto-jump to the first hole that's missing a player score on open.
