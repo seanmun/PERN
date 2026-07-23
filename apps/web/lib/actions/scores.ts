@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, isNotNull, count } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   matches,
@@ -14,6 +14,7 @@ import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
   canEnterScoreFor,
+  isCaptainOf,
   isPlatformAdmin,
   isTripAdminOf,
   requireAuth,
@@ -26,6 +27,7 @@ import {
   computeTeamMatch,
   DEFAULT_STABLEFORD_POINTS,
   formatStatus,
+  THIRTY_BALL_BUDGET,
   type PlayerInputFormat,
   type StablefordPoints,
 } from '@buddycup/scoring/engine';
@@ -111,6 +113,30 @@ export async function upsertHoleScore(formData: FormData): Promise<void> {
 
   const gross = parseGross(formData.get('gross'));
 
+  // 30 Ball lock: once a side commits a hole, the grosses behind that
+  // commitment are frozen — editing one after the fact would silently
+  // change a locked-in budget decision. The gross fans out round-wide,
+  // so a committed row in ANY of the player's matches this round blocks
+  // the edit. Admin path: uncommit the hole first, then fix the score.
+  const [committedRow] = await db
+    .select({ id: holeScores.id })
+    .from(holeScores)
+    .innerJoin(matches, eq(holeScores.matchId, matches.id))
+    .where(
+      and(
+        eq(matches.roundId, target.round.id),
+        eq(holeScores.tripMemberId, tripMemberId),
+        eq(holeScores.holeNumber, holeNumber),
+        isNotNull(holeScores.committedAt),
+      ),
+    )
+    .limit(1);
+  if (committedRow) {
+    throw new Error(
+      'This score is locked by a committed 30 Ball hole. An admin or captain must uncommit the hole to change it.',
+    );
+  }
+
   // Fan-out scope = ROUND. A player only walks one foursome per round
   // and plays one ball, so a single gross must propagate to every
   // match in the round they're a participant of — including cross-
@@ -193,62 +219,195 @@ export async function upsertHoleScore(formData: FormData): Promise<void> {
 }
 
 /**
- * "30 Ball" only — toggle whether one player's already-recorded gross on
- * one hole counts toward their side's 30-score budget. Unlike
- * upsertHoleScore this does NOT fan out to sibling matches — "counted"
- * is a per-match decision (this specific 30-ball match), not a property
- * of the round-wide gross.
+ * "30 Ball" — shared loader + auth for commit/uncommit. Resolves the
+ * match, the side's members (via teamId), and their hole rows for the
+ * given hole in THIS match ("counted" is per-match, no fan-out).
  */
-export async function toggleHoleScoreCounted(formData: FormData): Promise<void> {
-  const ctx = await getGlobalAuthContext();
-  requireAuth(ctx);
-
-  const matchId = String(formData.get('matchId') ?? '').trim();
-  const tripMemberId = String(formData.get('tripMemberId') ?? '').trim();
-  const holeNumberRaw = String(formData.get('holeNumber') ?? '').trim();
-  const counted = String(formData.get('counted') ?? '') === 'true';
-  if (!matchId || !tripMemberId || !holeNumberRaw) {
-    throw new Error('matchId, tripMemberId, holeNumber required');
-  }
-  const holeNumber = Number(holeNumberRaw);
+async function loadThirtyBallSideHole(
+  matchId: string,
+  teamId: string,
+  holeNumber: number,
+) {
+  if (!matchId || !teamId) throw new Error('matchId and teamId required');
   if (!Number.isFinite(holeNumber) || holeNumber < 1 || holeNumber > 18) {
     throw new Error('Invalid hole number');
   }
 
-  const [target] = await db
-    .select({ member: tripMembers, round: rounds, match: matches })
-    .from(matchParticipants)
-    .innerJoin(matches, eq(matchParticipants.matchId, matches.id))
+  const [match] = await db
+    .select({ match: matches, round: rounds })
+    .from(matches)
     .innerJoin(rounds, eq(matches.roundId, rounds.id))
+    .where(eq(matches.id, matchId))
+    .limit(1);
+  if (!match) throw new Error('Match not found');
+  if (match.match.format !== 'thirty_ball') {
+    throw new Error('Not a 30 Ball match');
+  }
+
+  const sideMembers = await db
+    .select({ member: tripMembers })
+    .from(matchParticipants)
     .innerJoin(tripMembers, eq(matchParticipants.tripMemberId, tripMembers.id))
     .where(
       and(
         eq(matchParticipants.matchId, matchId),
-        eq(matchParticipants.tripMemberId, tripMemberId),
+        eq(tripMembers.teamId, teamId),
       ),
-    )
-    .limit(1);
-  if (!target) throw new Error('Match participant not found');
+    );
+  if (sideMembers.length === 0) throw new Error('Side has no players');
 
-  if (!canEnterScoreFor(ctx, target.member)) {
-    throw new AuthorizationError('Not authorized to select scores for this player');
+  const sideMemberIds = sideMembers.map((s) => s.member.id);
+  const holeRows = await db
+    .select()
+    .from(holeScores)
+    .where(
+      and(
+        eq(holeScores.matchId, matchId),
+        inArray(holeScores.tripMemberId, sideMemberIds),
+        eq(holeScores.holeNumber, holeNumber),
+      ),
+    );
+
+  return { match: match.match, round: match.round, sideMembers, sideMemberIds, holeRows };
+}
+
+/**
+ * "30 Ball" — commit one side's ball selection for one hole. This is the
+ * side's strategic decision, so unlike gross entry it is NOT open to any
+ * trip member: only a player on the side, that team's captain, or an
+ * admin can commit. Committing 0 balls is legit (burning a blow-up hole).
+ * Budget (30 per side) is enforced here; committed holes lock — counted
+ * can't re-toggle and the grosses reject edits.
+ */
+export async function commitThirtyBallHole(
+  matchId: string,
+  teamId: string,
+  holeNumber: number,
+  countedTripMemberIds: string[],
+): Promise<void> {
+  const ctx = await getGlobalAuthContext();
+  requireAuth(ctx);
+
+  const { round, sideMemberIds, holeRows } = await loadThirtyBallSideHole(
+    matchId,
+    teamId,
+    holeNumber,
+  );
+
+  const isSelfOnSide =
+    ctx.tripMember != null && sideMemberIds.includes(ctx.tripMember.id);
+  if (
+    !isSelfOnSide &&
+    !isCaptainOf(ctx, teamId) &&
+    !isPlatformAdmin(ctx) &&
+    !isTripAdminOf(ctx, round.tripId)
+  ) {
+    throw new AuthorizationError(
+      'Only a player on this side, their captain, or an admin can commit',
+    );
+  }
+
+  const countedSet = new Set(countedTripMemberIds);
+  if (countedTripMemberIds.some((id) => !sideMemberIds.includes(id))) {
+    throw new Error('Selected player is not on this side');
+  }
+
+  // Every side player needs a recorded gross before the hole can commit —
+  // committing around a missing score would make the selection meaningless.
+  const rowByMember = new Map(holeRows.map((r) => [r.tripMemberId, r]));
+  for (const id of sideMemberIds) {
+    if (rowByMember.get(id)?.gross == null) {
+      throw new Error('All players on the side need a score before committing');
+    }
+  }
+  if (holeRows.some((r) => r.committedAt != null)) {
+    throw new Error('This hole is already committed');
+  }
+
+  // Budget: committed counted scores so far + this commit ≤ 30.
+  const [{ used }] = await db
+    .select({ used: count() })
+    .from(holeScores)
+    .where(
+      and(
+        eq(holeScores.matchId, matchId),
+        inArray(holeScores.tripMemberId, sideMemberIds),
+        eq(holeScores.counted, true),
+        isNotNull(holeScores.committedAt),
+      ),
+    );
+  if (used + countedSet.size > THIRTY_BALL_BUDGET) {
+    throw new Error(
+      `Only ${THIRTY_BALL_BUDGET - used} of the side's ${THIRTY_BALL_BUDGET} scores remain — can't commit ${countedSet.size}`,
+    );
+  }
+
+  const now = new Date();
+  for (const id of sideMemberIds) {
+    await db
+      .update(holeScores)
+      .set({ counted: countedSet.has(id), committedAt: now })
+      .where(
+        and(
+          eq(holeScores.matchId, matchId),
+          eq(holeScores.tripMemberId, id),
+          eq(holeScores.holeNumber, holeNumber),
+        ),
+      );
+  }
+
+  await recomputeMatchStatus(matchId);
+
+  const tripSlug = await getTripSlugById(round.tripId);
+  revalidatePath(`/trips/${tripSlug}/matches/${matchId}`);
+  revalidatePath(`/trips/${tripSlug}/matches/${matchId}/score`);
+  revalidatePath(`/trips/${tripSlug}/scoreboard`);
+}
+
+/**
+ * "30 Ball" — reopen a committed hole. Mistake-correction path only, so
+ * it's gated tighter than commit: captain of the side or admin (a player
+ * un-committing their own bad decision is exactly what the lock exists
+ * to prevent). Clears counted so the side re-selects from scratch.
+ */
+export async function uncommitThirtyBallHole(
+  matchId: string,
+  teamId: string,
+  holeNumber: number,
+): Promise<void> {
+  const ctx = await getGlobalAuthContext();
+  requireAuth(ctx);
+
+  const { round, sideMemberIds } = await loadThirtyBallSideHole(
+    matchId,
+    teamId,
+    holeNumber,
+  );
+
+  if (
+    !isCaptainOf(ctx, teamId) &&
+    !isPlatformAdmin(ctx) &&
+    !isTripAdminOf(ctx, round.tripId)
+  ) {
+    throw new AuthorizationError('Only a captain or admin can uncommit a hole');
   }
 
   await db
     .update(holeScores)
-    .set({ counted })
+    .set({ counted: false, committedAt: null })
     .where(
       and(
         eq(holeScores.matchId, matchId),
-        eq(holeScores.tripMemberId, tripMemberId),
+        inArray(holeScores.tripMemberId, sideMemberIds),
         eq(holeScores.holeNumber, holeNumber),
       ),
     );
 
   await recomputeMatchStatus(matchId);
 
-  const tripSlug = await getTripSlugById(target.round.tripId);
+  const tripSlug = await getTripSlugById(round.tripId);
   revalidatePath(`/trips/${tripSlug}/matches/${matchId}`);
+  revalidatePath(`/trips/${tripSlug}/matches/${matchId}/score`);
   revalidatePath(`/trips/${tripSlug}/scoreboard`);
 }
 

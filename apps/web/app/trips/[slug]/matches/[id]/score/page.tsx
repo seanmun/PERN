@@ -7,6 +7,7 @@ import {
   isTripAdminOf,
 } from '@/lib/auth/permissions';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
+import { getThirtyBallEntryStates } from '@/lib/data/thirty-ball';
 import { computeStrokes, computeTeamMatch } from '@buddycup/scoring/engine';
 import { resolveMatchHandicaps } from '@/lib/scoring/handicap-method';
 import ScoreEntryClient, {
@@ -253,6 +254,11 @@ export default async function ScoreEntryPage({
           mode={data.inputMode}
           teams={teamsForClient}
           initialTeamScores={initialTeamScores}
+          thirtyBall={await getThirtyBallEntryStates(
+            data.round.id,
+            data.participants.map((p) => p.participant.id),
+            ctx,
+          )}
         />
       )}
     </div>

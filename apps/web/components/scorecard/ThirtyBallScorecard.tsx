@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check } from 'lucide-react';
-import { toggleHoleScoreCounted } from '@/lib/actions/scores';
+import { Check, Lock, Undo2 } from 'lucide-react';
+import { uncommitThirtyBallHole } from '@/lib/actions/scores';
 import { THIRTY_BALL_BUDGET, type ComputedThirtyBall } from '@buddycup/scoring/engine';
 
 type Participant = {
@@ -17,15 +17,15 @@ type ScoreRow = {
   holeNumber: number;
   gross: number | null;
   counted: boolean;
+  committedAt: Date | string | null;
 };
 
 /**
- * "30 Ball" interactive scorecard. Unlike every other format's scorecard
- * (read-only, derived purely from grosses), this format needs a human
- * decision per player per hole — "does this score count toward our
- * budget of 30?" — so this is the one exception to the match-detail
- * page being read-only. Grosses themselves still only come from the
- * normal foursome scorecard; this just toggles which ones count here.
+ * "30 Ball" review scorecard. Selection happens in the score-entry
+ * surface via the per-hole commit flow — this card shows the committed
+ * state hole by hole. The one mutation here is the captain/admin
+ * uncommit (mistake correction): it reopens a hole so the side can
+ * re-enter and re-commit.
  */
 export default function ThirtyBallScorecard({
   matchId,
@@ -33,14 +33,15 @@ export default function ThirtyBallScorecard({
   participants,
   holes,
   scores,
-  canEdit,
+  uncommitTeamIds = [],
 }: {
   matchId: string;
   strokePlay: ComputedThirtyBall;
   participants: Participant[];
   holes: { number: number; par: number }[];
   scores: ScoreRow[];
-  canEdit: boolean;
+  /** Team ids the viewer may uncommit (captain of that team, or admin → both). */
+  uncommitTeamIds?: string[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -59,18 +60,16 @@ export default function ThirtyBallScorecard({
     strokePlay.holeResults.map((r) => [r.holeNumber, r]),
   );
 
-  function toggle(tripMemberId: string, holeNumber: number, next: boolean) {
-    const key = `${tripMemberId}:${holeNumber}`;
+  function uncommit(teamId: string, holeNumber: number) {
+    const key = `${teamId}:${holeNumber}`;
     setPendingKey(key);
     startTransition(async () => {
-      const fd = new FormData();
-      fd.set('matchId', matchId);
-      fd.set('tripMemberId', tripMemberId);
-      fd.set('holeNumber', String(holeNumber));
-      fd.set('counted', String(next));
-      await toggleHoleScoreCounted(fd);
-      router.refresh();
-      setPendingKey(null);
+      try {
+        await uncommitThirtyBallHole(matchId, teamId, holeNumber);
+        router.refresh();
+      } finally {
+        setPendingKey(null);
+      }
     });
   }
 
@@ -78,7 +77,7 @@ export default function ThirtyBallScorecard({
     <section className="mt-6 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
       <div className="border-b border-zinc-200 dark:border-zinc-900 px-3 py-2.5">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
-          30 Ball · tap a score to select it toward the budget
+          30 Ball · committed scores count toward each side&rsquo;s {THIRTY_BALL_BUDGET}
         </p>
       </div>
 
@@ -98,26 +97,73 @@ export default function ThirtyBallScorecard({
                 )}
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <SidePlayers
-                  players={sideA}
-                  color={aColor}
-                  holeNumber={h.number}
-                  scoreByKey={scoreByKey}
-                  canEdit={canEdit}
-                  pending={pending}
-                  pendingKey={pendingKey}
-                  onToggle={toggle}
-                />
-                <SidePlayers
-                  players={sideB}
-                  color={bColor}
-                  holeNumber={h.number}
-                  scoreByKey={scoreByKey}
-                  canEdit={canEdit}
-                  pending={pending}
-                  pendingKey={pendingKey}
-                  onToggle={toggle}
-                />
+                {[
+                  { players: sideA, color: aColor },
+                  { players: sideB, color: bColor },
+                ].map(({ players, color }, i) => {
+                  const teamId = players[0]?.team.id;
+                  const committed = players.some((p) => {
+                    const row = scoreByKey.get(`${p.participant.id}:${h.number}`);
+                    return row?.committedAt != null;
+                  });
+                  const canUncommit =
+                    committed && teamId != null && uncommitTeamIds.includes(teamId);
+                  const key = `${teamId}:${h.number}`;
+                  return (
+                    <div key={i} className="space-y-1">
+                      {players.map((p) => {
+                        const row = scoreByKey.get(`${p.participant.id}:${h.number}`);
+                        const gross = row?.gross ?? null;
+                        const counted = row?.counted ?? false;
+                        return (
+                          <div
+                            key={p.participant.id}
+                            className={`flex items-center justify-between gap-2 rounded-sm border px-2 py-1.5 text-xs ${
+                              counted
+                                ? 'border-transparent'
+                                : 'border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black/30'
+                            } ${committed ? '' : 'opacity-70'}`}
+                            style={
+                              counted
+                                ? { background: `${color}33`, boxShadow: `inset 0 0 0 1px ${color}` }
+                                : undefined
+                            }
+                          >
+                            <span className="truncate font-semibold text-zinc-800 dark:text-zinc-200">
+                              {p.participant.nickname}
+                            </span>
+                            <span className="flex items-center gap-1 font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
+                              {gross ?? '—'}
+                              {counted && <Check size={11} strokeWidth={3} style={{ color }} />}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      <div className="flex items-center justify-between px-0.5">
+                        <span className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-widest text-zinc-500">
+                          {committed ? (
+                            <>
+                              <Lock size={9} /> Committed
+                            </>
+                          ) : (
+                            'Not committed'
+                          )}
+                        </span>
+                        {canUncommit && (
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => uncommit(teamId, h.number)}
+                            className="inline-flex items-center gap-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500 underline-offset-2 hover:text-yellow-700 dark:hover:text-yellow-400 hover:underline disabled:opacity-50"
+                          >
+                            <Undo2 size={9} />
+                            {pendingKey === key ? '…' : 'Uncommit'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );
@@ -139,62 +185,5 @@ export default function ThirtyBallScorecard({
         </span>
       </div>
     </section>
-  );
-}
-
-function SidePlayers({
-  players,
-  color,
-  holeNumber,
-  scoreByKey,
-  canEdit,
-  pending,
-  pendingKey,
-  onToggle,
-}: {
-  players: Participant[];
-  color: string;
-  holeNumber: number;
-  scoreByKey: Map<string, ScoreRow>;
-  canEdit: boolean;
-  pending: boolean;
-  pendingKey: string | null;
-  onToggle: (tripMemberId: string, holeNumber: number, next: boolean) => void;
-}) {
-  return (
-    <div className="space-y-1">
-      {players.map((p) => {
-        const key = `${p.participant.id}:${holeNumber}`;
-        const row = scoreByKey.get(key);
-        const gross = row?.gross ?? null;
-        const counted = row?.counted ?? false;
-        const disabled = !canEdit || gross == null || pending;
-        return (
-          <button
-            key={p.participant.id}
-            type="button"
-            disabled={disabled}
-            onClick={() => onToggle(p.participant.id, holeNumber, !counted)}
-            className={`flex w-full items-center justify-between gap-2 rounded-sm border px-2 py-1.5 text-left text-xs transition-colors ${
-              counted
-                ? 'border-transparent'
-                : 'border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black/30'
-            } disabled:cursor-not-allowed disabled:opacity-40`}
-            style={counted ? { background: `${color}33`, boxShadow: `inset 0 0 0 1px ${color}` } : undefined}
-          >
-            <span className="truncate font-semibold text-zinc-800 dark:text-zinc-200">
-              {p.participant.nickname}
-            </span>
-            <span className="flex items-center gap-1 font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
-              {gross ?? '—'}
-              {counted && <Check size={11} strokeWidth={3} style={{ color }} />}
-            </span>
-            {pendingKey === key && (
-              <span className="font-mono text-[9px] text-zinc-500">…</span>
-            )}
-          </button>
-        );
-      })}
-    </div>
   );
 }

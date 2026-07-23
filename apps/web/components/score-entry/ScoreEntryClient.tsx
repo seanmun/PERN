@@ -2,15 +2,22 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
+  Check,
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
+  Lock,
   Square,
   CheckCircle2,
   Loader2,
   Pencil,
 } from 'lucide-react';
-import { upsertHoleScore, upsertTeamHoleScore } from '@/lib/actions/scores';
+import {
+  commitThirtyBallHole,
+  upsertHoleScore,
+  upsertTeamHoleScore,
+} from '@/lib/actions/scores';
+import { THIRTY_BALL_BUDGET } from '@buddycup/scoring/engine';
 
 export type ScoreClientHole = {
   number: number;
@@ -59,6 +66,20 @@ export type ScoreClientTeamScore = {
   enteredByLabel: string | null;
 };
 
+// 30 Ball: one entry per (match, side) with players on this scorecard.
+// Drives the per-hole "Commit scores" flow — committed holes lock.
+export type ScoreClientThirtyBall = {
+  matchId: string;
+  teamId: string;
+  teamName: string;
+  teamColor: string | null;
+  memberIds: string[];
+  canCommit: boolean;
+  budgetUsed: number;
+  /** hole number → tripMemberIds whose scores count (committed holes only). */
+  committedHoles: Record<number, string[]>;
+};
+
 const VIEW_KEY = 'cup_score_view';
 
 export default function ScoreEntryClient({
@@ -72,6 +93,7 @@ export default function ScoreEntryClient({
   mode = 'player',
   teams = [],
   initialTeamScores = [],
+  thirtyBall = [],
 }: {
   matchId: string;
   /** Optional per-player override of `matchId`. When the foursome roster
@@ -88,6 +110,7 @@ export default function ScoreEntryClient({
   mode?: 'player' | 'team';
   teams?: ScoreClientTeam[];
   initialTeamScores?: ScoreClientTeamScore[];
+  thirtyBall?: ScoreClientThirtyBall[];
 }) {
   if (mode === 'team') {
     return (
@@ -110,6 +133,7 @@ export default function ScoreEntryClient({
       initialScores={initialScores}
       canEdit={canEdit}
       selfTripMemberId={selfTripMemberId}
+      thirtyBall={thirtyBall}
     />
   );
 }
@@ -122,6 +146,7 @@ function PlayerScoreEntry({
   initialScores,
   canEdit,
   selfTripMemberId,
+  thirtyBall = [],
 }: {
   matchId: string;
   matchIdByPlayer?: Record<string, string>;
@@ -130,6 +155,7 @@ function PlayerScoreEntry({
   initialScores: ScoreClientScore[];
   canEdit: boolean;
   selfTripMemberId: string | null;
+  thirtyBall?: ScoreClientThirtyBall[];
 }) {
   const [view, setView] = useState<'hole' | 'card'>('hole');
   const [restored, setRestored] = useState(false);
@@ -248,6 +274,29 @@ function PlayerScoreEntry({
     });
   }
 
+  // 30 Ball commit state — local copy so a commit reflects instantly
+  // without a server round-trip re-render.
+  const [tbStates, setTbStates] = useState<ScoreClientThirtyBall[]>(thirtyBall);
+  const tbCommittedMember = (tripMemberId: string, holeNumber: number) =>
+    tbStates.some(
+      (s) =>
+        s.memberIds.includes(tripMemberId) &&
+        holeNumber in s.committedHoles,
+    );
+  function tbApplyCommit(teamId: string, holeNumber: number, countedIds: string[]) {
+    setTbStates((prev) =>
+      prev.map((s) =>
+        s.teamId === teamId
+          ? {
+              ...s,
+              budgetUsed: s.budgetUsed + countedIds.length,
+              committedHoles: { ...s.committedHoles, [holeNumber]: countedIds },
+            }
+          : s,
+      ),
+    );
+  }
+
   const getScore = (tripMemberId: string, holeNumber: number) =>
     scores.get(`${tripMemberId}:${holeNumber}`) ?? null;
   const getEnteredBy = (tripMemberId: string, holeNumber: number) =>
@@ -322,6 +371,9 @@ function PlayerScoreEntry({
           canNext={activeHole < holes.length}
           missingByHole={missingByHole}
           onJumpHole={(h) => setActiveHole(h)}
+          thirtyBall={tbStates}
+          isMemberCommitted={tbCommittedMember}
+          onThirtyBallCommit={tbApplyCommit}
         />
       ) : (
         <CardView
@@ -330,6 +382,7 @@ function PlayerScoreEntry({
           player={activePlayer}
           getScore={(h) => getScore(activePlayerId, h)}
           onScoreChange={(h, g) => setScore(activePlayerId, h, g)}
+          isHoleCommitted={(h) => tbCommittedMember(activePlayerId, h)}
         />
       )}
     </div>
@@ -387,6 +440,9 @@ function HoleByHole({
   canNext,
   missingByHole,
   onJumpHole,
+  thirtyBall = [],
+  isMemberCommitted = () => false,
+  onThirtyBallCommit = () => {},
 }: {
   matchId: string;
   matchIdByPlayer?: Record<string, string>;
@@ -409,6 +465,9 @@ function HoleByHole({
   // Empty array = nothing to flag.
   missingByHole: { hole: number; players: ScoreClientPlayer[] }[];
   onJumpHole: (h: number) => void;
+  thirtyBall?: ScoreClientThirtyBall[];
+  isMemberCommitted?: (tripMemberId: string, holeNumber: number) => boolean;
+  onThirtyBallCommit?: (teamId: string, holeNumber: number, countedIds: string[]) => void;
 }) {
   return (
     <div className="mt-3">
@@ -473,10 +532,25 @@ function HoleByHole({
             score={getScore(p.tripMemberId)}
             enteredBy={getEnteredBy(p.tripMemberId)}
             onScoreChange={(g) => onScoreChange(p.tripMemberId, g)}
-            disabled={(!canEdit && !p.isSelf) || locked}
+            disabled={
+              (!canEdit && !p.isSelf) ||
+              locked ||
+              isMemberCommitted(p.tripMemberId, hole.number)
+            }
           />
         ))}
       </div>
+
+      {thirtyBall.map((s) => (
+        <ThirtyBallCommitPanel
+          key={s.teamId}
+          state={s}
+          holeNumber={hole.number}
+          players={players}
+          getScore={getScore}
+          onCommitted={onThirtyBallCommit}
+        />
+      ))}
 
       <div className="mt-3 flex gap-2">
         <button
@@ -519,6 +593,190 @@ function HoleByHole({
             ))}
           </ul>
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 30 Ball per-hole commit flow, rendered under the score rows for each
+ * side present on this scorecard. Three phases:
+ *   1. waiting — grosses incomplete, or viewer can't commit: budget chip only
+ *   2. selecting — after "Commit scores": tap 0-N of the side's scores,
+ *      then "Commit N" locks it in (server-enforced budget)
+ *   3. committed — locked summary of who counted; only captains/admins
+ *      can reopen (from the match page), so no undo control here
+ */
+function ThirtyBallCommitPanel({
+  state,
+  holeNumber,
+  players,
+  getScore,
+  onCommitted,
+}: {
+  state: ScoreClientThirtyBall;
+  holeNumber: number;
+  players: ScoreClientPlayer[];
+  getScore: (tripMemberId: string) => number | null;
+  onCommitted: (teamId: string, holeNumber: number, countedIds: string[]) => void;
+}) {
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const color = state.teamColor ?? '#ca8a04';
+  const sidePlayers = players.filter((p) => state.memberIds.includes(p.tripMemberId));
+  // Side members not on this scorecard (shouldn't happen — same-foursome
+  // rule) block commit rather than committing around a missing player.
+  const allPresent = sidePlayers.length === state.memberIds.length;
+  const allScored = state.memberIds.every((id) => getScore(id) != null);
+  const committedIds = state.committedHoles[holeNumber];
+  const isCommitted = committedIds != null;
+  const remaining = THIRTY_BALL_BUDGET - state.budgetUsed;
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function commit() {
+    setError(null);
+    const countedIds = [...selected];
+    startTransition(async () => {
+      try {
+        await commitThirtyBallHole(state.matchId, state.teamId, holeNumber, countedIds);
+        onCommitted(state.teamId, holeNumber, countedIds);
+        setSelecting(false);
+        setSelected(new Set());
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Commit failed — try again.');
+      }
+    });
+  }
+
+  return (
+    <div
+      className="mt-2 rounded-sm border p-3"
+      style={{ borderColor: `${color}55`, background: `${color}0d` }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em]" style={{ color }}>
+          {state.teamName} · 30 Ball
+        </p>
+        <span className="font-mono text-[10px] font-bold uppercase tracking-widest tabular-nums text-zinc-700 dark:text-zinc-300">
+          {state.budgetUsed}/{THIRTY_BALL_BUDGET} used
+        </span>
+      </div>
+
+      {isCommitted ? (
+        <div className="mt-2 flex items-start gap-2">
+          <Lock size={12} className="mt-0.5 shrink-0 text-zinc-500" />
+          <p className="text-xs text-zinc-700 dark:text-zinc-300">
+            Committed —{' '}
+            {committedIds.length === 0 ? (
+              <span className="text-zinc-500">no scores counted this hole</span>
+            ) : (
+              <>
+                counting{' '}
+                <span className="font-semibold">
+                  {sidePlayers
+                    .filter((p) => committedIds.includes(p.tripMemberId))
+                    .map((p) => `${p.nickname} (${getScore(p.tripMemberId) ?? '—'})`)
+                    .join(', ')}
+                </span>
+              </>
+            )}
+          </p>
+        </div>
+      ) : selecting ? (
+        <div className="mt-2">
+          <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+            Tap the scores to count toward your 30. Committing locks this hole for good.
+          </p>
+          <div className="mt-2 space-y-1">
+            {sidePlayers.map((p) => {
+              const on = selected.has(p.tripMemberId);
+              return (
+                <button
+                  key={p.tripMemberId}
+                  type="button"
+                  disabled={pending || (!on && selected.size >= remaining)}
+                  onClick={() => toggle(p.tripMemberId)}
+                  className={`flex w-full items-center justify-between gap-2 rounded-sm border px-2.5 py-2 text-left text-sm transition-colors disabled:opacity-40 ${
+                    on
+                      ? 'border-transparent'
+                      : 'border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black/30'
+                  }`}
+                  style={on ? { background: `${color}33`, boxShadow: `inset 0 0 0 1px ${color}` } : undefined}
+                >
+                  <span className="truncate font-semibold text-zinc-800 dark:text-zinc-200">
+                    {p.nickname}
+                  </span>
+                  <span className="flex items-center gap-1.5 font-mono font-bold tabular-nums text-zinc-800 dark:text-zinc-200">
+                    {getScore(p.tripMemberId) ?? '—'}
+                    {on && <Check size={12} strokeWidth={3} style={{ color }} />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {error && (
+            <p className="mt-2 text-[11px] text-red-600 dark:text-red-400">{error}</p>
+          )}
+          <div className="mt-2.5 flex gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={commit}
+              className="flex-1 rounded-sm px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-widest text-black disabled:opacity-60"
+              style={{ background: color }}
+            >
+              {pending ? (
+                <Loader2 size={12} className="mx-auto animate-spin" />
+              ) : (
+                `Commit ${selected.size} ${selected.size === 1 ? 'ball' : 'balls'}`
+              )}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                setSelecting(false);
+                setSelected(new Set());
+                setError(null);
+              }}
+              className="rounded-sm border border-zinc-400 dark:border-zinc-700 px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : state.canCommit ? (
+        <div className="mt-2">
+          <button
+            type="button"
+            disabled={!allScored || !allPresent}
+            onClick={() => setSelecting(true)}
+            className="w-full rounded-sm border px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-widest disabled:opacity-40"
+            style={{ borderColor: `${color}88`, color }}
+          >
+            Commit scores
+          </button>
+          {!allScored && (
+            <p className="mt-1.5 text-[10px] text-zinc-500">
+              Enter all {state.memberIds.length} scores to commit this hole.
+            </p>
+          )}
+        </div>
+      ) : (
+        <p className="mt-1.5 text-[10px] text-zinc-500">
+          Waiting on {state.teamName} to commit this hole.
+        </p>
       )}
     </div>
   );
@@ -670,12 +928,15 @@ function CardView({
   player,
   getScore,
   onScoreChange,
+  isHoleCommitted = () => false,
 }: {
   matchId: string;
   holes: ScoreClientHole[];
   player: ScoreClientPlayer;
   getScore: (h: number) => number | null;
   onScoreChange: (h: number, g: number | null) => void;
+  // 30 Ball: committed holes render read-only in card view too.
+  isHoleCommitted?: (h: number) => boolean;
 }) {
   const total = holes.reduce((acc, h) => {
     const g = getScore(h.number);
@@ -721,13 +982,20 @@ function CardView({
             <span className="font-mono text-xs tabular-nums text-emerald-400">
               {strokes > 0 ? `+${strokes}` : ''}
             </span>
-            <CardScoreInput
-              matchId={matchId}
-              tripMemberId={player.tripMemberId}
-              holeNumber={h.number}
-              value={score}
-              onChange={(g) => onScoreChange(h.number, g)}
-            />
+            {isHoleCommitted(h.number) ? (
+              <span className="flex items-center justify-end gap-1.5 px-2 py-1 text-right font-mono text-sm tabular-nums text-zinc-700 dark:text-zinc-300">
+                <Lock size={11} className="text-zinc-500" />
+                {score ?? '—'}
+              </span>
+            ) : (
+              <CardScoreInput
+                matchId={matchId}
+                tripMemberId={player.tripMemberId}
+                holeNumber={h.number}
+                value={score}
+                onChange={(g) => onScoreChange(h.number, g)}
+              />
+            )}
           </div>
         );
       })}

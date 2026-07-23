@@ -452,7 +452,15 @@ export default async function MatchDetailPage({
           participants={scoringData.participants}
           holes={scoringData.engineHoles}
           scores={scoringData.scores}
-          canEdit={canEnterScores}
+          // Uncommit is mistake-correction: admins can reopen either
+          // side's hole, a captain only their own team's.
+          uncommitTeamIds={[
+            ...new Set(scoringData.participants.map((p) => p.team.id)),
+          ].filter(
+            (teamId) =>
+              canEdit ||
+              (ctx.tripMember?.isCaptain && ctx.tripMember.teamId === teamId),
+          )}
         />
       )}
 

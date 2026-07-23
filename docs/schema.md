@@ -199,6 +199,12 @@ export const holeScores = pgTable('hole_scores', {
   gross: integer('gross'),
   net: integer('net'),
   strokesReceived: integer('strokes_received').default(0).notNull(),
+  // 30 Ball only: selected toward the side's 30-score budget.
+  counted: boolean('counted').default(false).notNull(),
+  // 30 Ball only: when the side committed this hole (stamped on all of the
+  // side's rows for the hole). Null = undecided. Committed rows lock —
+  // counted can't re-toggle and gross rejects edits until admin uncommit.
+  committedAt: timestamp('committed_at', { withTimezone: true }),
   enteredBy: uuid('entered_by').references(() => users.id),
   enteredAt: timestamp('entered_at', { withTimezone: true }).defaultNow().notNull(),
 });

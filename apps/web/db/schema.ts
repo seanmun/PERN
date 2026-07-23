@@ -342,6 +342,12 @@ export const holeScores = pgTable(
     // toward the side's 30-score budget. Meaningless/unused for every
     // other format (default false is inert for them).
     counted: boolean('counted').default(false).notNull(),
+    // "30 Ball" only — when the side committed this hole. Stamped on all
+    // of the side's rows for the hole at commit time (counted or not);
+    // null = the side hasn't decided yet. Committed rows lock: counted
+    // can't be re-toggled and the gross rejects edits until an admin/
+    // captain uncommits.
+    committedAt: timestamp('committed_at', { withTimezone: true }),
     enteredBy: uuid('entered_by').references(() => users.id),
     enteredAt: timestamp('entered_at', { withTimezone: true }).defaultNow().notNull(),
   },
