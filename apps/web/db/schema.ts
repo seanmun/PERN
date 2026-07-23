@@ -32,6 +32,7 @@ export const roundFormatEnum = pgEnum('round_format', [
   'stroke',
   'two_man_aggregate',
   'thirty_ball',
+  'bingo_bango_bongo',
 ]);
 
 export const matchStatusEnum = pgEnum('match_status', [
@@ -352,6 +353,25 @@ export const holeScores = pgTable(
     enteredAt: timestamp('entered_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [unique('hole_scores_match_player_hole_unique').on(t.matchId, t.tripMemberId, t.holeNumber)]
+);
+
+// Bingo Bango Bongo: committed judgment points, one row per (match, hole).
+// Row existence IS the commit — created by the group's commit action,
+// deleted by captain/admin uncommit. Each point nullable = washed (nobody
+// earned it). Not derived from hole_scores; see computeBingoBangoBongo.
+export const bbbHolePoints = pgTable(
+  'bbb_hole_points',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    matchId: uuid('match_id').references(() => matches.id, { onDelete: 'cascade' }).notNull(),
+    holeNumber: integer('hole_number').notNull(),
+    bingoTripMemberId: uuid('bingo_trip_member_id').references(() => tripMembers.id),
+    bangoTripMemberId: uuid('bango_trip_member_id').references(() => tripMembers.id),
+    bongoTripMemberId: uuid('bongo_trip_member_id').references(() => tripMembers.id),
+    committedBy: uuid('committed_by').references(() => users.id),
+    committedAt: timestamp('committed_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique('bbb_points_match_hole_unique').on(t.matchId, t.holeNumber)]
 );
 
 export const media = pgTable('media', {

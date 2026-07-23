@@ -24,18 +24,23 @@ import {
 import { getMatchScoringData } from '@/lib/data/match-scoring';
 import { resolveMatchHandicaps } from '@/lib/scoring/handicap-method';
 import ThirtyBallScorecard from '@/components/scorecard/ThirtyBallScorecard';
+import BbbScorecard from '@/components/scorecard/BbbScorecard';
+import { getBbbPoints } from '@/lib/data/bbb';
 import {
+  computeBingoBangoBongo,
   computeMatch,
   computeStableford,
   computeStrokePlayMatch,
   computeTeamMatch,
   computeThirtyBallMatch,
   DEFAULT_STABLEFORD_POINTS,
+  formatBbbStatus,
   formatStatus,
   formatStatusWithWinner,
   formatStrokePlayStatus,
   formatThirtyBallStatus,
   THIRTY_BALL_BUDGET,
+  type ComputedBbb,
   type ComputedStableford,
   type ComputedStrokePlay,
   type ComputedThirtyBall,
@@ -161,8 +166,16 @@ export default async function MatchDetailPage({
   let liveStableford: ComputedStableford | null = null;
   let liveStrokePlay: ComputedStrokePlay | null = null;
   let liveThirtyBall: ComputedThirtyBall | null = null;
+  let liveBbb: ComputedBbb | null = null;
   if (scoringData) {
-    if (scoringData.match.format === 'thirty_ball') {
+    if (scoringData.match.format === 'bingo_bango_bongo') {
+      // Judgment points, not gross-derived — bespoke resolution.
+      liveBbb = computeBingoBangoBongo({
+        players: scoringData.enginePlayers,
+        totalHoles: scoringData.engineHoles.length || 18,
+        points: await getBbbPoints(id),
+      });
+    } else if (scoringData.match.format === 'thirty_ball') {
       // Bespoke resolution regardless of `scoring` — see recompute.ts.
       liveThirtyBall = computeThirtyBallMatch({
         players: resolved?.enginePlayers ?? scoringData.enginePlayers,
@@ -343,14 +356,29 @@ export default async function MatchDetailPage({
           {scoringData?.match.scoring === 'stableford' && (
             <span className="ml-2 text-yellow-800 dark:text-yellow-500">· Stableford</span>
           )}
-          {scoringData?.match.scoring === 'stroke' && scoringData.match.format !== 'thirty_ball' && (
+          {scoringData?.match.scoring === 'stroke' &&
+            scoringData.match.format !== 'thirty_ball' &&
+            scoringData.match.format !== 'bingo_bango_bongo' && (
             <span className="ml-2 text-yellow-800 dark:text-yellow-500">· Stroke Play</span>
           )}
           {scoringData?.match.format === 'thirty_ball' && (
             <span className="ml-2 text-yellow-800 dark:text-yellow-500">· 30 Ball</span>
           )}
+          {scoringData?.match.format === 'bingo_bango_bongo' && (
+            <span className="ml-2 text-yellow-800 dark:text-yellow-500">· Bingo Bango Bongo</span>
+          )}
         </p>
-        {liveThirtyBall && liveThirtyBall.holesPlayed > 0 ? (
+        {liveBbb && liveBbb.holesCommitted > 0 ? (
+          <>
+            <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
+              {formatBbbStatus(liveBbb.status)}
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+              {liveBbb.holesCommitted} of {liveBbb.totalHoles} holes committed
+              {liveBbb.status.kind === 'final' && ' · Final'}
+            </p>
+          </>
+        ) : liveThirtyBall && liveThirtyBall.holesPlayed > 0 ? (
           <>
             <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
               {formatThirtyBallStatus(liveThirtyBall.status)}
@@ -442,6 +470,15 @@ export default async function MatchDetailPage({
           bTeamName={scoringData.participants.find((p) => p.side === 'B')?.team.name ?? 'B'}
           aTeamColor={scoringData.participants.find((p) => p.side === 'A')?.team.color ?? null}
           bTeamColor={scoringData.participants.find((p) => p.side === 'B')?.team.color ?? null}
+        />
+      )}
+
+      {liveBbb && scoringData && (
+        <BbbScorecard
+          matchId={id}
+          computed={liveBbb}
+          participants={scoringData.participants}
+          canUncommit={canEdit || Boolean(ctx.tripMember?.isCaptain)}
         />
       )}
 

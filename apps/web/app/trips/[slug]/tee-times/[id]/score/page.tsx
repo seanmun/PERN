@@ -5,6 +5,7 @@ import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { getTeeTimeScoringData } from '@/lib/data/tee-time-scoring';
 import { getThirtyBallEntryStates } from '@/lib/data/thirty-ball';
+import { getBbbEntryStates } from '@/lib/data/bbb';
 import { computeStrokes, computeTeamMatch } from '@buddycup/scoring/engine';
 import { toCourseHandicap } from '@buddycup/scoring/handicap';
 import { teeRatingOf, resolveMatchHandicaps } from '@/lib/scoring/handicap-method';
@@ -206,13 +207,13 @@ export default async function TeeTimeScoreEntryPage({
       })) ?? [];
   }
 
-  // 30 Ball: per-side commit state for any thirty_ball match whose
-  // players are on this foursome's card.
-  const thirtyBall = await getThirtyBallEntryStates(
-    data.round.id,
-    data.rosterPlayers.map((p) => p.member.id),
-    ctx,
-  );
+  // Commit-flow formats: per-side 30 Ball state and per-match BBB state
+  // for any such matches whose players are on this foursome's card.
+  const rosterIds = data.rosterPlayers.map((p) => p.member.id);
+  const [thirtyBall, bbb] = await Promise.all([
+    getThirtyBallEntryStates(data.round.id, rosterIds, ctx),
+    getBbbEntryStates(data.round.id, rosterIds, ctx),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-4">
@@ -295,6 +296,7 @@ export default async function TeeTimeScoreEntryPage({
           teams={teamsForClient}
           initialTeamScores={initialTeamScores}
           thirtyBall={thirtyBall}
+          bbb={bbb}
         />
       )}
     </div>

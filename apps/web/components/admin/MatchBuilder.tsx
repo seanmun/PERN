@@ -30,6 +30,7 @@ const BUILDER_FORMATS: readonly FormatId[] = [
   'scramble',
   'stroke',
   'thirty_ball',
+  'bingo_bango_bongo',
 ];
 import {
   validateBuilderState,
@@ -162,6 +163,11 @@ export default function MatchBuilder({
     // resolves 30 Ball the same way regardless, but this keeps the
     // scoring dropdown honest about what's actually happening).
     if (f === 'thirty_ball') {
+      setScoring('stroke');
+    }
+    // Bingo Bango Bongo is decided by committed judgment points —
+    // recompute.ts resolves it bespoke regardless of the scoring field.
+    if (f === 'bingo_bango_bongo') {
       setScoring('stroke');
     }
   }

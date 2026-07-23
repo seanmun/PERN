@@ -8,6 +8,7 @@ import {
 } from '@/lib/auth/permissions';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
 import { getThirtyBallEntryStates } from '@/lib/data/thirty-ball';
+import { getBbbEntryStates } from '@/lib/data/bbb';
 import { computeStrokes, computeTeamMatch } from '@buddycup/scoring/engine';
 import { resolveMatchHandicaps } from '@/lib/scoring/handicap-method';
 import ScoreEntryClient, {
@@ -255,6 +256,11 @@ export default async function ScoreEntryPage({
           teams={teamsForClient}
           initialTeamScores={initialTeamScores}
           thirtyBall={await getThirtyBallEntryStates(
+            data.round.id,
+            data.participants.map((p) => p.participant.id),
+            ctx,
+          )}
+          bbb={await getBbbEntryStates(
             data.round.id,
             data.participants.map((p) => p.participant.id),
             ctx,

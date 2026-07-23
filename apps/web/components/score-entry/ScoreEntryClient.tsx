@@ -17,6 +17,7 @@ import {
   upsertHoleScore,
   upsertTeamHoleScore,
 } from '@/lib/actions/scores';
+import { commitBbbHole } from '@/lib/actions/bbb';
 import { THIRTY_BALL_BUDGET } from '@buddycup/scoring/engine';
 
 export type ScoreClientHole = {
@@ -66,6 +67,19 @@ export type ScoreClientTeamScore = {
   enteredByLabel: string | null;
 };
 
+// Bingo Bango Bongo: one entry per BBB match with players on this
+// scorecard. Group decision — one commit per match-hole, three winners
+// (each nullable = washed). Committing locks points, NOT grosses.
+export type ScoreClientBbb = {
+  matchId: string;
+  memberIds: string[];
+  canCommit: boolean;
+  committedHoles: Record<
+    number,
+    { bingo: string | null; bango: string | null; bongo: string | null }
+  >;
+};
+
 // 30 Ball: one entry per (match, side) with players on this scorecard.
 // Drives the per-hole "Commit scores" flow — committed holes lock.
 export type ScoreClientThirtyBall = {
@@ -94,6 +108,7 @@ export default function ScoreEntryClient({
   teams = [],
   initialTeamScores = [],
   thirtyBall = [],
+  bbb = [],
 }: {
   matchId: string;
   /** Optional per-player override of `matchId`. When the foursome roster
@@ -111,6 +126,7 @@ export default function ScoreEntryClient({
   teams?: ScoreClientTeam[];
   initialTeamScores?: ScoreClientTeamScore[];
   thirtyBall?: ScoreClientThirtyBall[];
+  bbb?: ScoreClientBbb[];
 }) {
   if (mode === 'team') {
     return (
@@ -134,6 +150,7 @@ export default function ScoreEntryClient({
       canEdit={canEdit}
       selfTripMemberId={selfTripMemberId}
       thirtyBall={thirtyBall}
+      bbb={bbb}
     />
   );
 }
@@ -147,6 +164,7 @@ function PlayerScoreEntry({
   canEdit,
   selfTripMemberId,
   thirtyBall = [],
+  bbb = [],
 }: {
   matchId: string;
   matchIdByPlayer?: Record<string, string>;
@@ -156,6 +174,7 @@ function PlayerScoreEntry({
   canEdit: boolean;
   selfTripMemberId: string | null;
   thirtyBall?: ScoreClientThirtyBall[];
+  bbb?: ScoreClientBbb[];
 }) {
   const [view, setView] = useState<'hole' | 'card'>('hole');
   const [restored, setRestored] = useState(false);
@@ -297,6 +316,22 @@ function PlayerScoreEntry({
     );
   }
 
+  // Bingo Bango Bongo commit state — same local-copy pattern as 30 Ball.
+  const [bbbStates, setBbbStates] = useState<ScoreClientBbb[]>(bbb);
+  function bbbApplyCommit(
+    bbbMatchId: string,
+    holeNumber: number,
+    points: { bingo: string | null; bango: string | null; bongo: string | null },
+  ) {
+    setBbbStates((prev) =>
+      prev.map((s) =>
+        s.matchId === bbbMatchId
+          ? { ...s, committedHoles: { ...s.committedHoles, [holeNumber]: points } }
+          : s,
+      ),
+    );
+  }
+
   const getScore = (tripMemberId: string, holeNumber: number) =>
     scores.get(`${tripMemberId}:${holeNumber}`) ?? null;
   const getEnteredBy = (tripMemberId: string, holeNumber: number) =>
@@ -374,6 +409,8 @@ function PlayerScoreEntry({
           thirtyBall={tbStates}
           isMemberCommitted={tbCommittedMember}
           onThirtyBallCommit={tbApplyCommit}
+          bbb={bbbStates}
+          onBbbCommit={bbbApplyCommit}
         />
       ) : (
         <CardView
@@ -443,6 +480,8 @@ function HoleByHole({
   thirtyBall = [],
   isMemberCommitted = () => false,
   onThirtyBallCommit = () => {},
+  bbb = [],
+  onBbbCommit = () => {},
 }: {
   matchId: string;
   matchIdByPlayer?: Record<string, string>;
@@ -468,6 +507,12 @@ function HoleByHole({
   thirtyBall?: ScoreClientThirtyBall[];
   isMemberCommitted?: (tripMemberId: string, holeNumber: number) => boolean;
   onThirtyBallCommit?: (teamId: string, holeNumber: number, countedIds: string[]) => void;
+  bbb?: ScoreClientBbb[];
+  onBbbCommit?: (
+    matchId: string,
+    holeNumber: number,
+    points: { bingo: string | null; bango: string | null; bongo: string | null },
+  ) => void;
 }) {
   return (
     <div className="mt-3">
@@ -549,6 +594,17 @@ function HoleByHole({
           players={players}
           getScore={getScore}
           onCommitted={onThirtyBallCommit}
+        />
+      ))}
+
+      {bbb.map((s) => (
+        <BbbCommitPanel
+          key={s.matchId}
+          state={s}
+          holeNumber={hole.number}
+          players={players}
+          getScore={getScore}
+          onCommitted={onBbbCommit}
         />
       ))}
 
@@ -776,6 +832,220 @@ function ThirtyBallCommitPanel({
       ) : (
         <p className="mt-1.5 text-[10px] text-zinc-500">
           Waiting on {state.teamName} to commit this hole.
+        </p>
+      )}
+    </div>
+  );
+}
+
+const BBB_POINTS = [
+  { key: 'bingo' as const, label: 'Bingo', hint: 'First on the green' },
+  { key: 'bango' as const, label: 'Bango', hint: 'Closest once all on' },
+  { key: 'bongo' as const, label: 'Bongo', hint: 'First to hole out' },
+];
+
+/**
+ * Bingo Bango Bongo per-hole commit — a GROUP decision (one panel per
+ * match, not per side): pick a winner (or nobody) for each of the three
+ * points, commit, locked. Grosses stay editable; only points lock.
+ */
+function BbbCommitPanel({
+  state,
+  holeNumber,
+  players,
+  getScore,
+  onCommitted,
+}: {
+  state: ScoreClientBbb;
+  holeNumber: number;
+  players: ScoreClientPlayer[];
+  getScore: (tripMemberId: string) => number | null;
+  onCommitted: (
+    matchId: string,
+    holeNumber: number,
+    points: { bingo: string | null; bango: string | null; bongo: string | null },
+  ) => void;
+}) {
+  const [selecting, setSelecting] = useState(false);
+  const [picks, setPicks] = useState<{
+    bingo: string | null;
+    bango: string | null;
+    bongo: string | null;
+  }>({ bingo: null, bango: null, bongo: null });
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const matchPlayers = players.filter((p) => state.memberIds.includes(p.tripMemberId));
+  const allPresent = matchPlayers.length === state.memberIds.length;
+  const allScored = state.memberIds.every((id) => getScore(id) != null);
+  const committed = state.committedHoles[holeNumber];
+
+  // Running team totals from every committed hole — the panel's header
+  // doubles as the live scoreboard for the group.
+  const totals = new Map<string, { name: string; color: string | null; pts: number }>();
+  for (const p of matchPlayers) {
+    if (!totals.has(p.teamId)) {
+      totals.set(p.teamId, { name: '', color: p.teamColor, pts: 0 });
+    }
+  }
+  const playerById = new Map(matchPlayers.map((p) => [p.tripMemberId, p]));
+  for (const row of Object.values(state.committedHoles)) {
+    for (const winner of [row.bingo, row.bango, row.bongo]) {
+      if (winner == null) continue;
+      const p = playerById.get(winner);
+      if (!p) continue;
+      const t = totals.get(p.teamId);
+      if (t) t.pts += 1;
+    }
+  }
+
+  const nickname = (id: string | null) =>
+    id == null ? 'Washed' : playerById.get(id)?.nickname ?? '—';
+
+  function commit() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await commitBbbHole(state.matchId, holeNumber, picks);
+        onCommitted(state.matchId, holeNumber, picks);
+        setSelecting(false);
+        setPicks({ bingo: null, bango: null, bongo: null });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Commit failed — try again.');
+      }
+    });
+  }
+
+  return (
+    <div className="mt-2 rounded-sm border border-yellow-600/40 bg-yellow-500/5 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-800 dark:text-yellow-500">
+          Bingo Bango Bongo
+        </p>
+        <span className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-widest tabular-nums">
+          {[...totals.values()].map((t, i) => (
+            <span key={i} style={{ color: t.color ?? undefined }}>
+              {t.pts}
+            </span>
+          ))}
+        </span>
+      </div>
+
+      {committed ? (
+        <div className="mt-2 space-y-1">
+          {BBB_POINTS.map(({ key, label }) => (
+            <div key={key} className="flex items-center justify-between gap-2 text-xs">
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                {label}
+              </span>
+              <span className="flex items-center gap-1.5 font-semibold text-zinc-800 dark:text-zinc-200">
+                {committed[key] == null ? (
+                  <span className="text-zinc-500">Washed</span>
+                ) : (
+                  nickname(committed[key])
+                )}
+              </span>
+            </div>
+          ))}
+          <p className="flex items-center gap-1.5 pt-1 font-mono text-[9px] uppercase tracking-widest text-zinc-500">
+            <Lock size={9} /> Committed
+          </p>
+        </div>
+      ) : selecting ? (
+        <div className="mt-2">
+          {BBB_POINTS.map(({ key, label, hint }) => (
+            <div key={key} className="mt-2 first:mt-0">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
+                {label} <span className="normal-case tracking-normal text-zinc-500">· {hint}</span>
+              </p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {matchPlayers.map((p) => {
+                  const on = picks[key] === p.tripMemberId;
+                  return (
+                    <button
+                      key={p.tripMemberId}
+                      type="button"
+                      disabled={pending}
+                      onClick={() =>
+                        setPicks((prev) => ({
+                          ...prev,
+                          [key]: on ? null : p.tripMemberId,
+                        }))
+                      }
+                      className={`rounded-sm border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                        on
+                          ? 'border-transparent text-black'
+                          : 'border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black/30 text-zinc-800 dark:text-zinc-200'
+                      }`}
+                      style={on ? { background: p.teamColor ?? '#ca8a04' } : undefined}
+                    >
+                      {p.nickname}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setPicks((prev) => ({ ...prev, [key]: null }))}
+                  className={`rounded-sm border px-2.5 py-1.5 text-xs font-semibold ${
+                    picks[key] == null
+                      ? 'border-zinc-500 text-zinc-700 dark:text-zinc-300'
+                      : 'border-zinc-300 dark:border-zinc-800 text-zinc-500'
+                  }`}
+                >
+                  Washed
+                </button>
+              </div>
+            </div>
+          ))}
+          {error && (
+            <p className="mt-2 text-[11px] text-red-600 dark:text-red-400">{error}</p>
+          )}
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={commit}
+              className="flex-1 rounded-sm bg-yellow-500 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-widest text-black hover:bg-yellow-400 disabled:opacity-60"
+            >
+              {pending ? (
+                <Loader2 size={12} className="mx-auto animate-spin" />
+              ) : (
+                'Commit points'
+              )}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                setSelecting(false);
+                setError(null);
+              }}
+              className="rounded-sm border border-zinc-400 dark:border-zinc-700 px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : state.canCommit ? (
+        <div className="mt-2">
+          <button
+            type="button"
+            disabled={!allScored || !allPresent}
+            onClick={() => setSelecting(true)}
+            className="w-full rounded-sm border border-yellow-500/60 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-400 disabled:opacity-40"
+          >
+            Commit points
+          </button>
+          {!allScored && (
+            <p className="mt-1.5 text-[10px] text-zinc-500">
+              Enter all {state.memberIds.length} scores to commit this hole&rsquo;s points.
+            </p>
+          )}
+        </div>
+      ) : (
+        <p className="mt-1.5 text-[10px] text-zinc-500">
+          Points not committed yet.
         </p>
       )}
     </div>

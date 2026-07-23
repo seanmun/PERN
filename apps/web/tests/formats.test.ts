@@ -28,8 +28,16 @@ describe('FORMAT_META', () => {
         'alternate_shot',
         'stroke',
         'thirty_ball',
+        'bingo_bango_bongo',
       ].sort(),
     );
+  });
+
+  it('bingo bango bongo is a 4-ball game: 1v1 or 2v2, foursome-locked, individual input', () => {
+    const f = getFormatMeta('bingo_bango_bongo');
+    expect(f.allowedSideSizes).toEqual([1, 2]);
+    expect(f.requiresSameFoursomePerSide).toBe(true);
+    expect(f.inputMode).toBe('individual');
   });
 
   it('30 ball is 3v3, foursome-locked per side, individual input', () => {

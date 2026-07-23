@@ -209,6 +209,22 @@ export const holeScores = pgTable('hole_scores', {
   enteredAt: timestamp('entered_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+// ============ BINGO BANGO BONGO ============
+
+// Committed judgment points, one row per (match, hole). Row existence IS
+// the commit (group commits via score entry; captain/admin uncommit
+// deletes). Each point nullable = washed. Not derived from hole_scores.
+export const bbbHolePoints = pgTable('bbb_hole_points', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  matchId: uuid('match_id').references(() => matches.id, { onDelete: 'cascade' }).notNull(),
+  holeNumber: integer('hole_number').notNull(),
+  bingoTripMemberId: uuid('bingo_trip_member_id').references(() => tripMembers.id),
+  bangoTripMemberId: uuid('bango_trip_member_id').references(() => tripMembers.id),
+  bongoTripMemberId: uuid('bongo_trip_member_id').references(() => tripMembers.id),
+  committedBy: uuid('committed_by').references(() => users.id),
+  committedAt: timestamp('committed_at', { withTimezone: true }).defaultNow().notNull(),
+}); // unique(match_id, hole_number)
+
 // ============ MEDIA (stub for v2 — hole-tagged photos/videos) ============
 
 export const media = pgTable('media', {

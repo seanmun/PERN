@@ -19,7 +19,8 @@ export type FormatId =
   | 'scramble'
   | 'alternate_shot'
   | 'stroke'
-  | 'thirty_ball';
+  | 'thirty_ball'
+  | 'bingo_bango_bongo';
 
 export type InputMode = 'individual' | 'team';
 
@@ -95,6 +96,19 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
     // this is its own bespoke resolution, not the generic match-play /
     // stroke-play engines the other formats share.
     allowedSideSizes: [3],
+    requiresSameFoursomePerSide: true,
+    inputMode: 'individual',
+  },
+  bingo_bango_bongo: {
+    id: 'bingo_bango_bongo',
+    label: 'Bingo Bango Bongo',
+    // Three judgment points per hole (first on green / closest once all
+    // on / first to hole out) awarded by the group, so EVERYONE must
+    // physically play together — a 4-ball game: 1v1 or 2v2 in one
+    // foursome. Points are per player; side totals sum them; higher
+    // wins. See computeBingoBangoBongo in engine.ts — bespoke
+    // resolution, not the generic engines.
+    allowedSideSizes: [1, 2],
     requiresSameFoursomePerSide: true,
     inputMode: 'individual',
   },

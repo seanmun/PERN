@@ -34,7 +34,7 @@ export type ClientParticipant = {
 
 export type ClientMatch = {
   id: string;
-  format: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot' | 'thirty_ball';
+  format: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot' | 'thirty_ball' | 'bingo_bango_bongo';
   resultText: string | null;
   participants: ClientParticipant[];
 };
@@ -50,6 +50,7 @@ const MATCH_FORMAT_ORDER: Record<ClientMatch['format'], number> = {
   singles: 4,
   stroke: 5,
   thirty_ball: 6,
+  bingo_bango_bongo: 7,
 };
 
 export type ClientGolfItem = {
@@ -64,7 +65,7 @@ export type ClientGolfItem = {
   groupNumber: number;
   roundOrder: number;
   roundLabel: string | null;
-  roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot' | 'thirty_ball';
+  roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot' | 'thirty_ball' | 'bingo_bango_bongo';
   courseName: string;
   courseLocation: string | null;
   // One "Enter scores" button per foursome routes to the WIDEST match in
@@ -95,7 +96,7 @@ export type ClientEmptyRoundItem = {
   roundId: string;
   roundOrder: number;
   roundLabel: string | null;
-  roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot' | 'thirty_ball';
+  roundFormat: 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate' | 'alternate_shot' | 'thirty_ball' | 'bingo_bango_bongo';
   courseName: string;
   courseLocation: string | null;
 };
@@ -422,6 +423,7 @@ function EmptyRoundRow({
       case 'two_man_aggregate': return 'Aggregate';
       case 'alternate_shot': return 'Alt Shot';
       case 'thirty_ball': return '30 Ball';
+      case 'bingo_bango_bongo': return 'Bingo Bango Bongo';
     }
   };
   return (
@@ -474,6 +476,7 @@ function formatLabel(fmt: ClientGolfItem['roundFormat']): string {
     case 'two_man_aggregate': return 'Two-Man Aggregate';
     case 'alternate_shot':    return 'Alternate Shot';
     case 'thirty_ball':       return '30 Ball · 3v3';
+    case 'bingo_bango_bongo': return 'Bingo Bango Bongo';
   }
 }
 
@@ -486,6 +489,7 @@ function formatShortLabel(fmt: ClientMatch['format']): string {
     case 'two_man_aggregate': return 'Aggregate';
     case 'alternate_shot':    return 'Alt Shot';
     case 'thirty_ball':       return '30 Ball';
+    case 'bingo_bango_bongo': return 'BBB';
   }
 }
 

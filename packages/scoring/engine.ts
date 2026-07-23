@@ -702,6 +702,121 @@ export function formatThirtyBallStatus(s: ThirtyBallStatus): string {
   }
 }
 
+// ───────────────────────── BINGO BANGO BONGO ─────────────────────────
+//
+// Three judgment points per hole, awarded by the group (not derived from
+// gross scores): Bingo = first ball on the green, Bango = closest to the
+// pin once all balls are on, Bongo = first to hole out. Points belong to
+// individual players; side totals are the sum of their players' points.
+// HIGHER total wins — the one format where a bigger number is better.
+//
+// The engine consumes committed per-hole point rows (the UI's commit
+// flow produces them — see bbb_hole_points). Any of the three can be
+// null: a washed point (nobody on in regulation, unresolvable
+// closest-to-pin dispute) awards nothing. A hole "counts" once its row
+// is committed; the match is final when every hole is.
+
+export type BbbHolePoints = {
+  holeNumber: number;
+  /** tripMemberId of each point's winner; null = washed / not awarded. */
+  bingo: string | null;
+  bango: string | null;
+  bongo: string | null;
+};
+
+export type BbbHoleResult = BbbHolePoints & {
+  aPoints: number;
+  bPoints: number;
+};
+
+export type BbbStatus =
+  | { kind: 'not_started' }
+  | { kind: 'in_progress'; pointsA: number; pointsB: number; holesCommitted: number }
+  | { kind: 'final'; pointsA: number; pointsB: number; winner: 'A' | 'B' | 'halved' };
+
+export type ComputedBbb = {
+  status: BbbStatus;
+  holesCommitted: number;
+  totalHoles: number;
+  pointsA: number;
+  pointsB: number;
+  /** Per-player running point tally (only players in `players` appear). */
+  pointsByPlayer: Map<string, number>;
+  holeResults: BbbHoleResult[];
+};
+
+export function computeBingoBangoBongo(input: {
+  players: EnginePlayer[];
+  totalHoles: number;
+  points: BbbHolePoints[];
+}): ComputedBbb {
+  const { players, totalHoles } = input;
+  const sideOf = new Map(players.map((p) => [p.id, p.teamSide]));
+
+  const pointsByPlayer = new Map<string, number>();
+  for (const p of players) pointsByPlayer.set(p.id, 0);
+
+  let pointsA = 0;
+  let pointsB = 0;
+  const holeResults: BbbHoleResult[] = [];
+
+  const sorted = [...input.points].sort((a, b) => a.holeNumber - b.holeNumber);
+  for (const row of sorted) {
+    let aPoints = 0;
+    let bPoints = 0;
+    for (const winner of [row.bingo, row.bango, row.bongo]) {
+      if (winner == null) continue; // washed point
+      const side = sideOf.get(winner);
+      // Defensive: a winner not in the match earns nothing rather than
+      // corrupting a side total.
+      if (side === 'A') aPoints++;
+      else if (side === 'B') bPoints++;
+      else continue;
+      pointsByPlayer.set(winner, (pointsByPlayer.get(winner) ?? 0) + 1);
+    }
+    pointsA += aPoints;
+    pointsB += bPoints;
+    holeResults.push({ ...row, aPoints, bPoints });
+  }
+
+  const holesCommitted = sorted.length;
+  let status: BbbStatus;
+  if (holesCommitted === 0) {
+    status = { kind: 'not_started' };
+  } else if (holesCommitted < totalHoles) {
+    status = { kind: 'in_progress', pointsA, pointsB, holesCommitted };
+  } else {
+    const winner: 'A' | 'B' | 'halved' =
+      pointsA > pointsB ? 'A' : pointsB > pointsA ? 'B' : 'halved';
+    status = { kind: 'final', pointsA, pointsB, winner };
+  }
+
+  return {
+    status,
+    holesCommitted,
+    totalHoles,
+    pointsA,
+    pointsB,
+    pointsByPlayer,
+    holeResults,
+  };
+}
+
+/** Human-readable BBB status: "7-5 thru 4", "16-11" (final),
+ * "Halved 13-13". */
+export function formatBbbStatus(s: BbbStatus): string {
+  switch (s.kind) {
+    case 'not_started':
+      return '—';
+    case 'in_progress':
+      return `${s.pointsA}-${s.pointsB} thru ${s.holesCommitted}`;
+    case 'final':
+      return s.winner === 'halved'
+        ? `Halved ${s.pointsA}-${s.pointsB}`
+        : `${s.pointsA}-${s.pointsB}`;
+  }
+}
+
 // ───────────────────────── TEAM-INPUT FORMATS ─────────────────────────
 //
 // Scramble and Alternate Shot: one ball per team, one gross per hole per team

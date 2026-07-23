@@ -11,7 +11,7 @@
 
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { matches } from '@/db/schema';
+import { bbbHolePoints, matches } from '@/db/schema';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
 import { resolveMatchHandicaps } from '@/lib/scoring/handicap-method';
 
@@ -20,12 +20,14 @@ import { resolveMatchHandicaps } from '@/lib/scoring/handicap-method';
 // this file depends on — defining it here again would be a cycle.
 export { getScratchHandicap } from '@/lib/scoring/handicap-method';
 import {
+  computeBingoBangoBongo,
   computeMatch,
   computeStableford,
   computeStrokePlayMatch,
   computeTeamMatch,
   computeThirtyBallMatch,
   DEFAULT_STABLEFORD_POINTS,
+  formatBbbStatus,
   formatStatus,
   formatStrokePlayStatus,
   formatThirtyBallStatus,
@@ -64,7 +66,43 @@ export async function recomputeMatchStatus(matchId: string): Promise<void> {
   let isHalved = false;
   let resultText: string | null = null;
 
-  if (data.match.format === 'thirty_ball') {
+  if (data.match.format === 'bingo_bango_bongo') {
+    // Judgment points, not gross-derived — read the committed point rows
+    // directly. Running "7-5 thru 4" lands in result_text, which is what
+    // the cup tab renders, so the scoreboard count comes for free.
+    const rows = await db
+      .select()
+      .from(bbbHolePoints)
+      .where(eq(bbbHolePoints.matchId, matchId));
+    const bbb = computeBingoBangoBongo({
+      players: enginePlayers,
+      totalHoles: data.engineHoles.length || 18,
+      points: rows.map((r) => ({
+        holeNumber: r.holeNumber,
+        bingo: r.bingoTripMemberId,
+        bango: r.bangoTripMemberId,
+        bongo: r.bongoTripMemberId,
+      })),
+    });
+    switch (bbb.status.kind) {
+      case 'not_started':
+        nextStatus = 'scheduled';
+        break;
+      case 'in_progress':
+        nextStatus = 'in_progress';
+        resultText = formatBbbStatus(bbb.status);
+        break;
+      case 'final':
+        nextStatus = 'completed';
+        if (bbb.status.winner === 'halved') {
+          isHalved = true;
+        } else {
+          winningTeamId = teamIdByside.get(bbb.status.winner) ?? null;
+        }
+        resultText = formatBbbStatus(bbb.status);
+        break;
+    }
+  } else if (data.match.format === 'thirty_ball') {
     // Bespoke resolution regardless of the `scoring` field — this format
     // is always "sum of selected nets, low 18-hole total wins." See
     // computeThirtyBallMatch.
@@ -216,6 +254,7 @@ export async function recomputeMatchStatus(matchId: string): Promise<void> {
   if (
     data.match.scoring === 'match_play' &&
     data.match.format !== 'thirty_ball' &&
+    data.match.format !== 'bingo_bango_bongo' &&
     data.engineHoles.length >= 18
   ) {
     const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
