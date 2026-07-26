@@ -1,11 +1,9 @@
 import { eq, desc, and, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
-  trips,
   tripMembers,
   teams,
   matches,
-  matchParticipants,
   rounds,
   courses,
   courseHoles,
@@ -268,9 +266,9 @@ export async function getFeed(
       .select({ match: matches, round: rounds, course: courses })
       .from(matches)
       .innerJoin(rounds, eq(matches.roundId, rounds.id))
-      .innerJoin(courses, eq(rounds.courseId, courses.id));
+      .innerJoin(courses, eq(rounds.courseId, courses.id))
+      .where(inArray(matches.id, mediaMatchIds));
     for (const row of mInfo) {
-      if (!mediaMatchIds.includes(row.match.id)) continue;
       mediaMatchInfo.set(row.match.id, {
         matchId: row.match.id,
         roundOrder: row.round.order,

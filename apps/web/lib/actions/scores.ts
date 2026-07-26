@@ -20,32 +20,8 @@ import {
   requireAuth,
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
-import { getMatchScoringData } from '@/lib/data/match-scoring';
-import {
-  computeMatch,
-  computeStableford,
-  computeTeamMatch,
-  DEFAULT_STABLEFORD_POINTS,
-  formatStatus,
-  THIRTY_BALL_BUDGET,
-  type PlayerInputFormat,
-  type StablefordPoints,
-} from '@buddycup/scoring/engine';
+import { THIRTY_BALL_BUDGET } from '@buddycup/scoring/engine';
 import { recomputeMatchStatus as pureRecompute } from '@/lib/scoring/recompute';
-
-/**
- * Recompute the match's status / winning team / result text from its current
- * hole_scores. Called after every score upsert so the scoreboard reflects the
- * truth without a separate "finalize match" step.
- */
-// Forward player-input formats straight through; everything else (scramble,
-// stroke — team-input or non-match-play formats) maps to the best-ball
-// engine for now and will get its own engine path in phase 2.
-const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
-  'best_ball',
-  'singles',
-  'two_man_aggregate',
-]);
 
 /** Re-export of the pure recompute so other server actions (round-level
  * "recompute all") have a stable name to import. */

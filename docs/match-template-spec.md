@@ -260,7 +260,7 @@ Required schema delta when we hit this step: `ALTER TABLE matches ALTER COLUMN t
 
 ### 4. Leaderboard, Cup tab, fan-out engine — zero changes
 
-All three are already match-keyed and read from `hole_scores`. As long as `hole_scores` stays the canonical input table (which it does), every match — old single-foursome or new cross-foursome — recomputes the same way. The 39 engine tests (`tests/engine.test.ts` + `tests/formats.test.ts`) already lock this in.
+All three are already match-keyed and read from `hole_scores`. As long as `hole_scores` stays the canonical input table (which it does), every match — old single-foursome or new cross-foursome — recomputes the same way. The engine test suite (`apps/web/tests/` — engine, engine-properties, formats, handicap, match-builder, team-split, bingo-bango-bongo) already locks this in.
 
 ### 5. Validation + tests gate each step
 
@@ -276,7 +276,7 @@ If a trip ever puts a player in two tee times of the same round (admin mistake, 
 - [ ] Existing rounds render their scorecard via the new route with identical scores
 - [ ] Leaderboard for a known round matches pre-refactor output (snapshot test or screenshot diff)
 - [ ] Cup-tab live state for an in-flight match matches pre-refactor
-- [ ] All 39 engine/format tests still green
+- [x] All engine/format tests still green (`npm test`)
 - [ ] `npm run build` green (no Turbopack-only success — full prod build)
 
 ## Implementation order (once decisions are locked)

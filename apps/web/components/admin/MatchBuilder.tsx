@@ -554,7 +554,6 @@ export default function MatchBuilder({
             onTeamChange={setSideATeamId}
             slotIds={sideAPlayerIds}
             side="A"
-            members={members}
             memberById={memberById}
             teamById={teamById}
             onRemove={removeFromAnySlot}
@@ -569,7 +568,6 @@ export default function MatchBuilder({
             onTeamChange={setSideBTeamId}
             slotIds={sideBPlayerIds}
             side="B"
-            members={members}
             memberById={memberById}
             teamById={teamById}
             onRemove={removeFromAnySlot}
@@ -700,7 +698,6 @@ function SidePanel({
   onTeamChange,
   slotIds,
   side,
-  members,
   memberById,
   teamById,
   onRemove,
@@ -714,7 +711,6 @@ function SidePanel({
   onTeamChange: (id: string) => void;
   slotIds: (string | null)[];
   side: 'A' | 'B';
-  members: Member[];
   memberById: Map<string, Member>;
   teamById: Map<string, Team>;
   onRemove: (id: string) => void;

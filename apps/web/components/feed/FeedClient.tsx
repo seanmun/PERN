@@ -10,7 +10,6 @@ import {
   Plus,
   Trophy,
   Video,
-  User as UserIcon,
 } from 'lucide-react';
 import FeedComposer, { type ComposerMatchOption } from './FeedComposer';
 import ReactionsBar from './ReactionsBar';

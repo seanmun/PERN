@@ -117,29 +117,6 @@ export default async function EditTeeTimePage({
   );
 }
 
-const inputCls =
-  'mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
-
-function Field({
-  label,
-  children,
-  required,
-}: {
-  label: string;
-  children: React.ReactNode;
-  required?: boolean;
-}) {
-  return (
-    <label className="block">
-      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
-        {label}
-        {required && <span className="ml-1 text-yellow-800 dark:text-yellow-500">*</span>}
-      </span>
-      {children}
-    </label>
-  );
-}
-
 /**
  * Foursome roster checkbox group. Persists to tee_time_participants
  * via updateTeeTimeRoster. Renders all trip members grouped by team

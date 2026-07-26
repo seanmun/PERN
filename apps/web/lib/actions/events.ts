@@ -12,6 +12,7 @@ import {
   isTripAdminOf,
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
+import { tripWallTimeToDate } from '@/lib/trip-time';
 import type { AuthContext } from '@/lib/auth/current-user';
 
 type EventType =
@@ -33,10 +34,6 @@ const EVENT_TYPES: ReadonlySet<EventType> = new Set([
   'other',
 ]);
 
-// Trip is in Eastern Time (DST → EDT/-04:00 in Aug). For trips outside DST,
-// revisit this; for the 2026 Pinehurst trip it's correct as a constant.
-const TRIP_TZ_OFFSET = '-04:00';
-
 function requireEventAdmin(ctx: AuthContext, tripId: string): void {
   if (isPlatformAdmin(ctx)) return;
   if (isTripAdminOf(ctx, tripId)) return;
@@ -47,7 +44,7 @@ function parseWallTime(s: FormDataEntryValue | null): Date | null {
   if (s == null) return null;
   const raw = String(s).trim();
   if (!raw) return null;
-  const d = new Date(`${raw}:00${TRIP_TZ_OFFSET}`);
+  const d = tripWallTimeToDate(raw);
   if (Number.isNaN(d.getTime())) {
     throw new Error('Invalid date/time');
   }

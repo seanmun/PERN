@@ -184,7 +184,14 @@ export default function NewCourseForm({
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                // A new search invalidates the previous pick's coords —
+                // without this, a hand-named course silently keeps the
+                // old pick's location.
+                setLatitude('');
+                setLongitude('');
+              }}
               onFocus={() => suggestions.length && setShowDropdown(true)}
               placeholder="Pinehurst, Augusta National, Pebble Beach…"
               className="block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 pl-9 pr-9 text-base text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-600 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  MapPin,
   Trophy,
   UtensilsCrossed,
   Plane,
@@ -17,7 +16,6 @@ import {
   Plus,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import FormatBadge from '@/components/FormatBadge';
 
 export type ClientParticipant = {
   tripMemberId: string;
@@ -463,10 +461,6 @@ function formatTime(iso: string): string {
   }).format(d);
 }
 
-function mapsUrl(query: string): string {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-}
-
 function formatLabel(fmt: ClientGolfItem['roundFormat']): string {
   switch (fmt) {
     case 'best_ball':         return 'Best Ball · 2v2';
@@ -807,178 +801,6 @@ function CompactPortraitSlot({
         {player.tripHandicap ?? 'N/A'}
       </p>
     </div>
-  );
-}
-
-/**
- * Horizontal text matchup — used in places that still want a plain row.
- * The schedule itself uses the NBA-Jam showdown card above; this is kept
- * for empty-rounds and the placeholder card.
- */
-function MatchupRow({ match }: { match: ClientMatch }) {
-  const byTeam = new Map<string, ClientParticipant[]>();
-  for (const p of match.participants) {
-    const list = byTeam.get(p.teamId) ?? [];
-    list.push(p);
-    byTeam.set(p.teamId, list);
-  }
-  const teamGroups = Array.from(byTeam.values());
-
-  if (teamGroups.length !== 2) {
-    return (
-      <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-600">
-        No participants
-      </p>
-    );
-  }
-  const [a, b] = teamGroups;
-  return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-      <TeamSideCell players={a} align="left" />
-      <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-600">
-        vs
-      </span>
-      <TeamSideCell players={b} align="right" />
-    </div>
-  );
-}
-
-function TeamSideCell({
-  players,
-  align,
-}: {
-  players: ClientParticipant[];
-  align: 'left' | 'right';
-}) {
-  const color = players[0]?.teamColor ?? '#71717a';
-  const teamName = players[0]?.teamName ?? '';
-  const alignCls = align === 'right' ? 'text-right' : 'text-left';
-  return (
-    <div className={`min-w-0 ${alignCls}`}>
-      <p
-        className="truncate font-mono text-[9px] font-semibold uppercase tracking-widest"
-        style={{ color }}
-      >
-        {teamName}
-      </p>
-      {/* Singles render as one line; pairs/foursomes stack teammates so
-          each name is readable on its own row. */}
-      <div className="mt-0.5 space-y-0.5">
-        {players.map((p) => (
-          <p
-            key={p.tripMemberId}
-            className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100"
-          >
-            {p.nickname}
-            <span className="ml-1 font-mono text-[10px] tabular-nums text-zinc-500">
-              {p.tripHandicap ?? 'N/A'}
-            </span>
-          </p>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MatchupStacked({ match }: { match: ClientMatch }) {
-  const byTeam = new Map<string, ClientParticipant[]>();
-  for (const p of match.participants) {
-    const list = byTeam.get(p.teamId) ?? [];
-    list.push(p);
-    byTeam.set(p.teamId, list);
-  }
-  const teamGroups = Array.from(byTeam.values());
-
-  if (teamGroups.length !== 2) return null;
-  const [a, b] = teamGroups;
-
-  return (
-    <div className="space-y-2">
-      <TeamBlock players={a} />
-      <div className="flex items-center gap-2">
-        <div className="h-px flex-1 bg-zinc-800" />
-        <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-600">
-          vs
-        </span>
-        <div className="h-px flex-1 bg-zinc-800" />
-      </div>
-      <TeamBlock players={b} />
-    </div>
-  );
-}
-
-function TeamBlock({ players }: { players: ClientParticipant[] }) {
-  const color = players[0]?.teamColor ?? '#71717a';
-  const teamName = players[0]?.teamName ?? '';
-
-  return (
-    <div
-      className="rounded-sm border p-2.5"
-      style={{ borderColor: `${color}55`, background: `${color}0a` }}
-    >
-      <p
-        className="font-mono text-[9px] font-semibold uppercase tracking-widest"
-        style={{ color }}
-      >
-        {teamName}
-      </p>
-      <div className="mt-1.5 space-y-0.5">
-        {players.map((p) => (
-          <div
-            key={p.tripMemberId}
-            className="flex items-baseline justify-between gap-2"
-          >
-            <p className="text-sm font-semibold">{p.nickname}</p>
-            <p className="font-mono text-xs tabular-nums text-zinc-500">
-              {p.tripHandicap ?? 'N/A'}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MatchupLine({ match }: { match: ClientMatch }) {
-  const byTeam = new Map<string, ClientParticipant[]>();
-  for (const p of match.participants) {
-    const list = byTeam.get(p.teamId) ?? [];
-    list.push(p);
-    byTeam.set(p.teamId, list);
-  }
-  const teamGroups = Array.from(byTeam.values());
-
-  if (teamGroups.length !== 2) return null;
-  const [a, b] = teamGroups;
-
-  return (
-    <div className="flex items-center gap-2 text-xs">
-      <TeamSide players={a} />
-      <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-600">
-        vs
-      </span>
-      <TeamSide players={b} align="right" />
-    </div>
-  );
-}
-
-function TeamSide({ players, align = 'left' }: { players: ClientParticipant[]; align?: 'left' | 'right' }) {
-  const color = players[0]?.teamColor ?? '#71717a';
-  return (
-    <span
-      className={`min-w-0 flex-1 truncate text-${align === 'right' ? 'right' : 'left'}`}
-      style={{ color }}
-    >
-      {players.map((p, i) => (
-        <span key={p.tripMemberId}>
-          {i > 0 && ' & '}
-          {p.nickname}
-          <span className="ml-1 font-mono text-[10px] tabular-nums opacity-60">
-            {p.tripHandicap ?? 'N/A'}
-          </span>
-        </span>
-      ))}
-    </span>
   );
 }
 

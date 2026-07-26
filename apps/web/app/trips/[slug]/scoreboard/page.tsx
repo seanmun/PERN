@@ -18,7 +18,7 @@ import {
   formatStatus,
   type PlayerInputFormat,
 } from '@buddycup/scoring/engine';
-import FormatBadge, { type MatchFormat } from '@/components/FormatBadge';
+import FormatBadge from '@/components/FormatBadge';
 
 const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
   'best_ball',
@@ -444,8 +444,6 @@ function TeeTimeGroups({
                       aTeamId={live?.aTeamId ?? null}
                       bTeamId={live?.bTeamId ?? null}
                       holesPlayed={live?.holesPlayed ?? 0}
-                      totalHoles={live?.totalHoles ?? 18}
-                      statusText={live?.statusText ?? '—'}
                     />
                   );
                 })}
@@ -690,9 +688,7 @@ async function OutingLiveBoard({
                           aTeamId={live?.aTeamId ?? null}
                           bTeamId={live?.bTeamId ?? null}
                           holesPlayed={live?.holesPlayed ?? 0}
-                          totalHoles={live?.totalHoles ?? 18}
-                          statusText={live?.statusText ?? '—'}
-                        />
+                                />
                       );
                     })}
                 </div>
@@ -737,27 +733,6 @@ async function OutingLiveBoard({
       </section>
     </div>
   );
-}
-
-/**
- * Replace the engine's match-play shorthand ("1 UP", "2 & 1", "DORMIE")
- * with team-named, plain-English status text so a casual reader can
- * tell who's winning at a glance.
- */
-function humanizeStatus({
-  holesPlayed,
-}: {
-  statusText: string;
-  sideAName?: string;
-  sideBName?: string;
-  upA: number;
-  upB: number;
-  holesPlayed: number;
-  remaining: number;
-}): string {
-  // Gradient + big-number row carry the lead and the magnitude. The
-  // text is just the through-count, nothing else.
-  return `thru ${holesPlayed}`;
 }
 
 async function computeLive(matchId: string) {
@@ -857,8 +832,6 @@ function MatchLiveRow({
   aTeamId,
   bTeamId,
   holesPlayed,
-  totalHoles,
-  statusText,
 }: {
   slug: string;
   matchId: string;
@@ -872,8 +845,6 @@ function MatchLiveRow({
   aTeamId: string | null;
   bTeamId: string | null;
   holesPlayed: number;
-  totalHoles: number;
-  statusText: string;
 }) {
   // Engine pins A/B by UUID; we then re-map to visual left/right by
   // team-name alphabetical so the cup match cards put the same team on
@@ -886,7 +857,6 @@ function MatchLiveRow({
   const right = leftIsEngineA ? sideB : sideA;
   const leftUp = leftIsEngineA ? upA : upB;
   const rightUp = leftIsEngineA ? upB : upA;
-  const remaining = Math.max(0, totalHoles - holesPlayed);
   // Leaning background gradient. Same 10-slice scale as LeanBar — 0 holes
   // up = even gradient (50/50); 10 holes up = fully one color. Lives behind
   // the matchup card so the visual weight tracks the score in your peripheral
@@ -908,17 +878,9 @@ function MatchLiveRow({
       <div className="flex items-center justify-between gap-3">
         <FormatBadge format={format} size="xs" />
         <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-          {holesPlayed === 0
-            ? 'Not started'
-            : humanizeStatus({
-                statusText,
-                sideAName: left?.name,
-                sideBName: right?.name,
-                upA: leftUp,
-                upB: rightUp,
-                holesPlayed,
-                remaining,
-              })}
+          {/* Gradient + big-number row carry the lead; text is just
+              the through-count. */}
+          {holesPlayed === 0 ? 'Not started' : `thru ${holesPlayed}`}
         </p>
       </div>
 
@@ -1097,78 +1059,10 @@ function TeamSide({ team, align, slug }: { team: TeamTotal; align: 'left' | 'rig
   );
 }
 
-function PlayerRow({ player, rank, slug }: { player: PlayerTotal; rank: number; slug: string }) {
-  const color = player.teamColor ?? '#71717a';
-  const scoreLabel = formatScoreVsPar(player);
-  const scoreColor =
-    player.holesScored === 0
-      ? 'text-zinc-600'
-      : player.scoreVsPar < 0
-        ? 'text-red-400'
-        : player.scoreVsPar === 0
-          ? 'text-zinc-900 dark:text-zinc-100'
-          : 'text-zinc-600 dark:text-zinc-400';
-  return (
-    <Link
-      href={`/trips/${slug}/profile/${player.tripMemberId}`}
-      className="flex items-center gap-3 border-b border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-3 py-2.5 last:border-b-0 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
-      style={{ borderLeft: `3px solid ${color}` }}
-    >
-      <p className="w-6 shrink-0 font-mono text-xs font-semibold tabular-nums text-zinc-500">
-        {rank}
-      </p>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold">{player.nickname}</p>
-        {player.teamName && (
-          <p
-            className="font-mono text-[9px] font-semibold uppercase tracking-widest"
-            style={{ color }}
-          >
-            {player.teamName}
-          </p>
-        )}
-      </div>
-      <p className="w-14 shrink-0 text-right font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-        {player.holesScored > 0
-          ? `+${player.strokesGiven}`
-          : player.tripHandicap
-            ? `${player.tripHandicap} hcp`
-            : '—'}
-      </p>
-      <div className="w-14 shrink-0 text-right">
-        <p className={`font-mono text-lg font-bold tabular-nums ${scoreColor}`}>
-          {scoreLabel}
-        </p>
-        {player.holesScored > 0 && (
-          <p className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
-            thru {player.holesScored}
-          </p>
-        )}
-      </div>
-      <div className="w-12 shrink-0 text-right">
-        <p className="font-mono text-lg font-bold tabular-nums text-yellow-800 dark:text-yellow-400">
-          {player.holesScored > 0 ? player.stablefordPoints : '—'}
-        </p>
-        <p className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">
-          pts
-        </p>
-      </div>
-      <ChevronRight size={12} className="shrink-0 text-zinc-700" />
-    </Link>
-  );
-}
-
 function formatPoints(p: number): string {
   const whole = Math.floor(p);
   const half = Math.round((p - whole) * 2);
   if (half === 0) return String(whole);
   if (half === 1) return whole === 0 ? '½' : `${whole}½`;
   return String(p);
-}
-
-function formatScoreVsPar(p: PlayerTotal): string {
-  if (p.holesScored === 0) return '—';
-  if (p.scoreVsPar === 0) return 'E';
-  if (p.scoreVsPar > 0) return `+${p.scoreVsPar}`;
-  return String(p.scoreVsPar);
 }

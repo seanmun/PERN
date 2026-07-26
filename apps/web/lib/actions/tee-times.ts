@@ -14,8 +14,7 @@ import {
 import { getTripSlugById } from '@/lib/auth/trip-context';
 import type { AuthContext } from '@/lib/auth/current-user';
 import { resolveRedirect } from '@/lib/actions/wizard-redirect';
-
-const TRIP_TZ_OFFSET = '-04:00';
+import { tripWallTimeToDate } from '@/lib/trip-time';
 
 function requireTeeTimeAdmin(ctx: AuthContext, tripId: string): void {
   if (isPlatformAdmin(ctx)) return;
@@ -27,7 +26,7 @@ function parseWallTime(v: FormDataEntryValue | null): Date | null {
   if (v == null) return null;
   const s = String(v).trim();
   if (!s) return null;
-  const d = new Date(`${s}:00${TRIP_TZ_OFFSET}`);
+  const d = tripWallTimeToDate(s);
   if (Number.isNaN(d.getTime())) throw new Error('Invalid time');
   return d;
 }

@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { eq, asc, and } from 'drizzle-orm';
-import { ArrowLeft, Calendar, Pencil, PenLine, Trophy } from 'lucide-react';
+import { ArrowLeft, Calendar, Pencil, Trophy } from 'lucide-react';
 import { db } from '@/db/client';
 import {
   matches,
@@ -35,7 +35,6 @@ import {
   computeThirtyBallMatch,
   DEFAULT_STABLEFORD_POINTS,
   formatBbbStatus,
-  formatStatus,
   formatStatusWithWinner,
   formatStrokePlayStatus,
   formatThirtyBallStatus,
@@ -253,11 +252,6 @@ export default async function MatchDetailPage({
     ? formatStatusWithWinner(liveMatch.status, sideAName, sideBName)
     : null;
 
-  const selfTripMemberId = ctx.tripMember?.id ?? null;
-  const selfIsParticipant = participants.some(
-    (p) => p.member.id === selfTripMemberId
-  );
-  const canEnterScores = canEdit || selfIsParticipant;
 
   return (
     <div className="pb-24">

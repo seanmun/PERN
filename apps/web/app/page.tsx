@@ -234,13 +234,6 @@ const SCHEDULE: ScheduleItem[] = [
   },
 ];
 
-const PORTRAITS = [
-  { name: 'DAN', team: 'Hacks', color: GREEN, src: '/homepage/dan.png' },
-  { name: 'IAN', team: 'Chunkers', color: GOLD, src: '/homepage/ian.png' },
-  { name: 'SEAN', team: 'Chunkers', color: GOLD, src: '/homepage/sean.png' },
-  { name: 'KYLE', team: 'Hacks', color: GREEN, src: '/homepage/kyle.png' },
-] as const;
-
 type ShowcasePlayer = {
   nickname: string;
   teamName: string;

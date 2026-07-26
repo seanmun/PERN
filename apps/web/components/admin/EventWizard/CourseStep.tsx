@@ -78,6 +78,10 @@ export default function CourseStep({
         setSearchingDb(false);
       }
     }, 250);
+    // Clear the pending search if the query changes or we unmount.
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
   }, [query, dbEnabled]);
 
   function requestLocation() {

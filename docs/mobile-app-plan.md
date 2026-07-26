@@ -17,7 +17,7 @@ Ship iOS + Android native apps for BuddyCup that match the current web feature s
   - Separate Xcode project, HTTP client only — no JS sharing
   - Talks to the same `/api/*` REST endpoints as the mobile app
   - Tight scope: live cup score + current-hole score entry (see [Watch scope](#watch-scope))
-- **Workspace: pnpm workspaces**
+- **Workspace: npm workspaces** (pnpm was tried and removed — Vercel builds were unwinnable, commit `07fc00b`; do not reintroduce it)
   - Simpler than Turborepo for two apps; can promote to Turbo later if build caching becomes a need
 - **Auth: Clerk** (already in use on web — same dashboard, same users)
 
@@ -148,8 +148,7 @@ buddycup/                      ← repo root (renamed from "pern")
   ios-watch/                   ← native Watch app (separate Xcode project)
     BuddyCupWatch.xcodeproj
     Sources/
-  package.json                 ← pnpm workspace root
-  pnpm-workspace.yaml
+  package.json                 ← npm workspace root
   tsconfig.base.json           ← shared TS settings
 ```
 
@@ -241,7 +240,7 @@ Total annual: ~$99/yr after the $25 Play setup.
 - [ ] Move current root contents to `apps/web/`
 - [ ] Hoist `lib/scoring/` + `lib/validation/` into `packages/scoring/`
 - [ ] Update path aliases in `apps/web/tsconfig.json`
-- [ ] `pnpm-workspace.yaml` + root `package.json` workspaces field
+- [x] root `package.json` workspaces field (npm workspaces — shipped)
 - [ ] Verify `npm run dev`, `npm test`, `npm run build`, `npm run seed:scenarios` all still work from the new structure
 
 **No app changes**, just a refactor. Web app keeps shipping as normal after this.
@@ -307,12 +306,12 @@ API routes: `/api/matches` (POST), `/api/tee-times/[id]/roster` (PUT), `/api/cou
 
 ## Open decisions
 
-### Decision: pnpm vs npm workspaces
+### Decision: pnpm vs npm workspaces — RESOLVED: npm
 
 - [ ] **pnpm workspaces** — faster installs, stricter dependency resolution, common in monorepo land
 - [ ] npm workspaces — already familiar, no new CLI
 
-**Recommendation:** pnpm. The strictness saves real time when adding deps.
+**Resolved:** npm workspaces. pnpm was tried and reverted (`07fc00b`) — Vercel builds were unwinnable. CLAUDE.md bans reintroducing it.
 
 ### Decision: Expo Router vs React Navigation
 

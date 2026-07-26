@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronRight, User as UserIcon } from 'lucide-react';
 import { db } from '@/db/client';
 import { trips, tripMembers } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
+import { tripWallTimeToDate, tripLocalToday } from '@/lib/trip-time';
 
 export default async function PastTripsPage() {
   const ctx = await getGlobalAuthContext();
@@ -98,14 +99,7 @@ export default async function PastTripsPage() {
 }
 
 function getTripLocalToday(): Date {
-  const fmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/New_York',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const today = fmt.format(new Date());
-  return new Date(`${today}T00:00:00-04:00`);
+  return tripWallTimeToDate(tripLocalToday());
 }
 
 function formatDates(start: Date | null, end: Date | null): string | null {

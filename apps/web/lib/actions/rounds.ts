@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { and, desc, eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { rounds, courses, courseTees, matches } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
@@ -12,6 +12,7 @@ import {
   isTripAdminOf,
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
+import { tripWallTimeToDate } from '@/lib/trip-time';
 import type { AuthContext } from '@/lib/auth/current-user';
 import { resolveRedirect } from '@/lib/actions/wizard-redirect';
 
@@ -23,8 +24,6 @@ const VALID_FORMATS: ReadonlySet<RoundFormat> = new Set([
   'stroke',
   'two_man_aggregate',
 ]);
-
-const TRIP_TZ_OFFSET = '-04:00';
 
 function requireRoundAdmin(ctx: AuthContext, tripId: string): void {
   if (isPlatformAdmin(ctx)) return;
@@ -51,7 +50,7 @@ function parseDate(v: FormDataEntryValue | null): Date | null {
   const s = String(v).trim();
   if (!s) return null;
   // Date input gives YYYY-MM-DD; pin to local midnight in trip TZ.
-  const d = new Date(`${s}T00:00:00${TRIP_TZ_OFFSET}`);
+  const d = tripWallTimeToDate(s);
   if (Number.isNaN(d.getTime())) throw new Error('Invalid date');
   return d;
 }

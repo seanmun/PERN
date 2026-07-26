@@ -68,6 +68,14 @@ function HoleRow({
     'idle'
   );
   const [errMsg, setErrMsg] = useState<string | null>(null);
+  // Last values successfully persisted. The `hole` prop never refreshes
+  // after a save (no router.refresh), so dirtiness must compare against
+  // this — comparing against the prop re-fired a save on every blur.
+  const [saved, setSaved] = useState({
+    par: String(hole.par),
+    si: String(hole.handicapIndex),
+    yardage: hole.yardage != null ? String(hole.yardage) : '',
+  });
   const [, startTransition] = useTransition();
 
   function save() {
@@ -82,6 +90,7 @@ function HoleRow({
     startTransition(async () => {
       try {
         await updateCourseHole(fd);
+        setSaved({ par, si, yardage });
         setState('saved');
         setTimeout(() => setState('idle'), 1500);
       } catch (e) {
@@ -92,9 +101,7 @@ function HoleRow({
   }
 
   const dirty =
-    String(hole.par) !== par ||
-    String(hole.handicapIndex) !== si ||
-    (hole.yardage != null ? String(hole.yardage) : '') !== yardage;
+    saved.par !== par || saved.si !== si || saved.yardage !== yardage;
 
   return (
     <div className="border-b border-zinc-200 dark:border-zinc-900 last:border-b-0">

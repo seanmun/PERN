@@ -22,14 +22,11 @@ Past projects have hit auth/RLS pain on Supabase at exactly the role complexity 
 
 ## Multi-tenant approach
 
-**Data is trip-scoped from day one. UI is Pinehurst-hardcoded for v1.**
+**Multi-tenancy is live** (see [`multi-tenant-unlock.md`](./multi-tenant-unlock.md) for the original plan).
 
-- Every domain table (`teams`, `rounds`, `matches`, `messages`, `media`) has a `trip_id` FK.
-- The Pinehurst trip is seeded as a single row at install time.
-- v1 routes assume that trip — no trip slug in the URL, no trip switcher, no trip-creation form.
-- v2 unlock: add `/cup/[slug]/...` routing, a trip-creation flow, and invite generation. Schema doesn't change.
-
-This is the cheapest possible insurance against rewriting later.
+- Every domain table (`teams`, `rounds`, `matches`, `messages`, `media`, ...) has a `trip_id` FK — or chains to one.
+- Routing is `/trips/[slug]/...`; `/trips/new` is the creation wizard; trip kinds are `trip` / `outing` / `match`.
+- The Pinehurst Cup is the flagship first trip, not a hardcoded assumption. New features are trip-agnostic by default.
 
 ## Role model
 
@@ -42,8 +39,9 @@ Two orthogonal axes:
 
 **Trip role** — on `TripMember`, per trip:
 
-- `trip_admin` — Dan. Full control of this trip's data.
-- `player` — everyone else on the trip.
+- `trip_admin` — full control of this trip's data.
+- `player` — regular roster member.
+- `viewer` — read-only spectator.
 
 Plus a separate `is_captain: boolean` on `TripMember`. Captains are players with extras (edit own team roster, set TBD matchups, pick scramble teams). Captain is *not* a separate role — Ian is a captain but not an admin.
 
@@ -79,9 +77,9 @@ Neon doesn't have native realtime like Supabase. For a golf app, that's fine.
 
 Don't reach for WebSockets unless the use case actually demands it.
 
-## Match-play scoring engine
+## Scoring engine
 
-The hardest piece of logic in the app. Lives in `lib/scoring/`. Pure functions, heavily unit-tested.
+The hardest piece of logic in the app. The pure engine lives in **`packages/scoring/`** (`@buddycup/scoring` — engine, formats, handicap, team-split, match-builder validation), framework-free so a future mobile app can share it. App-side glue (recompute/persistence, handicap-method resolution) lives in `apps/web/lib/scoring/`. Heavily unit-tested in `apps/web/tests/`.
 
 **Inputs:**
 
@@ -97,41 +95,31 @@ The hardest piece of logic in the app. Lives in `lib/scoring/`. Pure functions, 
 - Hole winner (low net wins; tied = halved)
 - Match status after each hole (`X UP with Y to play`, `AS`, `DORMIE`, closed at `X&Y`)
 
-Same engine handles both 2v2 (best ball net) and 1v1 (singles net match play). Different round formats just pass different inputs.
+The engine covers singles, best ball, two-man aggregate, scramble/alternate-shot (team input), stroke play, stableford, 30 Ball, and Bingo Bango Bongo, with three handicap methods (group_low / match_low / course).
 
 ## Offline considerations
 
-Pinehurst cell coverage is famously spotty. The scorecard entry screen should:
+Pinehurst cell coverage is famously spotty. An offline-capable scorecard (cache + queued writes + connection indicator, service worker) is on the backlog — **not built yet**.
 
-- Cache scorecard state in localStorage or IndexedDB
-- Queue score writes; retry on reconnect
-- Show a clear connection-status indicator
-
-Service worker via `next-pwa` or vanilla is the path. Not v0 of MVP, but in scope before the trip date.
-
-## Project structure (proposed)
+## Project structure
 
 ```
-/app                          # Next.js App Router
-  /(marketing)                # public-facing pages
-  /(app)                      # auth-gated app
-    /scoreboard
-    /schedule
-    /matches/[id]
-    /profile/[handle]
-    /admin
-    /randomizer               # PERN module
-/components
-  /scoreboard
-  /scorecard
-  /matchcard
-  /collider                   # ported from PERN
-/lib
-  /auth                       # permissions helpers
-  /scoring                    # match-play engine
-  /db                         # drizzle client
-/db
-  schema.ts                   # source of truth
-  seed.ts                     # Pinehurst seed
-/docs                         # this folder
+apps/web/                     # the entire Next.js app
+  app/                        # App Router
+    trips/[slug]/...          # all trip-scoped surfaces (schedule, scoreboard,
+                              #   matches, tee-times, feed, admin, setup wizard)
+    trips/new/...             # creation wizard
+    home/, me/                # user-scoped
+    api/                      # Places/course-db proxies, blob upload
+  components/                 # by feature (admin, feed, schedule, score-entry, ...)
+  lib/
+    auth/                     # permissions + auth context helpers
+    actions/                  # server actions (all mutations)
+    data/                     # server-only data loaders
+    scoring/                  # app-side glue over the engine
+  db/
+    schema.ts                 # source of truth
+    migrations/               # applied by hand via Neon SQL editor
+packages/scoring/             # pure-TS engine (@buddycup/scoring)
+docs/                         # this folder
 ```

@@ -8,6 +8,7 @@ import { trips, tripMembers } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import { claimTripMember, listClaimableSlots } from '@/lib/actions/claim';
 import SignOutLink from '@/components/SignOutLink';
+import { tripWallTimeToDate, tripLocalToday } from '@/lib/trip-time';
 
 export default async function GlobalMePage() {
   const ctx = await getGlobalAuthContext();
@@ -376,14 +377,7 @@ function TripCard({
 function getTripLocalToday(): Date {
   // Today at 00:00 in America/New_York, returned as a UTC Date so it can be
   // compared with the timestamptz columns Drizzle returns.
-  const fmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/New_York',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const today = fmt.format(new Date()); // e.g. "2026-05-18"
-  return new Date(`${today}T00:00:00-04:00`);
+  return tripWallTimeToDate(tripLocalToday());
 }
 
 function formatDates(start: Date | null, end: Date | null): string | null {

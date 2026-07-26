@@ -1,6 +1,6 @@
 # Multi-tenant unlock
 
-> Planning doc. **No code lands until the open decisions below are answered.** This is a large refactor with breaking changes — better to over-spec than to fumble it.
+> **SHIPPED.** Historical planning doc — multi-tenancy is live (`/trips/[slug]/...`, `/trips/new`, trip kinds, invites). Kept for the decision record. Note: the shareable invite-code flow (Decision 5, `trip_invites` + `/join/[code]`) was never built — the shipped invite path is Clerk-ticket emails.
 
 ## Goal
 

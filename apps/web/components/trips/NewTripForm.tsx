@@ -37,7 +37,6 @@ export default function NewTripForm({ kind = 'trip' }: { kind?: Kind }) {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [slugTouched, setSlugTouched] = useState(false);
-  const slugInputRef = useRef<HTMLInputElement>(null);
   const copy = KIND_COPY[kind];
   // Single-day kinds: collapse end date — server defaults endDate to startDate.
   const singleDay = kind === 'outing' || kind === 'match';
@@ -80,8 +79,7 @@ export default function NewTripForm({ kind = 'trip' }: { kind?: Kind }) {
             </span>
             <input
               id="trip-slug"
-              ref={slugInputRef}
-              type="text"
+                type="text"
               name="slug"
               required
               maxLength={60}

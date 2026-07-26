@@ -588,9 +588,11 @@ function HoleByHole({
         ))}
       </div>
 
+      {/* Keyed by hole too — panel state (open selection, picks) must
+          reset when the user navigates holes, not carry over. */}
       {thirtyBall.map((s) => (
         <ThirtyBallCommitPanel
-          key={s.teamId}
+          key={`${s.teamId}:${hole.number}`}
           state={s}
           holeNumber={hole.number}
           players={players}
@@ -601,7 +603,7 @@ function HoleByHole({
 
       {bbb.map((s) => (
         <BbbCommitPanel
-          key={s.matchId}
+          key={`${s.matchId}:${hole.number}`}
           state={s}
           holeNumber={hole.number}
           players={players}
@@ -1022,6 +1024,8 @@ function BbbCommitPanel({
               onClick={() => {
                 setSelecting(false);
                 setError(null);
+                // Reopening starts fresh — stale picks must not linger.
+                setPicks({ bingo: null, bango: null, bongo: null });
               }}
               className="rounded-sm border border-zinc-400 dark:border-zinc-700 px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400"
             >
@@ -1381,6 +1385,14 @@ function SaveStatus({
     }, 600);
   }, [gross, matchId, tripMemberId, holeNumber]);
 
+  // Don't let a queued save fire after the row unmounts.
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
   if (state === 'saving')
     return (
       <span className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
@@ -1484,8 +1496,22 @@ function TeamScoreEntry({
     }
   }, [activeHole]);
 
+  // A hole with zero scores stays editable — same rule as the
+  // player-input flow, so an untouched hole never demands an Edit tap.
+  const submittedHoles = useMemo(() => {
+    const set = new Set<number>();
+    for (const [key, v] of scores) {
+      if (v == null) continue;
+      const holeNum = Number(key.split(':')[1]);
+      if (Number.isFinite(holeNum)) set.add(holeNum);
+    }
+    return set;
+  }, [scores]);
+
   const activeHoleLocked =
-    leftHoles.has(activeHole) && !unlockedHoles.has(activeHole);
+    leftHoles.has(activeHole) &&
+    submittedHoles.has(activeHole) &&
+    !unlockedHoles.has(activeHole);
 
   function unlockActiveHole() {
     setUnlockedHoles((prev) => {
@@ -1776,6 +1802,14 @@ function TeamSaveStatus({
       setTimeout(() => setState('idle'), 1500);
     }, 600);
   }, [gross, matchId, teamId, holeNumber]);
+
+  // Don't let a queued save fire after the row unmounts.
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
 
   if (state === 'saving')
     return (

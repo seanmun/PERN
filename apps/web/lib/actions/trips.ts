@@ -10,8 +10,7 @@ import { getTripAuthContext } from '@/lib/auth/trip-context';
 import { AuthorizationError, canEditTrip } from '@/lib/auth/permissions';
 import { slugifyTripName } from '@/lib/slug';
 import { resolveRedirect } from '@/lib/actions/wizard-redirect';
-
-const TRIP_TZ_OFFSET = '-04:00';
+import { tripWallTimeToDate } from '@/lib/trip-time';
 
 // Slugs that would collide with our route structure or other reserved paths.
 const RESERVED_SLUGS: ReadonlySet<string> = new Set([
@@ -38,7 +37,7 @@ function parseDate(v: FormDataEntryValue | null): Date | null {
   const s = String(v).trim();
   if (!s) return null;
   // Date input gives YYYY-MM-DD; pin to local midnight in trip TZ.
-  const d = new Date(`${s}T00:00:00${TRIP_TZ_OFFSET}`);
+  const d = tripWallTimeToDate(s);
   if (Number.isNaN(d.getTime())) throw new Error('Invalid date');
   return d;
 }

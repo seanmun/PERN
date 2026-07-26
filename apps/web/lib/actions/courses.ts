@@ -18,6 +18,7 @@ import {
   isTripAdminOf,
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
+import { resolveRedirect } from '@/lib/actions/wizard-redirect';
 import { extractScorecardFromUrl } from '@/lib/scorecard/extract';
 import { teeRank, pickDefaultTeeIndex } from '@/lib/scorecard/tee-order';
 
@@ -159,12 +160,13 @@ export async function createCourse(formData: FormData): Promise<void> {
   const tripSlug = await getTripSlugById(tripId);
   revalidatePath(`/trips/${tripSlug}/admin/courses`);
 
-  const redirectTo = String(formData.get('redirectTo') ?? '').trim();
-  if (redirectTo) {
-    redirect(redirectTo);
-  } else {
-    redirect(`/trips/${tripSlug}/admin/courses/${created.id}/edit`);
-  }
+  // Same convention as every other wizard-reused action — raw reading
+  // here would redirect() to the literal string "none".
+  const dest = resolveRedirect(
+    formData,
+    `/trips/${tripSlug}/admin/courses/${created.id}/edit`,
+  );
+  if (dest) redirect(dest);
 }
 
 export async function updateCourse(formData: FormData): Promise<void> {

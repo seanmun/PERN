@@ -2,9 +2,9 @@
 
 ## What we're building
 
-A private golf trip app for the **Pinehurst Cup** — a 12-man, Ryder-Cup-style competition between two teams (MachIans vs. Douchebags). Match play scoring with handicaps across 6 rounds at Pinehurst-area courses.
+**BuddyCup** — a private golf trip app for any group: trips (multi-day cups), outings (one day, many foursomes), and single matches. The flagship first trip is the **Pinehurst Cup** — a 12-man, Ryder-Cup-style competition between two teams (MachIans vs. Douchebags), match play with handicaps across 6 rounds at Pinehurst-area courses.
 
-Built for *this trip*. Architected so it can host any group's trip later.
+Multi-tenancy is live: trip creation wizard, `/trips/[slug]/...` routing, invites. New features should be trip-agnostic by default.
 
 ## Who it's for
 
@@ -21,22 +21,24 @@ Built for *this trip*. Architected so it can host any group's trip later.
 4. **Cinematic moments.** Inherits the PERN particle-collider vibe — drama where drama belongs (matchup reveals, leaderboard flips, closing ceremony).
 5. **Trip memoir, not just scoreboard.** Designed from day one to capture material (media tagged to holes, chat, match results) that fuels post-trip recaps. Every feature should feed the eventual Memoir Engine.
 
-## MVP — must ship for the Pinehurst trip
+## Core features — shipped
 
-1. **Auth via Clerk** — magic-link login.
-2. **Lazy-claim roster** — admin seeds 12 player slots with email + nickname + handicap. Slots become claimed on first login. App is fully usable on day one even if half the players never log in.
-3. **Roles** — platform_admin (env-var-based), trip_admin (Dan), is_captain flag (Dan + Ian), player.
-4. **Trip schedule** — read-only view of rounds, courses, tee times, matchups for all 6 rounds.
-5. **Hole-by-hole match play scoring** — mobile scorecard with stroke-given allocation, hole-by-hole win/loss tracking, real match-play status (DORMIE / AS / X UP / X&Y closeout).
-6. **Live team scoreboard** — top-level Ryder Cup-style total (e.g., "MachIans 8½ — D-Bags 6½") with per-match status cards underneath.
-7. **Public player profiles** — image, nickname, handicap, team affiliation, scouting blurb.
-8. **Admin / captain edit tools** — admin edits anything in the trip; captains edit their own team + TBD matchups + scramble teams.
-9. **Matchup Randomizer (PERN module)** — particle-collider matchup picker, ported from the existing repo, available as a module for the Saturday PM TBD round.
+1. **Auth via Clerk** — magic-link login. ✅
+2. **Lazy-claim roster** — admin seeds player slots with email + nickname + handicap; slots claim on first login. ✅
+3. **Roles** — platform_admin (env-var-based), trip_admin, is_captain flag, player, viewer. ✅
+4. **Trip schedule** — rounds, courses, tee times, matchups, plus non-golf events (meals, flights, hotels). ✅
+5. **Hole-by-hole scoring** — mobile scorecard with stroke allocation and live match status (DORMIE / AS / X UP / X&Y). Formats: singles, best ball, two-man aggregate, scramble, stroke, 30 Ball, Bingo Bango Bongo; match play / stableford / stroke resolution. ✅
+6. **Live team scoreboard** — Ryder Cup-style team total with per-match status cards + individual leaderboard. ✅
+7. **Player profiles** — photo, NBA-Jam arcade portrait, nickname, handicap, team, scouting blurb. ✅
+8. **Admin / captain edit tools** — admin edits anything; captains get quick-result entry and their team's commits. ✅
+9. **Trip creation + invites** — wizard (type → course → details → players → teams → groups → matches → review), Clerk-ticket invite emails. ✅
+10. **Feed** — hole-tagged media, text posts, reactions, moderation. ✅
+11. **Course library** — Google Places + GolfCourseAPI import, AI scorecard extraction, favorites, tees/yardages. ✅
 
-## Out of MVP — see [`backlog.md`](./backlog.md)
+Dropped from the original MVP list: the PERN particle-collider matchup randomizer — captains pick TBD matchups manually instead.
 
-- Hole-tagged media (Memoir foundation)
-- Trash talk feed / group chat
+## Not built yet — see [`backlog.md`](./backlog.md)
+
 - AI nightly recap articles
 - AI hole commentary / course reference
 - ElevenLabs audio narration
@@ -45,11 +47,11 @@ Built for *this trip*. Architected so it can host any group's trip later.
 - GHIN integration
 - Trophy room / record book
 - Yearbook PDF
-- Trip-creation / onboarding UI (multi-tenant unlock)
 
 ## Non-goals
 
 - Real-time millisecond updates — polling is fine for golf
-- Native mobile apps — PWA-first
 - GolfShot/18Birdies-style GPS mapping — proprietary, not worth licensing
 - Public scoreboards / spectator mode — private, login-gated
+
+(Native mobile is a *future maybe*, sketched in [`mobile-app-plan.md`](./mobile-app-plan.md) — the web app remains the product.)

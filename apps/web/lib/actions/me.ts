@@ -16,8 +16,9 @@ function trim(v: FormDataEntryValue | null): string | null {
 
 // Reserved usernames — these collide with route segments or would be
 // confusing/abusive if anyone could claim them.
+// Keep in sync with the RESERVED set in lib/auth/username.ts.
 const RESERVED_USERNAMES: ReadonlySet<string> = new Set([
-  'admin', 'me', 'api', 'new', 'edit', 'sign-in', 'sign-up',
+  'admin', 'me', 'api', 'new', 'edit', 'sign-in', 'sign-up', 'home',
   'trips', 'documentation', 'brand', 'privacy', 'cup', 'buddycup',
   'support', 'help', 'root', 'system',
 ]);

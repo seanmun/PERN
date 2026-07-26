@@ -2,12 +2,13 @@
 
 The source-of-truth for trip seed data. Used to populate `trips`, `teams`, `trip_members`, `courses`, `rounds`, `tee_times`, and fixed `matches` via `db/seed.ts`.
 
-> ⚠️ **Items to confirm with Dan before seeding:**
-> - Year / exact dates of the trip
+> **Confirmed:** trip dates are **Aug 19–22, 2026** (seeded).
+>
+> ⚠️ **Still to confirm with Dan:**
 > - Course for Saturday AM and Saturday PM rounds
 > - Fran's handicap (missing from source sheet)
-> - Whether the fun scramble awards points or is purely for fun (assumed fun-only)
-> - Canonical spelling for "Marina" vs "Marino"
+> - Whether the fun scramble awards points or is purely for fun (assumed fun-only — seeded `countsTowardCup: false`)
+> - Canonical spelling for "Marina" vs "Marino" (seeded as Marino)
 > - Last names for everyone except Ian and Dan
 > - Confirm Saturday AM tee-time grouping: 3 tee times × ? players each
 
@@ -53,7 +54,7 @@ Captain: **Dan Smith** (also trip admin)
 | 2 | Thu | 8:00 / 8:12 / 8:25 AM | Tobacco Road | Match Play 2v2 (3 matches) | ✅ |
 | 3 | Fri | 7:00 / 7:10 / 7:20 AM | Pinehurst No. 2 | Match Play 2v2 (3 matches) | ✅ |
 | 4 | Sat | 7:24 / 7:36 / 7:48 AM | TBD | Singles 1v1 (6 matches) | ✅ |
-| 5 | Sat | 2:00 / 2:10 / 2:20 PM | TBD | Singles 1v1 (6 matches) — *matchups via PERN randomizer* | ✅ |
+| 5 | Sat | 2:00 / 2:10 / 2:20 PM | TBD | Singles 1v1 (6 matches) — *captains pick matchups Saturday morning* | ✅ |
 | 6 | Sat | [time TBD] | Pinehurst No. 1 | Scramble (3 mixed teams of 4) | ❌ (fun round) |
 
 **Total points available toward the Cup:** 21 (3 + 3 + 3 + 6 + 6).
@@ -97,9 +98,9 @@ Course TBD. Six 1v1 matches across three tee times.
 
 *Note:* 3 tee times × 2 matches each = 6 singles matches total, 4 players per tee time. Confirm with Dan that this is the intended grouping.
 
-## Round 5 — Saturday PM Singles (matchups via PERN randomizer)
+## Round 5 — Saturday PM Singles (captains' picks)
 
-Course TBD. Matchups will be selected live by the **Matchup Randomizer (PERN module)** on Saturday morning. Six 1v1 pairings, drawn from collision events between blue (D-Bag) and red (MachIan) particles.
+Course TBD. The captains pick the six 1v1 pairings Saturday morning. (The PERN particle-collider randomizer was dropped from the product — matchups are set manually via the match builder.)
 
 ## Round 6 — PH #1 Scramble (Fun Round)
 

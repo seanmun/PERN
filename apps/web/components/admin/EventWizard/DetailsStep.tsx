@@ -33,7 +33,6 @@ export default function DetailsStep({
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [slugTouched, setSlugTouched] = useState(false);
-  const slugInputRef = useRef<HTMLInputElement>(null);
   const copy = KIND_COPY[kind];
   const singleDay = kind === 'outing' || kind === 'match';
   const backHref = singleDay ? `/trips/new/course?kind=${kind}` : '/trips/new';
@@ -113,7 +112,6 @@ export default function DetailsStep({
           </span>
           <input
             id="trip-slug"
-            ref={slugInputRef}
             type="text"
             name="slug"
             required
