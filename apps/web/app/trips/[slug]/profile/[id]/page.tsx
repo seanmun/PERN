@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Trophy } from 'lucide-react';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
+import { canViewTrip } from '@/lib/auth/permissions';
 import { getPlayerProfile, type ProfileMatch } from '@/lib/data/player-profile';
 import MemberAvatar from '@/components/avatar/MemberAvatar';
 import {
@@ -21,6 +22,7 @@ export default async function PlayerProfilePage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const profile = await getPlayerProfile(id);
   // Guard the row's trip against the URL's trip — a foreign member id

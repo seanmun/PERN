@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { rounds, courses } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { createTeeTime } from '@/lib/actions/tee-times';
 
 export default async function NewTeeTimePage({
@@ -21,6 +21,7 @@ export default async function NewTeeTimePage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const { roundId } = await searchParams;
   if (!roundId) {

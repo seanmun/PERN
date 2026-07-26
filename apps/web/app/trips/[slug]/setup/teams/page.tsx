@@ -3,7 +3,7 @@ import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { tripMembers, teams } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
 import TeamsStepClient from '@/components/admin/EventWizard/TeamsStepClient';
 
@@ -18,6 +18,7 @@ export default async function SetupTeamsPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
   if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, trip.id)) {
     redirect(`/trips/${slug}/admin/players`);
   }

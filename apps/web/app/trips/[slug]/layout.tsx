@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
-import { getTripBySlug } from '@/lib/auth/trip-context';
+import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
+import { canViewTrip } from '@/lib/auth/permissions';
 
 export default async function TripLayout({
   children,
@@ -11,6 +12,13 @@ export default async function TripLayout({
   const { slug } = await params;
   const trip = await getTripBySlug(slug);
   if (!trip) notFound();
+
+  // Belt-and-braces: every page under here gates on canViewTrip itself
+  // (Next docs warn layouts don't re-run on every navigation, so this
+  // can't be the only check). This stops the header leaking the trip's
+  // name and icon around a page that 404s.
+  const ctx = await getTripAuthContext(trip.id);
+  if (!ctx || !canViewTrip(ctx)) notFound();
 
   return (
     <>

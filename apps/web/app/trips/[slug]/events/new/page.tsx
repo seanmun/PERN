@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { createEvent } from '@/lib/actions/events';
 import EventForm from '@/components/schedule/EventForm';
 
@@ -17,6 +17,7 @@ export default async function NewEventPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const canEdit = isPlatformAdmin(ctx) || isTripAdminOf(ctx, trip.id);
   if (!canEdit) redirect(`/trips/${slug}/schedule`);

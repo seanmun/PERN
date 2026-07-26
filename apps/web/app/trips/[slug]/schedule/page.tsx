@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { getScheduleByDay } from '@/lib/data/schedule';
 import ScheduleClient, {
   type ClientScheduleDay,
@@ -17,6 +17,7 @@ export default async function TripSchedulePage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const days = await getScheduleByDay(trip.id);
   const canEdit = isPlatformAdmin(ctx) || isTripAdminOf(ctx, trip.id);

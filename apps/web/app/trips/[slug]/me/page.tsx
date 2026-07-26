@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { teams } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
+import { canViewTrip } from '@/lib/auth/permissions';
 import SignOutLink from '@/components/SignOutLink';
 
 export default async function MePage({
@@ -20,6 +21,7 @@ export default async function MePage({
   if (!ctx) {
     redirect('/sign-in');
   }
+  if (!canViewTrip(ctx)) notFound();
 
   const { user, tripMember, isPlatformAdmin } = ctx;
 

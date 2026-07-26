@@ -4,6 +4,7 @@ import { asc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { matches, matchParticipants, rounds, teeTimes, teams, tripMembers } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
+import { canViewTrip } from '@/lib/auth/permissions';
 import { getLeaderboard, type TeamTotal } from '@/lib/data/leaderboard';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
 import { resolveMatchHandicaps } from '@/lib/scoring/handicap-method';
@@ -48,6 +49,7 @@ export default async function ScoreboardPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   // Match + Outing kinds: render the live board so every match shows up
   // with its current status, leaderboard underneath. The previous

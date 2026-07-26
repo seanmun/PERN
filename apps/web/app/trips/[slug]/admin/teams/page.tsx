@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { db } from '@/db/client';
 import { teams } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { updateTeam } from '@/lib/actions/teams';
 import TeamColorPicker from '@/components/admin/TeamColorPicker';
 
@@ -20,6 +20,7 @@ export default async function AdminTeamsPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, trip.id)) {
     redirect(`/trips/${slug}/admin`);

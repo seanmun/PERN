@@ -10,7 +10,7 @@ import {
   courseTeeYardages,
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { setDefaultTee, updateCourse, updateTeeRating } from '@/lib/actions/courses';
 import ImagePickerInput from '@/components/ImagePickerInput';
 import CourseHolesEditor from '@/components/admin/CourseHolesEditor';
@@ -27,6 +27,7 @@ export default async function EditCoursePage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const canEdit = isPlatformAdmin(ctx) || isTripAdminOf(ctx, trip.id);
   if (!canEdit) redirect('/');

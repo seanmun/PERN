@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
+import { canViewTrip } from '@/lib/auth/permissions';
 import { getLeaderboard } from '@/lib/data/leaderboard';
 import LeaderboardSortTabs from '@/components/scoreboard/LeaderboardSortTabs';
 
@@ -20,6 +21,7 @@ export default async function FullLeaderboardPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const board = await getLeaderboard(trip.id);
 

@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
+import { canViewTrip } from '@/lib/auth/permissions';
 import { updateMyProfile } from '@/lib/actions/update-profile';
 import PhotoWithPortraitSection from '@/components/portraits/PhotoWithPortraitSection';
 
@@ -17,6 +18,7 @@ export default async function EditProfilePage({
   if (!ctx) {
     redirect('/sign-in');
   }
+  if (!canViewTrip(ctx)) notFound();
 
   if (!ctx.tripMember) {
     redirect(`/trips/${slug}/me`);

@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronRight, ImageIcon, Settings, Trophy, Users } from 'lucide-react';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin } from '@/lib/auth/permissions';
 import ComingSoon from '@/components/ComingSoon';
 
 export default async function AdminPage({
@@ -16,6 +16,7 @@ export default async function AdminPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const isAdmin =
     isPlatformAdmin(ctx) || ctx.tripMember?.role === 'trip_admin';

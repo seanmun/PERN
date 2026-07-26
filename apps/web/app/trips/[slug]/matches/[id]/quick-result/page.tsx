@@ -12,11 +12,7 @@ import {
   holeScores,
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import {
-  isPlatformAdmin,
-  isTripAdminOf,
-  isAnyCaptainOnTrip,
-} from '@/lib/auth/permissions';
+import { canViewTrip, isAnyCaptainOnTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import QuickResultForm from '@/components/QuickResultForm';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
 import { resolveMatchHandicaps } from '@/lib/scoring/handicap-method';
@@ -32,6 +28,7 @@ export default async function QuickResultPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const [row] = await db
     .select({ match: matches, round: rounds })

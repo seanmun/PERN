@@ -3,7 +3,7 @@ import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { matches, rounds, courses } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { getFeed } from '@/lib/data/feed';
 import FeedClient from '@/components/feed/FeedClient';
 
@@ -18,6 +18,7 @@ export default async function FeedPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const items = await getFeed(trip.id, { currentUserId: ctx.user.id });
 
@@ -44,7 +45,7 @@ export default async function FeedPage({
   return (
     <FeedClient
       items={clientItems}
-      canPost={true}
+      canPost={isAdmin || ctx.tripMember?.role !== 'viewer'}
       matchOptions={matchOptions}
       isAdmin={isAdmin}
       tripId={trip.id}

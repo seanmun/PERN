@@ -5,6 +5,7 @@ import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { teams, tripMembers, users } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
+import { canViewTrip } from '@/lib/auth/permissions';
 import MemberAvatar from '@/components/avatar/MemberAvatar';
 
 export default async function TeamPage({
@@ -18,6 +19,7 @@ export default async function TeamPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const [team] = await db
     .select()

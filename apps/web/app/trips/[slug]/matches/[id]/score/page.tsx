@@ -2,10 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import {
-  isPlatformAdmin,
-  isTripAdminOf,
-} from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { getMatchScoringData } from '@/lib/data/match-scoring';
 import { getThirtyBallEntryStates } from '@/lib/data/thirty-ball';
 import { getBbbEntryStates } from '@/lib/data/bbb';
@@ -56,6 +53,7 @@ export default async function ScoreEntryPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const data = await getMatchScoringData(id);
   if (!data) notFound();

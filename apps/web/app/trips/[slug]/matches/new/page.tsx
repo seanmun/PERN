@@ -14,7 +14,7 @@ import {
   users,
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import MatchBuilder from '@/components/admin/MatchBuilder';
 import { roundTeeHasSlopeRating } from '@/lib/scoring/handicap-method';
 import { type FormatId } from '@buddycup/scoring/formats';
@@ -41,6 +41,7 @@ export default async function NewMatchPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const sp = await searchParams;
 

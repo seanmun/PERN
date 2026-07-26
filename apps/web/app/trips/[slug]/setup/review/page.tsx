@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { rounds, teeTimes, matches, tripMembers, teams } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
 import ReviewStepClient from '@/components/admin/EventWizard/ReviewStepClient';
 
@@ -18,6 +18,7 @@ export default async function SetupReviewPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
   if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, trip.id)) {
     redirect(`/trips/${slug}/admin/players`);
   }

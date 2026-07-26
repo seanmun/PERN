@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import NewCourseForm from '@/components/admin/NewCourseForm';
 
 export default async function NewCoursePage({
@@ -18,6 +18,7 @@ export default async function NewCoursePage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, trip.id)) {
     redirect(`/trips/${slug}/admin`);

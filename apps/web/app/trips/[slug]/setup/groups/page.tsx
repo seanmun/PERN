@@ -10,7 +10,7 @@ import {
   teams,
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { createRound } from '@/lib/actions/rounds';
 import { createTeeTime, updateTeeTimeRoster } from '@/lib/actions/tee-times';
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
@@ -38,6 +38,7 @@ export default async function SetupGroupsPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
   if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, trip.id)) {
     redirect(`/trips/${slug}/admin/players`);
   }

@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { db } from '@/db/client';
 import { courses, courseFavorites, rounds, tripMembers } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import CourseLibraryList from '@/components/admin/CourseLibraryList';
 
 export default async function AdminCoursesPage({
@@ -19,6 +19,7 @@ export default async function AdminCoursesPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const canEdit = isPlatformAdmin(ctx) || isTripAdminOf(ctx, trip.id);
   if (!canEdit) redirect(`/trips/${slug}/admin`);

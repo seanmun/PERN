@@ -5,7 +5,7 @@ import { eq, asc, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { tripMembers, teams, users } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { updatePlayerField, deletePlayer } from '@/lib/actions/players';
 import PhotoWithPortraitSection from '@/components/portraits/PhotoWithPortraitSection';
 import {
@@ -25,6 +25,7 @@ export default async function EditPlayerPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const [player] = await db
     .select()

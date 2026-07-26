@@ -12,7 +12,7 @@ import {
   teeTimeParticipants,
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import {
   updateTeeTimeField,
   updateTeeTimeRoster,
@@ -51,6 +51,7 @@ export default async function EditTeeTimePage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const [row] = await db
     .select({ teeTime: teeTimes, round: rounds, course: courses })

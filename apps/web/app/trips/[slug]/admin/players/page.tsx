@@ -7,7 +7,7 @@ import { tripMembers, teams, users } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import MemberAvatar from '@/components/avatar/MemberAvatar';
 import PlayerInviteButton from '@/components/admin/PlayerInviteButton';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { getBuddies } from '@/lib/data/buddies';
 import { addBuddyToTrip } from '@/lib/actions/players';
 
@@ -22,6 +22,7 @@ export default async function AdminPlayersPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const canEdit = isPlatformAdmin(ctx) || isTripAdminOf(ctx, trip.id);
   if (!canEdit) redirect(`/trips/${slug}/admin`);

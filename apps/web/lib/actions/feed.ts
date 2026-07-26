@@ -43,8 +43,13 @@ export async function createMediaPost(formData: FormData): Promise<void> {
   const tripId = readTripId(formData);
   const ctx = await getTripAuthContext(tripId);
   requireAuth(ctx);
-  if (!ctx.tripMember && !ctx.isPlatformAdmin) {
-    throw new AuthorizationError('You are not on this trip');
+  // Viewers are read-only spectators per the role model — members and
+  // platform admins post.
+  if (
+    !ctx.isPlatformAdmin &&
+    (!ctx.tripMember || ctx.tripMember.role === 'viewer')
+  ) {
+    throw new AuthorizationError('You cannot post to this trip');
   }
 
   const url = trim(formData.get('url'));
@@ -118,8 +123,13 @@ export async function createTextPost(formData: FormData): Promise<void> {
   const tripId = readTripId(formData);
   const ctx = await getTripAuthContext(tripId);
   requireAuth(ctx);
-  if (!ctx.tripMember && !ctx.isPlatformAdmin) {
-    throw new AuthorizationError('You are not on this trip');
+  // Viewers are read-only spectators per the role model — members and
+  // platform admins post.
+  if (
+    !ctx.isPlatformAdmin &&
+    (!ctx.tripMember || ctx.tripMember.role === 'viewer')
+  ) {
+    throw new AuthorizationError('You cannot post to this trip');
   }
 
   const body = trim(formData.get('body'));

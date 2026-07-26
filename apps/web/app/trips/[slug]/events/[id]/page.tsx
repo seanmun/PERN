@@ -16,7 +16,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { tripEvents } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import {
   formatTripTime,
   formatTripDayLong,
@@ -45,6 +45,7 @@ export default async function EventDetailPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const [event] = await db
     .select()

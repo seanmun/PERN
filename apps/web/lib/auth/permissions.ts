@@ -31,6 +31,22 @@ export function isSelfTripMember(ctx: AuthContext, tripMemberId: string): boolea
   return ctx.tripMember?.id === tripMemberId;
 }
 
+/**
+ * Can this user see the trip at all?
+ *
+ * getTripAuthContext returns a context for ANY signed-in user — members
+ * get a tripMember, everyone else gets null — so `if (!ctx)` alone lets
+ * strangers read a trip by guessing its slug. Membership (any role,
+ * including viewer) or platform admin is the actual read gate.
+ *
+ * Pair with notFound(), not redirect(): a stranger shouldn't be able to
+ * tell an existing trip from a nonexistent one.
+ */
+export function canViewTrip(ctx: AuthContext): boolean {
+  if (isPlatformAdmin(ctx)) return true;
+  return ctx.tripMember != null;
+}
+
 export function canEditTrip(ctx: AuthContext, tripId: string): boolean {
   if (isPlatformAdmin(ctx)) return true;
   return isTripAdminOf(ctx, tripId);

@@ -12,7 +12,7 @@ import {
   teams,
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { updateMatchParticipants } from '@/lib/actions/matches';
 import DeleteMatchButton from '@/components/schedule/DeleteMatchButton';
 import { roundFormatLabel } from '@/lib/format';
@@ -28,6 +28,7 @@ export default async function EditMatchPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const [match] = await db
     .select({ match: matches, round: rounds, course: courses })

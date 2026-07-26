@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { db } from '@/db/client';
 import { teams } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
+import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import NewPlayerForm from '@/components/admin/NewPlayerForm';
 
 export default async function NewPlayerPage({
@@ -19,6 +19,7 @@ export default async function NewPlayerPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, trip.id)) {
     redirect(`/trips/${slug}/admin/players`);

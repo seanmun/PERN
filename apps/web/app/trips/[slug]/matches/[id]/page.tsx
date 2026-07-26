@@ -15,7 +15,7 @@ import {
   users,
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
-import { isPlatformAdmin, isTripAdminOf, isAnyCaptainOnTrip } from '@/lib/auth/permissions';
+import { canViewTrip, isAnyCaptainOnTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import {
   formatTripTime,
   formatTripDayLong,
@@ -64,6 +64,7 @@ export default async function MatchDetailPage({
 
   const ctx = await getTripAuthContext(trip.id);
   if (!ctx) redirect('/sign-in');
+  if (!canViewTrip(ctx)) notFound();
 
   const [match] = await db
     .select({
