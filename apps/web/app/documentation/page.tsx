@@ -43,7 +43,7 @@ export default async function DocumentationPage() {
 
       <Section id="overview" title="1. Architecture overview">
         <List>
-          <li><strong>Framework:</strong> Next.js App Router + TypeScript. Server components default; <code>'use client'</code> only when interactivity demands.</li>
+          <li><strong>Framework:</strong> Next.js App Router + TypeScript. Server components default; <code>&apos;use client&apos;</code> only when interactivity demands.</li>
           <li><strong>Auth:</strong> Clerk (magic link). The DB &lt;-&gt; Clerk join is by lowercased <code>email</code>. <code>users.clerkId</code> linked on first sign-in.</li>
           <li><strong>DB:</strong> Neon Postgres + Drizzle ORM. Schema in <code>db/schema.ts</code> is source of truth. Migrations applied via Neon SQL editor (not <code>db:migrate</code>).</li>
           <li><strong>Multi-tenant:</strong> every domain table carries <code>trip_id</code>. v1 UI is hard-routed under <code>/trips/[slug]/*</code>; no trip switcher.</li>
@@ -64,9 +64,9 @@ export default async function DocumentationPage() {
         </p>
         <Bugs />
         <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
-          The "flights from a trip I'm not on" symptom traced to a separate bug in the (now-removed)
+          The &quot;flights from a trip I&apos;m not on&quot; symptom traced to a separate bug in the (now-removed)
           <code>MoreMenu</code>: when rendered outside a trip route, it fell back to{' '}
-          <code>DEFAULT_TRIP_SLUG = 'pcup26'</code> and linked its menu items at Pinehurst. The page enforced
+          <code>DEFAULT_TRIP_SLUG = &apos;pcup26&apos;</code> and linked its menu items at Pinehurst. The page enforced
           membership, but the menu deep-linked into a trip the user happened to be on (Pinehurst), so no redirect
           fired. The fallback is gone and the menu component itself was deleted in the BottomNav restructure.
         </p>
@@ -74,7 +74,7 @@ export default async function DocumentationPage() {
           Architectural follow-through: <code>getAuthContext</code> was renamed to{' '}
           <code>getGlobalAuthContext</code> across the codebase (80 references, 27 files) so any future call site
           that reaches for the global context to make a trip-scoped permission decision has to actively rename it —
-          the wrong-context bug class can't recur silently.
+          the wrong-context bug class can&apos;t recur silently.
         </p>
       </Section>
 
@@ -96,7 +96,7 @@ export default async function DocumentationPage() {
           <strong>Two auth contexts</strong> — pick the right one:
         </p>
         <List>
-          <li><code>getGlobalAuthContext()</code> — used on <code>/me</code>, claim actions, and anywhere no specific trip is in scope. Returns the user's <em>first</em> tripMember. <strong>Do not</strong> use it for permission checks on a specific trip — it can return Trip A's membership while the URL is for Trip B.</li>
+          <li><code>getGlobalAuthContext()</code> — used on <code>/me</code>, claim actions, and anywhere no specific trip is in scope. Returns the user&apos;s <em>first</em> tripMember. <strong>Do not</strong> use it for permission checks on a specific trip — it can return Trip A&apos;s membership while the URL is for Trip B.</li>
           <li><code>getTripAuthContext(tripId)</code> — used inside every <code>/trips/[slug]/*</code> page. Returns the membership for <em>that exact trip</em>, or null if not a member.</li>
         </List>
       </Section>
@@ -107,8 +107,8 @@ export default async function DocumentationPage() {
           <li>That person signs in via Clerk (magic link). <code>getGlobalAuthContext()</code> runs.</li>
           <li>Clerk email is normalized to lowercase. Lookup <code>users</code> by <code>clerkId</code> — if absent, lookup by lowercase email and attach <code>clerkId</code>, otherwise insert a new row.</li>
           <li>Bulk UPDATE: every <code>tripMembers</code> row where <code>lower(email) = email AND userId IS NULL</code> gets stitched to this user. This handles multi-trip cases.</li>
-          <li><code>/me</code> queries by <code>userId</code> — the trip now appears. <code>listClaimableSlots()</code> renders any leftover unclaimed rows as a fallback "Pending claims" CTA.</li>
-          <li><code>claimTripMember(formData)</code> — explicit belt-and-suspenders claim. Requires the slot's email matches the caller's (case-insensitive). Used when the lazy-claim missed a row.</li>
+          <li><code>/me</code> queries by <code>userId</code> — the trip now appears. <code>listClaimableSlots()</code> renders any leftover unclaimed rows as a fallback &quot;Pending claims&quot; CTA.</li>
+          <li><code>claimTripMember(formData)</code> — explicit belt-and-suspenders claim. Requires the slot&apos;s email matches the caller&apos;s (case-insensitive). Used when the lazy-claim missed a row.</li>
         </ol>
         <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
           Files: <code>lib/auth/current-user.ts</code>, <code>lib/auth/trip-context.ts</code>, <code>lib/actions/claim.ts</code>.
@@ -159,8 +159,8 @@ export default async function DocumentationPage() {
       <Section id="routes" title="6. Routes — every page">
         <SubHeading>App shell &amp; navigation</SubHeading>
         <List>
-          <li><strong>BottomNav</strong> ([components/BottomNav.tsx](components/BottomNav.tsx)): five tabs — <strong>Home · Schedule · Cup · Feed · Me</strong>. Home (<code>/home</code>) and Me (<code>/me</code>) work everywhere. Schedule, Cup, Feed grey out unless the URL contains a trip slug. No "More" button, no fallback slug.</li>
-          <li><strong>HeaderAvatar</strong> ([components/HeaderAvatar.tsx](components/HeaderAvatar.tsx) → [HeaderAvatarLink.tsx](components/HeaderAvatarLink.tsx)): avatar links to <code>/me</code>. When you're inside a <code>/trips/[slug]/*</code> route AND you're a trip_admin of that slug (or platform_admin), a yellow <strong>Admin</strong> button appears immediately to the left, linking to <code>/trips/[slug]/admin</code>. The server queries every trip slug where the user is trip_admin and passes them to the client component, which does the slug-vs-pathname check.</li>
+          <li><strong>BottomNav</strong> ([components/BottomNav.tsx](components/BottomNav.tsx)): five tabs — <strong>Home · Schedule · Cup · Feed · Me</strong>. Home (<code>/home</code>) and Me (<code>/me</code>) work everywhere. Schedule, Cup, Feed grey out unless the URL contains a trip slug. No &quot;More&quot; button, no fallback slug.</li>
+          <li><strong>HeaderAvatar</strong> ([components/HeaderAvatar.tsx](components/HeaderAvatar.tsx) → [HeaderAvatarLink.tsx](components/HeaderAvatarLink.tsx)): avatar links to <code>/me</code>. When you&apos;re inside a <code>/trips/[slug]/*</code> route AND you&apos;re a trip_admin of that slug (or platform_admin), a yellow <strong>Admin</strong> button appears immediately to the left, linking to <code>/trips/[slug]/admin</code>. The server queries every trip slug where the user is trip_admin and passes them to the client component, which does the slug-vs-pathname check.</li>
           <li><strong>Two surfaces, two purposes:</strong> <code>/home</code> is the trip dashboard (your trips, claims, past trips). <code>/me</code> is the personal profile editor (one place for username, name, handicap, GHIN, photo, arcade portrait, city, state, club).</li>
         </List>
         <SubHeading>Public</SubHeading>
@@ -231,7 +231,7 @@ export default async function DocumentationPage() {
 
       <Section id="actions" title="7. Server actions — every mutation">
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Files in <code>lib/actions/</code>. Each action's permission check is the security boundary. The six that
+          Files in <code>lib/actions/</code>. Each action&apos;s permission check is the security boundary. The six that
           previously had cross-trip risk are now patched (see §2).
         </p>
         <Table
@@ -273,15 +273,15 @@ export default async function DocumentationPage() {
         <List>
           <li><code>computeStrokes(players, holes)</code> — USGA stroke allocation. Lowest handicap = scratch. Others get <code>floor(diff/18) + (diff%18 ≥ holeSI ? 1 : 0)</code> strokes per hole. Returns <code>Map&lt;playerId, Map&lt;holeNumber, strokes&gt;&gt;</code>.</li>
           <li><code>computeMatch(&#123; players, holes, scores &#125;)</code> — best-ball match play. Returns <code>&#123; status, holesPlayed, upA, upB, holeResults[], strokesByPlayer &#125;</code>.</li>
-          <li><code>formatStatus(status)</code> — "AS" | "3 UP" | "DORMIE" | "3 &amp; 2".</li>
-          <li><code>winnerSide(status)</code> — <code>'A' | 'B' | 'halved' | null</code>.</li>
+          <li><code>formatStatus(status)</code> — &quot;AS&quot; | &quot;3 UP&quot; | &quot;DORMIE&quot; | &quot;3 &amp; 2&quot;.</li>
+          <li><code>winnerSide(status)</code> — <code>&apos;A&apos; | &apos;B&apos; | &apos;halved&apos; | null</code>.</li>
         </List>
         <SubHeading>Match status state machine</SubHeading>
         <List>
           <li><code>not_started</code> — 0 holes scored.</li>
           <li><code>in_progress</code> — both sides scored at least one hole; carries leader + up + remaining.</li>
           <li><code>dormie</code> — leader is up by exactly the remaining hole count.</li>
-          <li><code>closed</code> — leader's up &gt; remaining; match mathematically decided ("3 &amp; 2"). Post-closure scores can still be entered but don't change the result.</li>
+          <li><code>closed</code> — leader&apos;s up &gt; remaining; match mathematically decided (&quot;3 &amp; 2&quot;). Post-closure scores can still be entered but don&apos;t change the result.</li>
           <li><code>halved</code> — 18 holes played, all square.</li>
         </List>
         <SubHeading>Integration</SubHeading>
@@ -294,13 +294,13 @@ export default async function DocumentationPage() {
 
       <Section id="portraits" title="9. Arcade portraits">
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          NBA Jam–style portrait generated from a user's photo. Stored on <code>users</code> (platform-wide, reused
+          NBA Jam–style portrait generated from a user&apos;s photo. Stored on <code>users</code> (platform-wide, reused
           across trips).
         </p>
         <SubHeading>Flow</SubHeading>
         <ol className="mt-1 list-decimal pl-5 text-sm text-zinc-700 dark:text-zinc-300 space-y-1">
           <li>User uploads a photo → Vercel Blob URL stored as <code>avatarUrl</code>.</li>
-          <li>Click "Generate portrait" → server action <code>generateMyArcadePortrait</code> (self) or <code>generateArcadePortraitForPlayer</code> (admin).</li>
+          <li>Click &quot;Generate portrait&quot; → server action <code>generateMyArcadePortrait</code> (self) or <code>generateArcadePortraitForPlayer</code> (admin).</li>
           <li><code>generateArcadePortrait(sourceUrl)</code> in <code>lib/portraits/generate.ts</code>: fetch photo → sharp normalize (rotate, resize ≤1024, sRGB PNG) → OpenAI <code>images.edit</code> with <code>gpt-image-1</code>, baked prompt, transparent background → sharp trim+extend-to-square → Vercel Blob upload.</li>
           <li>Save <code>arcadePortraitUrl</code>, <code>arcadePortraitSourceUrl</code>, <code>arcadePortraitGeneratedAt</code> on users.</li>
         </ol>
@@ -359,13 +359,13 @@ export default async function DocumentationPage() {
           <li>No RLS. No Supabase. No Prisma. Permissions live in application code.</li>
           <li>No CSS-in-JS. Tailwind v4 only.</li>
           <li>Match-play engine in <code>lib/scoring/</code> stays pure. No DB calls, no I/O.</li>
-          <li>v1 UI is hardcoded for Pinehurst-style single-trip use. Schema is multi-tenant; UI isn't (yet).</li>
+          <li>v1 UI is hardcoded for Pinehurst-style single-trip use. Schema is multi-tenant; UI isn&apos;t (yet).</li>
         </List>
       </Section>
 
       <footer className="mt-16 border-t border-zinc-200 dark:border-zinc-900 pt-6">
         <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-600">
-          Generated from a full-codebase survey. Update this page when the app changes — it's the map.
+          Generated from a full-codebase survey. Update this page when the app changes — it&apos;s the map.
         </p>
       </footer>
     </article>

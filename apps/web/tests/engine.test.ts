@@ -36,8 +36,6 @@ const HOLES_18: EngineHole[] = Array.from({ length: 18 }, (_, i) => ({
   handicapIndex: i + 1, // 1 = hardest, 18 = easiest
 }));
 
-const HOLE_SI1: EngineHole = { number: 1, par: 4, handicapIndex: 1 };
-
 describe('computeStrokes — USGA stroke allocation', () => {
   it('the lowest-handicap player in the match plays scratch (0 strokes per hole)', () => {
     const players: EnginePlayer[] = [

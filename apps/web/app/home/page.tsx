@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { asc, eq, isNotNull } from 'drizzle-orm';
-import { CalendarDays, ChevronRight, Plus, Sun, User as UserIcon, Users } from 'lucide-react';
+import { CalendarDays, ChevronRight, Sun, User as UserIcon, Users } from 'lucide-react';
 import MemberAvatar from '@/components/avatar/MemberAvatar';
 import { db } from '@/db/client';
 import { trips, tripMembers } from '@/db/schema';
@@ -68,9 +68,6 @@ export default async function GlobalMePage() {
   }
 
   const displayName = user.displayName ?? user.fullName ?? user.email;
-  const initial = (user.displayName ?? user.fullName ?? user.email)
-    .slice(0, 1)
-    .toUpperCase();
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-6">

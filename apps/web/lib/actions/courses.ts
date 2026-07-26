@@ -9,7 +9,6 @@ import {
   courseHoles,
   courseTees,
   courseTeeYardages,
-  rounds,
 } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createTrip } from '@/lib/actions/trips';
 import { slugifyTripName } from '@/lib/slug';
 import ImagePickerInput from '@/components/ImagePickerInput';

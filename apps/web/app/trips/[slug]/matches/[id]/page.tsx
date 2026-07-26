@@ -940,11 +940,7 @@ function StablefordScorecard({
   const aName = participants.find((p) => p.side === 'A')?.team.name ?? 'Side A';
   const bName = participants.find((p) => p.side === 'B')?.team.name ?? 'Side B';
 
-  // Per-hole running totals + side totals. Side total per hole = sum of
-  // each player's points on that hole (same shape as the cumulative
-  // aPoints / bPoints totals).
-  let aRunning = 0;
-  let bRunning = 0;
+  // Per-hole side totals — sum of each player's points on that hole.
   const rows = holes.map((h) => {
     const aHolePts = aPlayers.reduce(
       (sum, p) => sum + (p.pointsByHole.get(h.number) ?? 0),
@@ -956,15 +952,11 @@ function StablefordScorecard({
     );
     const aScored = aPlayers.some((p) => p.pointsByHole.has(h.number));
     const bScored = bPlayers.some((p) => p.pointsByHole.has(h.number));
-    if (aScored) aRunning += aHolePts;
-    if (bScored) bRunning += bHolePts;
     return {
       hole: h.number,
       par: h.par,
       aHolePts: aScored ? aHolePts : null,
       bHolePts: bScored ? bHolePts : null,
-      aRunning,
-      bRunning,
     };
   });
 
@@ -1061,13 +1053,7 @@ function StrokePlayScorecard({
   const colorA = aTeamColor ?? '#71717a';
   const colorB = bTeamColor ?? '#71717a';
 
-  let aRunning = 0;
-  let bRunning = 0;
-  const rows = strokePlay.holeResults.map((r) => {
-    if (r.aTotal != null) aRunning += r.aTotal;
-    if (r.bTotal != null) bRunning += r.bTotal;
-    return { ...r, aRunning, bRunning };
-  });
+  const rows = strokePlay.holeResults;
 
   return (
     <section className="mt-6 overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">

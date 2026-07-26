@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { asc, eq } from 'drizzle-orm';
-import { ArrowLeft, Pencil, Plus, User } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus } from 'lucide-react';
 import { db } from '@/db/client';
 import { tripMembers, teams, users } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
@@ -89,7 +89,7 @@ export default async function AdminPlayersPage({
             </p>
           </div>
           <p className="mt-1 text-[11px] text-zinc-500">
-            People you've played with before, ranked by how often. One tap pre-fills nickname + handicap.
+            People you&apos;ve played with before, ranked by how often. One tap pre-fills nickname + handicap.
           </p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {buddies.map((b) => (

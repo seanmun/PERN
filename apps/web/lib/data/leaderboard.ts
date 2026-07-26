@@ -115,8 +115,6 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     visibleMatchIdSet.has(p.matchId),
   );
 
-  const completedMatchIdSet = new Set(completedMatchIds);
-
   // ───────── Team totals: match-play points from completed cup matches ─────────
   const teamTotalsMap = new Map<string, TeamTotal>();
   for (const t of teamsList) {

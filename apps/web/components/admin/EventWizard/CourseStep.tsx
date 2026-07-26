@@ -261,12 +261,12 @@ export default function CourseStep({
         >
           Skip for now →
         </Link>
-        <a
+        <Link
           href="/trips/new"
           className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 hover:text-zinc-300"
         >
           Back
-        </a>
+        </Link>
       </div>
     </div>
   );

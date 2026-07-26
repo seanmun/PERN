@@ -14,7 +14,6 @@ import {
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import {
-  updateTeeTime,
   updateTeeTimeField,
   updateTeeTimeRoster,
 } from '@/lib/actions/tee-times';
@@ -176,8 +175,8 @@ async function RosterEditor({
         Foursome roster ({existing.length})
       </p>
       <p className="mt-1 text-[11px] text-zinc-500">
-        Who's physically in this group. Every checked player shows on
-        the scorecard regardless of which matches they're in.
+        Who&apos;s physically in this group. Every checked player shows on
+        the scorecard regardless of which matches they&apos;re in.
       </p>
 
       <form action={updateTeeTimeRoster} className="mt-4 space-y-3">

@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ChevronRight, User } from 'lucide-react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { teams, tripMembers, users } from '@/db/schema';
