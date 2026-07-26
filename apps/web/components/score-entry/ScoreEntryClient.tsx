@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
+  AlertTriangle,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -191,9 +192,19 @@ function PlayerScoreEntry({
     }
     return Math.max(1, holes.length);
   });
-  const [activePlayerId, setActivePlayerId] = useState<string>(
-    selfTripMemberId ?? players[0]?.tripMemberId ?? ''
-  );
+  // Default to yourself ONLY if you're actually in this foursome. An
+  // admin scoring a group they're not in would otherwise hold a
+  // tripMemberId that isn't in `players`, and card view would read and
+  // write under that phantom key — showing a blank card and posting the
+  // typed scores as players[0]'s.
+  const [activePlayerId, setActivePlayerId] = useState<string>(() => {
+    const selfIsPlaying =
+      selfTripMemberId != null &&
+      players.some((p) => p.tripMemberId === selfTripMemberId);
+    return selfIsPlaying
+      ? selfTripMemberId
+      : players[0]?.tripMemberId ?? '';
+  });
   const [scores, setScores] = useState<Map<string, number | null>>(() => {
     const m = new Map<string, number | null>();
     for (const s of initialScores) {
@@ -302,10 +313,18 @@ function PlayerScoreEntry({
         s.memberIds.includes(tripMemberId) &&
         holeNumber in s.committedHoles,
     );
-  function tbApplyCommit(teamId: string, holeNumber: number, countedIds: string[]) {
+  // Keyed by (match, team): thirtyBall holds one entry per match+side, so
+  // matching on teamId alone would mark a stacked match's hole committed
+  // and double-count its budget.
+  function tbApplyCommit(
+    tbMatchId: string,
+    teamId: string,
+    holeNumber: number,
+    countedIds: string[],
+  ) {
     setTbStates((prev) =>
       prev.map((s) =>
-        s.teamId === teamId
+        s.matchId === tbMatchId && s.teamId === teamId
           ? {
               ...s,
               budgetUsed: s.budgetUsed + countedIds.length,
@@ -414,14 +433,24 @@ function PlayerScoreEntry({
         />
       ) : (
         <CardView
+          // Keyed by player so switching remounts the rows — a stale row
+          // must never carry one player's pending edit into another's.
+          // Every accessor below reads the SAME id the card renders.
+          key={activePlayer?.tripMemberId}
           // Same per-player attribution as hole view — a cross-foursome
           // player's writes must land on THEIR match, not the primary.
-          matchId={matchIdByPlayer?.[activePlayerId] ?? matchId}
+          matchId={
+            matchIdByPlayer?.[activePlayer?.tripMemberId ?? ''] ?? matchId
+          }
           holes={holes}
           player={activePlayer}
-          getScore={(h) => getScore(activePlayerId, h)}
-          onScoreChange={(h, g) => setScore(activePlayerId, h, g)}
-          isHoleCommitted={(h) => tbCommittedMember(activePlayerId, h)}
+          getScore={(h) => getScore(activePlayer?.tripMemberId ?? '', h)}
+          onScoreChange={(h, g) =>
+            setScore(activePlayer?.tripMemberId ?? '', h, g)
+          }
+          isHoleCommitted={(h) =>
+            tbCommittedMember(activePlayer?.tripMemberId ?? '', h)
+          }
         />
       )}
     </div>
@@ -508,7 +537,12 @@ function HoleByHole({
   onJumpHole: (h: number) => void;
   thirtyBall?: ScoreClientThirtyBall[];
   isMemberCommitted?: (tripMemberId: string, holeNumber: number) => boolean;
-  onThirtyBallCommit?: (teamId: string, holeNumber: number, countedIds: string[]) => void;
+  onThirtyBallCommit?: (
+    matchId: string,
+    teamId: string,
+    holeNumber: number,
+    countedIds: string[],
+  ) => void;
   bbb?: ScoreClientBbb[];
   onBbbCommit?: (
     matchId: string,
@@ -592,7 +626,7 @@ function HoleByHole({
           reset when the user navigates holes, not carry over. */}
       {thirtyBall.map((s) => (
         <ThirtyBallCommitPanel
-          key={`${s.teamId}:${hole.number}`}
+          key={`${s.matchId}:${s.teamId}:${hole.number}`}
           state={s}
           holeNumber={hole.number}
           players={players}
@@ -678,7 +712,12 @@ function ThirtyBallCommitPanel({
   holeNumber: number;
   players: ScoreClientPlayer[];
   getScore: (tripMemberId: string) => number | null;
-  onCommitted: (teamId: string, holeNumber: number, countedIds: string[]) => void;
+  onCommitted: (
+    matchId: string,
+    teamId: string,
+    holeNumber: number,
+    countedIds: string[],
+  ) => void;
 }) {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -710,7 +749,7 @@ function ThirtyBallCommitPanel({
     startTransition(async () => {
       try {
         await commitThirtyBallHole(state.matchId, state.teamId, holeNumber, countedIds);
-        onCommitted(state.teamId, holeNumber, countedIds);
+        onCommitted(state.matchId, state.teamId, holeNumber, countedIds);
         setSelecting(false);
         setSelected(new Set());
       } catch (e) {
@@ -1307,18 +1346,17 @@ function CardScoreInput({
 }) {
   // Debounce writes like SaveStatus does — typing "12" must not fire a
   // server write for the intermediate "1".
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
+  const [failed, setFailed] = useState(false);
+  const key = writeKey(matchId, tripMemberId, holeNumber);
+  // Flush (don't drop) a pending write when this cell goes away.
+  useEffect(() => () => flushWrite(key), [key]);
+
   function queueSave(gross: number | null) {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      submitScore({ matchId, tripMemberId, holeNumber, gross });
-    }, 600);
+    queueWrite(
+      key,
+      () => submitScore({ matchId, tripMemberId, holeNumber, gross }),
+      (ok) => setFailed(!ok),
+    );
   }
   return (
     <input
@@ -1327,6 +1365,7 @@ function CardScoreInput({
       min={1}
       max={20}
       value={value ?? ''}
+      title={failed ? "Didn't save — check your connection" : undefined}
       onChange={(e) => {
         const v = e.target.value.trim();
         if (!v) {
@@ -1339,7 +1378,11 @@ function CardScoreInput({
         onChange(n);
         queueSave(n);
       }}
-      className="w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-2 py-1 text-right font-mono text-sm tabular-nums focus:border-yellow-500 focus:outline-none"
+      className={`w-full rounded-sm border bg-white dark:bg-black px-2 py-1 text-right font-mono text-sm tabular-nums focus:outline-none ${
+        failed
+          ? 'border-red-500 focus:border-red-500'
+          : 'border-zinc-300 dark:border-zinc-800 focus:border-yellow-500'
+      }`}
     />
   );
 }
@@ -1355,43 +1398,42 @@ function SaveStatus({
   holeNumber: number;
   gross: number | null;
 }) {
-  const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>(
+    'idle',
+  );
   // Sync (holeNumber, gross) so we can distinguish "user actually
   // changed the score for this hole" from "user just navigated to a
   // different hole that already has a persisted value." The latter
   // shouldn't fire a save — nothing has changed server-side.
   const lastSeen = useRef<{ holeNumber: number; gross: string } | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const key = writeKey(matchId, tripMemberId, holeNumber);
 
   useEffect(() => {
-    const key = String(gross ?? '');
+    const seen = String(gross ?? '');
     const prev = lastSeen.current;
 
     // First mount or hole changed: adopt whatever's on the screen as
     // the already-persisted value and skip the save.
     if (!prev || prev.holeNumber !== holeNumber) {
-      lastSeen.current = { holeNumber, gross: key };
+      lastSeen.current = { holeNumber, gross: seen };
       return;
     }
-    if (prev.gross === key) return;
-    lastSeen.current = { holeNumber, gross: key };
+    if (prev.gross === seen) return;
+    lastSeen.current = { holeNumber, gross: seen };
 
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
-      setState('saving');
-      await submitScore({ matchId, tripMemberId, holeNumber, gross });
-      setState('saved');
-      setTimeout(() => setState('idle'), 1500);
-    }, 600);
-  }, [gross, matchId, tripMemberId, holeNumber]);
+    queueWrite(
+      key,
+      () => submitScore({ matchId, tripMemberId, holeNumber, gross }),
+      (ok) => {
+        setState(ok ? 'saved' : 'error');
+        if (ok) setTimeout(() => setState('idle'), 1500);
+      },
+      () => setState('saving'),
+    );
+  }, [gross, matchId, tripMemberId, holeNumber, key]);
 
-  // Don't let a queued save fire after the row unmounts.
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
+  // Flush (don't drop) a pending write when this row goes away.
+  useEffect(() => () => flushWrite(key), [key]);
 
   if (state === 'saving')
     return (
@@ -1405,15 +1447,24 @@ function SaveStatus({
         <CheckCircle2 size={11} /> Saved
       </span>
     );
+  if (state === 'error')
+    return (
+      <span className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-red-500">
+        <AlertTriangle size={11} /> Not saved
+      </span>
+    );
   return null;
 }
 
+/** Returns false when the write failed — callers MUST surface that.
+ *  Reporting "Saved" on a failed write loses scores silently, which on
+ *  spotty course reception is the expected case, not the edge case. */
 async function submitScore(args: {
   matchId: string;
   tripMemberId: string;
   holeNumber: number;
   gross: number | null;
-}) {
+}): Promise<boolean> {
   const fd = new FormData();
   fd.set('matchId', args.matchId);
   fd.set('tripMemberId', args.tripMemberId);
@@ -1421,9 +1472,57 @@ async function submitScore(args: {
   if (args.gross != null) fd.set('gross', String(args.gross));
   try {
     await upsertHoleScore(fd);
+    return true;
   } catch (err) {
     console.error('Failed to save score', err);
+    return false;
   }
+}
+
+/**
+ * Debounced score writes, tracked per (match, player, hole).
+ *
+ * Two rules this exists to enforce:
+ *   1. Scheduling a write NEVER cancels a different cell's pending write
+ *      — a shared timer meant hopping holes or players inside the debounce
+ *      window silently dropped the previous entry.
+ *   2. Unmounting FLUSHES a pending write instead of dropping it. Toggling
+ *      hole/card view or navigating right after typing must still persist.
+ */
+type PendingWrite = {
+  timer: ReturnType<typeof setTimeout>;
+  flush: () => void;
+};
+const pendingWrites = new Map<string, PendingWrite>();
+
+function writeKey(matchId: string, subjectId: string, holeNumber: number) {
+  return `${matchId}::${subjectId}::${holeNumber}`;
+}
+
+/** Schedule a debounced write. `run` reports success to the caller. */
+function queueWrite(
+  key: string,
+  run: () => Promise<boolean>,
+  onSettled?: (ok: boolean) => void,
+  onStart?: () => void,
+) {
+  const existing = pendingWrites.get(key);
+  if (existing) clearTimeout(existing.timer);
+  const fire = () => {
+    pendingWrites.delete(key);
+    onStart?.();
+    void run().then((ok) => onSettled?.(ok));
+  };
+  const timer = setTimeout(fire, 600);
+  pendingWrites.set(key, { timer, flush: fire });
+}
+
+/** Fire a pending write for this key immediately, if one is waiting. */
+function flushWrite(key: string) {
+  const pending = pendingWrites.get(key);
+  if (!pending) return;
+  clearTimeout(pending.timer);
+  pending.flush();
 }
 
 // ───────────────────────── TEAM-INPUT (Scramble / Alt Shot) ─────────────────────────
@@ -1767,49 +1866,52 @@ function TeamSaveStatus({
   holeNumber: number;
   gross: number | null;
 }) {
-  const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>(
+    'idle',
+  );
   // See SaveStatus above for the (holeNumber, gross) tracking pattern —
   // navigating between holes shouldn't fire a save when the value on
   // screen is already persisted.
   const lastSeen = useRef<{ holeNumber: number; gross: string } | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const key = writeKey(matchId, teamId, holeNumber);
 
   useEffect(() => {
-    const key = String(gross ?? '');
+    const seen = String(gross ?? '');
     const prev = lastSeen.current;
 
     if (!prev || prev.holeNumber !== holeNumber) {
-      lastSeen.current = { holeNumber, gross: key };
+      lastSeen.current = { holeNumber, gross: seen };
       return;
     }
-    if (prev.gross === key) return;
-    lastSeen.current = { holeNumber, gross: key };
+    if (prev.gross === seen) return;
+    lastSeen.current = { holeNumber, gross: seen };
 
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
-      setState('saving');
-      const fd = new FormData();
-      fd.set('matchId', matchId);
-      fd.set('teamId', teamId);
-      fd.set('holeNumber', String(holeNumber));
-      if (gross != null) fd.set('gross', String(gross));
-      try {
-        await upsertTeamHoleScore(fd);
-      } catch (err) {
-        console.error('Failed to save team score', err);
-      }
-      setState('saved');
-      setTimeout(() => setState('idle'), 1500);
-    }, 600);
-  }, [gross, matchId, teamId, holeNumber]);
+    queueWrite(
+      key,
+      async () => {
+        const fd = new FormData();
+        fd.set('matchId', matchId);
+        fd.set('teamId', teamId);
+        fd.set('holeNumber', String(holeNumber));
+        if (gross != null) fd.set('gross', String(gross));
+        try {
+          await upsertTeamHoleScore(fd);
+          return true;
+        } catch (err) {
+          console.error('Failed to save team score', err);
+          return false;
+        }
+      },
+      (ok) => {
+        setState(ok ? 'saved' : 'error');
+        if (ok) setTimeout(() => setState('idle'), 1500);
+      },
+      () => setState('saving'),
+    );
+  }, [gross, matchId, teamId, holeNumber, key]);
 
-  // Don't let a queued save fire after the row unmounts.
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
+  // Flush (don't drop) a pending write when this row goes away.
+  useEffect(() => () => flushWrite(key), [key]);
 
   if (state === 'saving')
     return (
@@ -1821,6 +1923,12 @@ function TeamSaveStatus({
     return (
       <span className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-emerald-400">
         <CheckCircle2 size={11} /> Saved
+      </span>
+    );
+  if (state === 'error')
+    return (
+      <span className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-red-500">
+        <AlertTriangle size={11} /> Not saved
       </span>
     );
   return null;
