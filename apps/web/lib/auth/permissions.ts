@@ -8,12 +8,20 @@ export function isPlatformAdmin(ctx: AuthContext): boolean {
   return ctx.isPlatformAdmin;
 }
 
+/**
+ * Every predicate below resolves against ctx.memberships — ALL of the
+ * user's rows — not the single ctx.tripMember. A user on two trips has
+ * two rows; judging them by whichever one a query happened to return
+ * denied real trip admins and captains at random.
+ */
 export function isTripAdminOf(ctx: AuthContext, tripId: string): boolean {
-  return ctx.tripMember?.tripId === tripId && ctx.tripMember.role === 'trip_admin';
+  return ctx.memberships.some(
+    (m) => m.tripId === tripId && m.role === 'trip_admin',
+  );
 }
 
 export function isCaptainOf(ctx: AuthContext, teamId: string): boolean {
-  return Boolean(ctx.tripMember?.isCaptain && ctx.tripMember.teamId === teamId);
+  return ctx.memberships.some((m) => m.isCaptain && m.teamId === teamId);
 }
 
 /**
@@ -22,13 +30,19 @@ export function isCaptainOf(ctx: AuthContext, teamId: string): boolean {
  * the caller to know which side the match is on.
  */
 export function isAnyCaptainOnTrip(ctx: AuthContext, tripId: string): boolean {
-  return Boolean(
-    ctx.tripMember?.tripId === tripId && ctx.tripMember.isCaptain,
-  );
+  return ctx.memberships.some((m) => m.tripId === tripId && m.isCaptain);
 }
 
 export function isSelfTripMember(ctx: AuthContext, tripMemberId: string): boolean {
-  return ctx.tripMember?.id === tripMemberId;
+  return ctx.memberships.some((m) => m.id === tripMemberId);
+}
+
+/** The caller's own membership row on a given trip, if any. */
+export function membershipOn(
+  ctx: AuthContext,
+  tripId: string,
+): TripMember | null {
+  return ctx.memberships.find((m) => m.tripId === tripId) ?? null;
 }
 
 /**
@@ -45,6 +59,12 @@ export function isSelfTripMember(ctx: AuthContext, tripMemberId: string): boolea
 export function canViewTrip(ctx: AuthContext): boolean {
   if (isPlatformAdmin(ctx)) return true;
   return ctx.tripMember != null;
+}
+
+/** Membership of the given trip, any role — the read gate by trip id. */
+export function canViewTripId(ctx: AuthContext, tripId: string): boolean {
+  if (isPlatformAdmin(ctx)) return true;
+  return membershipOn(ctx, tripId) != null;
 }
 
 export function canEditTrip(ctx: AuthContext, tripId: string): boolean {
@@ -85,13 +105,8 @@ export function canEnterScoreFor(
   if (isPlatformAdmin(ctx)) return true;
   if (isTripAdminOf(ctx, target.tripId)) return true;
   // Same-trip member who isn't a viewer can score anyone.
-  if (
-    ctx.tripMember?.tripId === target.tripId &&
-    ctx.tripMember.role !== 'viewer'
-  ) {
-    return true;
-  }
-  return false;
+  const mine = membershipOn(ctx, target.tripId);
+  return mine != null && mine.role !== 'viewer';
 }
 
 export class AuthorizationError extends Error {

@@ -214,8 +214,33 @@ export async function getFeed(
     .orderBy(desc(holeScores.enteredAt))
     .limit(limit);
 
-  const scoreItems: FeedItem[] = scoreRows
-    .filter((r) => r.score.gross != null)
+  // One physical ball per player per round per hole. The score fan-out
+  // writes an identical row into EVERY match that player is in for the
+  // round (stacked side matches, round-wide rollups), and team formats
+  // fan a single team gross across all teammates — so without this the
+  // same birdie posts two or three identical cards. Keep the row from
+  // the widest match, same rule the leaderboard dedupe uses.
+  const participantCount = new Map<string, number>();
+  for (const r of scoreRows) {
+    participantCount.set(
+      r.match.id,
+      (participantCount.get(r.match.id) ?? 0) + 1,
+    );
+  }
+  const bestScoreRow = new Map<string, (typeof scoreRows)[number]>();
+  for (const r of scoreRows) {
+    if (r.score.gross == null) continue;
+    const key = `${r.score.tripMemberId}::${r.round.id}::${r.score.holeNumber}`;
+    const existing = bestScoreRow.get(key);
+    if (existing) {
+      const a = participantCount.get(existing.match.id) ?? 0;
+      const b = participantCount.get(r.match.id) ?? 0;
+      if (a >= b) continue;
+    }
+    bestScoreRow.set(key, r);
+  }
+
+  const scoreItems: FeedItem[] = Array.from(bestScoreRow.values())
     .map((r) => {
       const member = memberById.get(r.score.tripMemberId);
       const handicap = member?.tripHandicap ? parseFloat(member.tripHandicap) : null;

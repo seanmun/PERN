@@ -162,6 +162,13 @@ export const getTripAuthContext = cache(
     return {
       user,
       tripMember: tripMember ?? null,
+      // Permission predicates resolve against every membership, so a
+      // multi-trip user is judged by the row matching the trip being
+      // checked. This context's own trip row is `tripMember` above.
+      memberships: await db
+        .select()
+        .from(tripMembers)
+        .where(eq(tripMembers.userId, user.id)),
       isPlatformAdmin: adminEmails.includes(email),
     };
   }

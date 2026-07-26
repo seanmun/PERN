@@ -16,6 +16,7 @@ import {
   AuthorizationError,
   isCaptainOf,
   isPlatformAdmin,
+  isSelfTripMember,
   isTripAdminOf,
   requireAuth,
 } from '@/lib/auth/permissions';
@@ -71,7 +72,7 @@ export async function commitBbbHole(
   const memberIds = participants.map((p) => p.member.id);
 
   const isParticipant =
-    ctx.tripMember != null && memberIds.includes(ctx.tripMember.id);
+    memberIds.some((id) => isSelfTripMember(ctx, id));
   const isCaptainOfEither = participants.some(
     (p) => p.member.teamId != null && isCaptainOf(ctx, p.member.teamId),
   );

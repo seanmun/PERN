@@ -16,6 +16,7 @@ import {
   canEnterScoreFor,
   isCaptainOf,
   isPlatformAdmin,
+  isSelfTripMember,
   isTripAdminOf,
   requireAuth,
 } from '@/lib/auth/permissions';
@@ -271,7 +272,7 @@ export async function commitThirtyBallHole(
   );
 
   const isSelfOnSide =
-    ctx.tripMember != null && sideMemberIds.includes(ctx.tripMember.id);
+    sideMemberIds.some((id) => isSelfTripMember(ctx, id));
   if (
     !isSelfOnSide &&
     !isCaptainOf(ctx, teamId) &&
@@ -439,7 +440,7 @@ export async function upsertTeamHoleScore(formData: FormData): Promise<void> {
   // Authorization: admin OR a member of this team
   const isAdmin = isPlatformAdmin(ctx) || isTripAdminOf(ctx, teamParticipants[0].round.tripId);
   const isTeammate = teamParticipants.some(
-    (p) => ctx.tripMember?.id === p.member.id,
+    (p) => isSelfTripMember(ctx, p.member.id),
   );
   if (!isAdmin && !isTeammate) {
     throw new AuthorizationError(

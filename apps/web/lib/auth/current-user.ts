@@ -9,7 +9,20 @@ import { clerkEmails } from './clerk-emails';
 
 export type AuthContext = {
   user: typeof users.$inferSelect;
+  /**
+   * The membership this context is "about". Trip-scoped contexts set the
+   * membership for that trip; the global context sets the first one it
+   * finds (arbitrary for a multi-trip user) — so permission checks must
+   * go through `memberships`, never this field. Kept for the self/display
+   * cases that genuinely mean "the row this page is rendering".
+   */
   tripMember: typeof tripMembers.$inferSelect | null;
+  /**
+   * EVERY membership this user has. Permission predicates resolve against
+   * this so a user on more than one trip is judged by the row that matches
+   * the trip being acted on, not by whichever one a `limit(1)` returned.
+   */
+  memberships: (typeof tripMembers.$inferSelect)[];
   isPlatformAdmin: boolean;
 };
 
@@ -126,16 +139,18 @@ export async function getGlobalAuthContext(): Promise<AuthContext | null> {
       sql`lower(${tripMembers.email}) IN (${emailList}) AND ${tripMembers.userId} IS NULL`,
     );
 
-  // Fetch a tripMember for the current auth context — by userId, NOT by
-  // email. Claimed rows survive email drift (user changes their Clerk
-  // address, or an admin edits the member email) only if this lookup
-  // keys off the durable link. With multiple memberships, pick any —
-  // callers that need a specific trip use getTripAuthContext(tripId).
-  const [tripMember] = await db
+  // Fetch ALL memberships — by userId, NOT by email. Claimed rows survive
+  // email drift (user changes their Clerk address, or an admin edits the
+  // member email) only if this lookup keys off the durable link.
+  //
+  // All of them, not `limit(1)`: permission predicates take the trip id
+  // they're checking, so they need every membership to find the right
+  // one. Picking a single arbitrary row denied a legitimate trip admin
+  // whenever the planner handed back their OTHER trip's row.
+  const memberships = await db
     .select()
     .from(tripMembers)
-    .where(eq(tripMembers.userId, user.id))
-    .limit(1);
+    .where(eq(tripMembers.userId, user.id));
 
   const adminEmails = (process.env.PLATFORM_ADMIN_EMAILS ?? '')
     .split(',')
@@ -144,7 +159,8 @@ export async function getGlobalAuthContext(): Promise<AuthContext | null> {
 
   return {
     user,
-    tripMember: tripMember ?? null,
+    tripMember: memberships[0] ?? null,
+    memberships,
     isPlatformAdmin: adminEmails.includes(email),
   };
 }
