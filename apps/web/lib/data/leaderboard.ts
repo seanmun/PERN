@@ -11,6 +11,7 @@ import {
   courseTees,
 } from '@/db/schema';
 import { toCourseHandicap } from '@buddycup/scoring/handicap';
+import { isTeamInput, type FormatId } from '@buddycup/scoring/formats';
 
 type Team = typeof teams.$inferSelect;
 
@@ -111,6 +112,18 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     : [];
 
   const visibleMatchIdSet = new Set(visibleMatches.map((r) => r.match.id));
+
+  // Scramble / alternate shot record ONE team gross, which the action
+  // fans out to every teammate's hole_scores row. Those rows are not
+  // anyone's individual ball, so they must never feed the individual
+  // leaderboard — counting them credits each teammate with the team's
+  // score (and, since the dedupe below prefers the widest match, they'd
+  // even beat a player's own singles score for the same hole).
+  const individualMatchIdSet = new Set(
+    visibleMatches
+      .filter((r) => !isTeamInput(r.match.format as FormatId))
+      .map((r) => r.match.id),
+  );
   const relevantParticipants = allParticipants.filter((p) =>
     visibleMatchIdSet.has(p.matchId),
   );
@@ -168,11 +181,11 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
 
   // ───────── Individual leaderboard: net vs par (PGA-style) ─────────
   // Fetch all hole scores and the relevant courseHoles in a single pass.
-  const allScores = visibleMatchIdSet.size
+  const allScores = individualMatchIdSet.size
     ? await db
         .select()
         .from(holeScores)
-        .where(inArray(holeScores.matchId, Array.from(visibleMatchIdSet)))
+        .where(inArray(holeScores.matchId, Array.from(individualMatchIdSet)))
     : [];
 
   // Map match → round so we know which course's holes to look at AND so
@@ -407,12 +420,29 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     return a.nickname.localeCompare(b.nickname);
   });
 
+  // Points, not match counts: a match can carry an overall point plus
+  // independent front-9 / back-9 points, and segments are awarded the
+  // moment their winner column is set.
+  let pointsTotal = 0;
+  let pointsAwarded = 0;
+  for (const { match } of cupMatches) {
+    pointsTotal += match.pointsOverall + match.pointsFront9 + match.pointsBack9;
+    if (
+      match.status === 'completed' &&
+      (match.isHalved || match.winningTeamId)
+    ) {
+      pointsAwarded += match.pointsOverall;
+    }
+    if (match.front9WinningTeamId) pointsAwarded += match.pointsFront9;
+    if (match.back9WinningTeamId) pointsAwarded += match.pointsBack9;
+  }
+
   return {
     teamTotals,
     playerTotals,
     matchesContested: completedCup.length,
     matchesTotal: cupMatches.length,
-    pointsAvailable: cupMatches.length - completedCup.length,
-    pointsContested: completedCup.length,
+    pointsAvailable: Math.max(0, pointsTotal - pointsAwarded),
+    pointsContested: pointsAwarded,
   };
 }

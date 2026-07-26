@@ -11,13 +11,17 @@ import { resolveMatchHandicaps } from '@/lib/scoring/handicap-method';
 import LeaderboardSortTabs from '@/components/scoreboard/LeaderboardSortTabs';
 import DayTabs, { type DayTab } from '@/components/scoreboard/DayTabs';
 import {
+  computeBingoBangoBongo,
   computeMatch,
   computeStableford,
+  computeStrokePlayMatch,
   computeTeamMatch,
+  computeThirtyBallMatch,
   DEFAULT_STABLEFORD_POINTS,
   formatStatus,
   type PlayerInputFormat,
 } from '@buddycup/scoring/engine';
+import { getBbbPoints } from '@/lib/data/bbb';
 import FormatBadge from '@/components/FormatBadge';
 
 const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
@@ -748,6 +752,70 @@ async function computeLive(matchId: string) {
     data.participants.find((p) => p.side === 'A')?.team.id ?? null;
   const bTeamId =
     data.participants.find((p) => p.side === 'B')?.team.id ?? null;
+
+  // Format-first, exactly like recompute.ts and the match page: these
+  // three resolve bespoke and must be checked BEFORE `scoring`. Without
+  // them BBB read "Not started 0·0" forever (its points live in
+  // bbb_hole_points, not hole_scores) and 30 Ball / stroke play showed
+  // match-play hole tallies instead of their real totals.
+  if (data.match.format === 'bingo_bango_bongo') {
+    const bbb = computeBingoBangoBongo({
+      players: enginePlayers,
+      totalHoles: data.engineHoles.length || 18,
+      points: await getBbbPoints(matchId),
+    });
+    return {
+      upA: bbb.pointsA,
+      upB: bbb.pointsB,
+      aTeamId,
+      bTeamId,
+      holesPlayed: bbb.holesCommitted,
+      totalHoles: bbb.totalHoles,
+      statusText: bbb.status.kind === 'final' ? 'Final · pts' : 'pts',
+      scoring: 'stableford' as const,
+    };
+  }
+
+  if (data.match.format === 'thirty_ball') {
+    const tb = computeThirtyBallMatch({
+      players: enginePlayers,
+      holes: data.engineHoles,
+      scores: data.engineScores,
+      scratchHandicap,
+    });
+    return {
+      upA: tb.totalA,
+      upB: tb.totalB,
+      aTeamId,
+      bTeamId,
+      holesPlayed: tb.holesPlayed,
+      totalHoles: tb.totalHoles,
+      statusText: tb.status.kind === 'final' ? 'Final' : 'net',
+      scoring: 'stroke' as const,
+    };
+  }
+
+  if (data.match.scoring === 'stroke' && data.inputMode !== 'team') {
+    const sp = computeStrokePlayMatch({
+      players: enginePlayers,
+      holes: data.engineHoles,
+      scores: data.engineScores,
+      format: PLAYER_INPUT_FORMATS.has(data.match.format)
+        ? (data.match.format as PlayerInputFormat)
+        : 'best_ball',
+      scratchHandicap,
+    });
+    return {
+      upA: sp.totalA,
+      upB: sp.totalB,
+      aTeamId,
+      bTeamId,
+      holesPlayed: sp.holesPlayed,
+      totalHoles: sp.totalHoles,
+      statusText: sp.status.kind === 'final' ? 'Final' : 'net',
+      scoring: 'stroke' as const,
+    };
+  }
 
   // Stableford: surface point totals instead of match-play UP/DOWN.
   // upA/upB are repurposed as the cumulative point totals so the

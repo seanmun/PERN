@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   matches,
@@ -140,11 +140,21 @@ export async function updateMatchParticipants(formData: FormData): Promise<void>
       .where(eq(matches.id, matchId));
   }
 
-  // Resolve each member's team via tripMembers (source of truth)
-  const members = await db
-    .select()
-    .from(tripMembers)
-    .where(inArray(tripMembers.id, selectedMemberIds));
+  // Resolve each member's team via tripMembers (source of truth).
+  // Constrained to THIS trip: posted ids are client input, and without
+  // the tripId filter another trip's members could be written into this
+  // match's participants (and fanned out to its tee-time roster).
+  const members = selectedMemberIds.length
+    ? await db
+        .select()
+        .from(tripMembers)
+        .where(
+          and(
+            eq(tripMembers.tripId, match.round.tripId),
+            inArray(tripMembers.id, selectedMemberIds),
+          ),
+        )
+    : [];
 
   // Clear existing participants for this match
   await db.delete(matchParticipants).where(eq(matchParticipants.matchId, matchId));
@@ -198,10 +208,16 @@ export async function createMatch(formData: FormData): Promise<void> {
     throw new Error('Pick at least one player');
   }
 
+  // Constrained to this trip — posted ids are client input.
   const members = await db
     .select()
     .from(tripMembers)
-    .where(inArray(tripMembers.id, selectedMemberIds));
+    .where(
+      and(
+        eq(tripMembers.tripId, teeTime.round.tripId),
+        inArray(tripMembers.id, selectedMemberIds),
+      ),
+    );
 
   // Format: form input wins; otherwise fall back to the round's default.
   const format = parseFormat(formData.get('format')) ?? teeTime.round.format;

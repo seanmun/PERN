@@ -39,6 +39,9 @@ export default async function EditProfilePage({
       </p>
 
       <form action={updateMyProfile} className="mt-8 space-y-6">
+        {/* Which trip's roster row this edits. Without it the action
+            wrote to an arbitrary membership of yours. */}
+        <input type="hidden" name="tripId" value={trip.id} />
         <PhotoWithPortraitSection
           photoName="avatarUrl"
           photoDefaultValue={tripMember.avatarUrl ?? user.avatarUrl ?? null}

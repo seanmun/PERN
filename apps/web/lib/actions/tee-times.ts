@@ -2,9 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { teeTimes, rounds, teeTimeParticipants } from '@/db/schema';
+import { teeTimes, rounds, teeTimeParticipants, tripMembers } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
@@ -182,14 +182,30 @@ export async function updateTeeTimeRoster(formData: FormData): Promise<void> {
     throw new Error('A foursome maxes out at 4 players. Uncheck one before saving.');
   }
 
+  // Posted ids are client input — keep only real members of THIS trip,
+  // otherwise another trip's players can be written into the foursome.
+  const validMemberIds = memberIds.length
+    ? (
+        await db
+          .select({ id: tripMembers.id })
+          .from(tripMembers)
+          .where(
+            and(
+              eq(tripMembers.tripId, row.round.tripId),
+              inArray(tripMembers.id, memberIds),
+            ),
+          )
+      ).map((m) => m.id)
+    : [];
+
   await db
     .delete(teeTimeParticipants)
     .where(eq(teeTimeParticipants.teeTimeId, teeTimeId));
 
-  if (memberIds.length) {
+  if (validMemberIds.length) {
     await db
       .insert(teeTimeParticipants)
-      .values(memberIds.map((id) => ({ teeTimeId, tripMemberId: id })));
+      .values(validMemberIds.map((id) => ({ teeTimeId, tripMemberId: id })));
   }
 
   const tripSlug = await getTripSlugById(row.round.tripId);
