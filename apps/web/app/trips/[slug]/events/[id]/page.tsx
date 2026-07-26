@@ -52,7 +52,9 @@ export default async function EventDetailPage({
     .where(eq(tripEvents.id, id))
     .limit(1);
 
-  if (!event) notFound();
+  // Guard the row's trip against the URL's trip — a foreign event id
+  // must 404, not render.
+  if (!event || event.tripId !== trip.id) notFound();
 
   const canEdit =
     isPlatformAdmin(ctx) || isTripAdminOf(ctx, event.tripId);

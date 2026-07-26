@@ -37,15 +37,16 @@ export default function ConfirmDialog({
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     function onKey(e: KeyboardEvent) {
+      // Enter is handled natively by the autofocused confirm button —
+      // a window-level Enter handler would fire onConfirm twice.
       if (e.key === 'Escape') onCancel();
-      if (e.key === 'Enter') onConfirm();
     }
     window.addEventListener('keydown', onKey);
     return () => {
       document.body.style.overflow = prevOverflow;
       window.removeEventListener('keydown', onKey);
     };
-  }, [open, onCancel, onConfirm]);
+  }, [open, onCancel]);
 
   if (!open) return null;
   if (typeof window === 'undefined') return null;

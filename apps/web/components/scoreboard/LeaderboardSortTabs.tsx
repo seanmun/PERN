@@ -153,7 +153,8 @@ function ScoreTriplet({ player, mode }: { player: PlayerTotal; mode: SortMode })
   return (
     <div className="shrink-0 text-right">
       <div className="grid grid-cols-3 items-baseline gap-2 font-mono tabular-nums">
-        <Cell label="Net" value={netLabel} active={mode === 'net'} sub={noScore ? null : String(player.gross)} />
+        {/* Sub = net stroke total; gross already has its own column. */}
+        <Cell label="Net" value={netLabel} active={mode === 'net'} sub={noScore ? null : String(player.net)} />
         <Cell label="Strk" value={noScore ? '—' : String(player.gross)} active={mode === 'stroke'} sub={null} />
         <Cell
           label="Stbl"

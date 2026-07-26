@@ -25,7 +25,9 @@ export default async function TeamPage({
     .where(eq(teams.id, id))
     .limit(1);
 
-  if (!team) notFound();
+  // Guard the row's trip against the URL's trip — a foreign team id
+  // must 404, not render its roster.
+  if (!team || team.tripId !== trip.id) notFound();
 
   const rosterRows = await db
     .select({

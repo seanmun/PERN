@@ -148,6 +148,8 @@ export default async function QuickResultPage({
           participants={participants}
           sideALabel={sideALabel}
           sideBLabel={sideBLabel}
+          sideATeamId={distinctTeams[0]?.id ?? null}
+          sideBTeamId={distinctTeams[1]?.id ?? null}
           cancelHref={`/trips/${slug}/matches/${id}`}
           segmentsEnabled={row.match.pointsFront9 > 0 || row.match.pointsBack9 > 0}
           pointsOverall={row.match.pointsOverall}

@@ -336,18 +336,23 @@ export default function MatchBuilder({
 
         {/* Scoring picker — orthogonal to format. Match play is the
             default; stableford sums per-hole points (admin can tweak
-            the point scale below). */}
+            the point scale below). 30 Ball and Bingo Bango Bongo have
+            fixed resolution, so the picker locks to Stroke — without
+            the stroke option + disable, the select would display
+            "Match Play" while the hidden input posts "stroke". */}
         <label className="block">
           <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
             Scoring
           </span>
           <select
             value={scoring}
+            disabled={format === 'thirty_ball' || format === 'bingo_bango_bongo'}
             onChange={(e) => setScoring(e.target.value as 'match_play' | 'stableford' | 'stroke')}
-            className="mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
+            className="mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500 disabled:opacity-50"
           >
             <option value="match_play">Match Play — win holes vs opponent</option>
             <option value="stableford">Stableford — points per hole</option>
+            <option value="stroke">Stroke — decided by 18-hole total</option>
           </select>
         </label>
 

@@ -80,7 +80,9 @@ export default async function MatchDetailPage({
     .where(eq(matches.id, id))
     .limit(1);
 
-  if (!match) notFound();
+  // Guard the row's trip against the URL's trip — a match id from
+  // another trip must 404, not render.
+  if (!match || match.round.tripId !== trip.id) notFound();
 
   // Resolve the tee this round plays from (explicit override, else default).
   let roundTee: typeof courseTees.$inferSelect | null = null;

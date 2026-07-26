@@ -24,4 +24,3 @@ FROM "matches" m
 INNER JOIN "match_participants" mp ON mp."match_id" = m."id"
 WHERE m."tee_time_id" IS NOT NULL
 ON CONFLICT DO NOTHING;
-YOU 

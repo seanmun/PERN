@@ -23,7 +23,9 @@ export default async function PlayerProfilePage({
   if (!ctx) redirect('/sign-in');
 
   const profile = await getPlayerProfile(id);
-  if (!profile) notFound();
+  // Guard the row's trip against the URL's trip — a foreign member id
+  // must 404, not expose their profile and scouting report.
+  if (!profile || profile.member.tripId !== trip.id) notFound();
 
   const { member, team, matches, arcadePortraitUrl } = profile;
   const teamColor = team?.color ?? '#3f3f46';

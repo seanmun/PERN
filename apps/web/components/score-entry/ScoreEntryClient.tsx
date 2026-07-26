@@ -414,7 +414,9 @@ function PlayerScoreEntry({
         />
       ) : (
         <CardView
-          matchId={matchId}
+          // Same per-player attribution as hole view — a cross-foursome
+          // player's writes must land on THEIR match, not the primary.
+          matchId={matchIdByPlayer?.[activePlayerId] ?? matchId}
           holes={holes}
           player={activePlayer}
           getScore={(h) => getScore(activePlayerId, h)}
@@ -1299,6 +1301,21 @@ function CardScoreInput({
   value: number | null;
   onChange: (g: number | null) => void;
 }) {
+  // Debounce writes like SaveStatus does — typing "12" must not fire a
+  // server write for the intermediate "1".
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  function queueSave(gross: number | null) {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      submitScore({ matchId, tripMemberId, holeNumber, gross });
+    }, 600);
+  }
   return (
     <input
       type="number"
@@ -1310,13 +1327,13 @@ function CardScoreInput({
         const v = e.target.value.trim();
         if (!v) {
           onChange(null);
-          submitScore({ matchId, tripMemberId, holeNumber, gross: null });
+          queueSave(null);
           return;
         }
         const n = Number(v);
         if (!Number.isFinite(n)) return;
         onChange(n);
-        submitScore({ matchId, tripMemberId, holeNumber, gross: n });
+        queueSave(n);
       }}
       className="w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-2 py-1 text-right font-mono text-sm tabular-nums focus:border-yellow-500 focus:outline-none"
     />

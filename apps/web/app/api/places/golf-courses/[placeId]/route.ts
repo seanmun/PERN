@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 
 /**
  * Place details + first photo URL for a selected golf course.
+ * Auth-gated — details + photo are two billed Places calls per request.
  *
  *   GET /api/places/golf-courses/{placeId}
  *
@@ -17,6 +19,11 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ placeId: string }> },
 ) {
+  const ctx = await getGlobalAuthContext();
+  if (!ctx) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
   const { placeId } = await params;
   if (!placeId) {
     return NextResponse.json({ error: 'placeId required' }, { status: 400 });

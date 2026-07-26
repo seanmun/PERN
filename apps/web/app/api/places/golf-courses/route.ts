@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
+import { getGlobalAuthContext } from '@/lib/auth/current-user';
 
 /**
  * Google Places Autocomplete proxy. Server-side so the API key never
  * hits the client. Filters to golf-course primary types so the
  * suggestions are relevant for the New Course form.
+ *
+ * Auth-gated — every Places request is billed and shouldn't be
+ * burnable by anonymous traffic.
  *
  *   GET /api/places/golf-courses?q=pinehurst
  *
@@ -11,6 +15,11 @@ import { NextResponse } from 'next/server';
  *   { suggestions: [{ placeId, mainText, secondaryText }] }
  */
 export async function GET(request: Request) {
+  const ctx = await getGlobalAuthContext();
+  if (!ctx) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get('q') ?? '').trim();
   if (q.length < 2) return NextResponse.json({ suggestions: [] });

@@ -18,6 +18,8 @@ export default function QuickResultForm({
   participants,
   sideALabel,
   sideBLabel,
+  sideATeamId,
+  sideBTeamId,
   cancelHref,
   segmentsEnabled,
   pointsOverall,
@@ -28,6 +30,10 @@ export default function QuickResultForm({
   participants: Participant[];
   sideALabel: string;
   sideBLabel: string;
+  /** Team ids behind the A/B labels — posted so the action awards the
+   * win to the team the user actually saw, not a re-derived ordering. */
+  sideATeamId: string | null;
+  sideBTeamId: string | null;
   cancelHref: string;
   /** Match has segment points (F9 / B9). If false: collect one total
    * gross + one holes-won figure per side. */
@@ -43,6 +49,8 @@ export default function QuickResultForm({
     <form action={quickResultMatch} className="mt-6 space-y-6">
       <input type="hidden" name="matchId" value={matchId} />
       <input type="hidden" name="mode" value={segmentsEnabled ? 'segments' : 'overall'} />
+      {sideATeamId && <input type="hidden" name="teamId:A" value={sideATeamId} />}
+      {sideBTeamId && <input type="hidden" name="teamId:B" value={sideBTeamId} />}
 
       <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
         Points: {pointsOverall} overall

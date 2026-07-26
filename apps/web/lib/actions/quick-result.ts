@@ -157,8 +157,23 @@ export async function quickResultMatch(formData: FormData): Promise<void> {
   const distinctTeams = Array.from(
     new Set(participants.map((p) => p.teamId)),
   ).sort();
-  const teamOfSide = (side: 'A' | 'B') =>
-    side === 'A' ? distinctTeams[0] : distinctTeams[1];
+  // Prefer the team ids the form rendered behind its A/B labels —
+  // guarantees the win lands on the team the user actually saw. Falls
+  // back to the sorted ordering (which the page mirrors) if absent.
+  const postedTeamA = formData.get('teamId:A');
+  const postedTeamB = formData.get('teamId:B');
+  const posted =
+    typeof postedTeamA === 'string' &&
+    typeof postedTeamB === 'string' &&
+    postedTeamA !== postedTeamB &&
+    distinctTeams.includes(postedTeamA) &&
+    distinctTeams.includes(postedTeamB)
+      ? { A: postedTeamA, B: postedTeamB }
+      : null;
+  const teamOfSide = (side: 'A' | 'B') => {
+    if (posted) return posted[side];
+    return side === 'A' ? distinctTeams[0] : distinctTeams[1];
+  };
   const segmentWinner = (
     aWon: number,
     bWon: number,
