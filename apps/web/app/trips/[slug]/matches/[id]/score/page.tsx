@@ -56,7 +56,8 @@ export default async function ScoreEntryPage({
   if (!canViewTrip(ctx)) notFound();
 
   const data = await getMatchScoringData(id);
-  if (!data) notFound();
+  // The row's trip must match the URL's trip.
+  if (!data || data.round.tripId !== trip.id) notFound();
 
   // Authorization: must be a participant OR admin
   const selfTripMemberId = ctx.tripMember?.id ?? null;

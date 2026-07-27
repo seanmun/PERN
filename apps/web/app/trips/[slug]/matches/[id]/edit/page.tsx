@@ -38,7 +38,8 @@ export default async function EditMatchPage({
     .where(eq(matches.id, id))
     .limit(1);
 
-  if (!match) notFound();
+  // The row's trip must match the URL's trip.
+  if (!match || match.round.tripId !== trip.id) notFound();
 
   const canEdit =
     isPlatformAdmin(ctx) || isTripAdminOf(ctx, match.round.tripId);

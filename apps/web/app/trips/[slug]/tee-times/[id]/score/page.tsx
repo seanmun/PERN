@@ -60,7 +60,8 @@ export default async function TeeTimeScoreEntryPage({
   if (!canViewTrip(ctx)) notFound();
 
   const data = await getTeeTimeScoringData(teeTimeId);
-  if (!data) notFound();
+  // The row's trip must match the URL's trip.
+  if (!data || data.round.tripId !== trip.id) notFound();
 
   const selfTripMemberId = ctx.tripMember?.id ?? null;
   const isAdmin =

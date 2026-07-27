@@ -33,7 +33,8 @@ export default async function EditPlayerPage({
     .where(eq(tripMembers.id, id))
     .limit(1);
 
-  if (!player) notFound();
+  // The row's trip must match the URL's trip.
+  if (!player || player.tripId !== trip.id) notFound();
 
   const canEdit =
     isPlatformAdmin(ctx) || isTripAdminOf(ctx, player.tripId);

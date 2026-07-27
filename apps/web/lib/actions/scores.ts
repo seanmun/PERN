@@ -24,12 +24,10 @@ import { getTripSlugById } from '@/lib/auth/trip-context';
 import { THIRTY_BALL_BUDGET } from '@buddycup/scoring/engine';
 import { recomputeMatchStatus as pureRecompute } from '@/lib/scoring/recompute';
 
-/** Re-export of the pure recompute so other server actions (round-level
- * "recompute all") have a stable name to import. */
-export async function recomputeMatchStatusById(matchId: string): Promise<void> {
-  return pureRecompute(matchId);
-}
-
+// NOTE: do not re-export recompute from this file. Every exported async
+// function in a 'use server' module is a callable server-action endpoint,
+// so an unauthenticated re-export let anyone trigger status/result writes
+// for any match id. Non-action callers import '@/lib/scoring/recompute'.
 async function recomputeMatchStatus(matchId: string): Promise<void> {
   return pureRecompute(matchId);
 }

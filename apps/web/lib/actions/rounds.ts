@@ -276,16 +276,17 @@ export async function recomputeRoundMatches(formData: FormData): Promise<void> {
   requireRoundAdmin(ctx, existing.tripId);
 
   // Inline import so the actions file doesn't pull the scoring engine
-  // for routes that don't need it. (Same module the score-upsert action
-  // already imports.)
-  const { recomputeMatchStatusById } = await import('@/lib/actions/scores');
+  // for routes that don't need it. Imported from the pure module, NOT
+  // via a re-export in the actions file — an exported async function in
+  // a 'use server' file is a callable endpoint, and that one had no auth
+  // check of its own.
+  const { recomputeMatchStatus } = await import('@/lib/scoring/recompute');
   const matchRows = await db
     .select({ id: matches.id })
     .from(matches)
     .where(eq(matches.roundId, id));
-  for (const m of matchRows) {
-    await recomputeMatchStatusById(m.id);
-  }
+  // Recompute is per-match and independent; run them concurrently.
+  await Promise.all(matchRows.map((m) => recomputeMatchStatus(m.id)));
 
   const tripSlug = await getTripSlugById(existing.tripId);
   revalidatePath(`/trips/${tripSlug}/schedule`);

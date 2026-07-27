@@ -19,5 +19,10 @@ export function resolveRedirect(
   if (raw == null) return fallback;
   const s = String(raw).trim();
   if (!s || s === 'none') return null;
+  // Same-site paths only. `redirectTo` is posted by the client, so
+  // without this an absolute "https://evil.com" — or a scheme-relative
+  // "//evil.com", which the browser also treats as absolute — would send
+  // the user off-site straight after a successful action.
+  if (!s.startsWith('/') || s.startsWith('//')) return fallback;
   return s;
 }

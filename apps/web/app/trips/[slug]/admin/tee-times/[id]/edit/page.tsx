@@ -60,7 +60,8 @@ export default async function EditTeeTimePage({
     .innerJoin(courses, eq(rounds.courseId, courses.id))
     .where(eq(teeTimes.id, id))
     .limit(1);
-  if (!row) notFound();
+  // The row's trip must match the URL's trip.
+  if (!row || row.round.tripId !== trip.id) notFound();
 
   if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, row.round.tripId)) {
     redirect(`/trips/${slug}/schedule`);

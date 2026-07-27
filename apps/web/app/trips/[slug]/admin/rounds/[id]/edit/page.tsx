@@ -51,7 +51,8 @@ export default async function EditRoundPage({
     .from(rounds)
     .where(eq(rounds.id, id))
     .limit(1);
-  if (!round) notFound();
+  // The row's trip must match the URL's trip.
+  if (!round || round.tripId !== trip.id) notFound();
 
   if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, round.tripId)) {
     redirect(`/trips/${slug}/schedule`);

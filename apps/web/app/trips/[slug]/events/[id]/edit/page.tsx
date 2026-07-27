@@ -29,7 +29,8 @@ export default async function EditEventPage({
     .where(eq(tripEvents.id, id))
     .limit(1);
 
-  if (!event) notFound();
+  // The row's trip must match the URL's trip.
+  if (!event || event.tripId !== trip.id) notFound();
 
   const canEdit = isPlatformAdmin(ctx) || isTripAdminOf(ctx, event.tripId);
   if (!canEdit) redirect(`/trips/${slug}/events/${event.id}`);
