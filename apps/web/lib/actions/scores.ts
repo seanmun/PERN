@@ -219,6 +219,11 @@ async function loadThirtyBallSideHole(
     throw new Error('Not a 30 Ball match');
   }
 
+  // Side membership comes from match_participants.team_id — the team the
+  // player was on IN THIS MATCH — not their current tripMembers.teamId.
+  // Those diverge once someone switches teams, and the engine scores by
+  // the participant row, so keying off the live team silently put a
+  // player on a different side here than in the result.
   const sideMembers = await db
     .select({ member: tripMembers })
     .from(matchParticipants)
@@ -226,7 +231,7 @@ async function loadThirtyBallSideHole(
     .where(
       and(
         eq(matchParticipants.matchId, matchId),
-        eq(tripMembers.teamId, teamId),
+        eq(matchParticipants.teamId, teamId),
       ),
     );
   if (sideMembers.length === 0) throw new Error('Side has no players');

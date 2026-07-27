@@ -19,6 +19,22 @@ export function formatTripDayLong(d: Date | string): string {
   }).format(date);
 }
 
+/** "Aug 19" / "Aug 19, 2026" — pinned to the trip's timezone, like every
+ *  other date surface. Raw toLocaleDateString uses the SERVER's zone, so
+ *  an ET-midnight date renders as the previous day west of UTC. */
+export function formatTripDateShort(
+  d: Date | string,
+  opts?: { year?: boolean },
+): string {
+  const date = typeof d === 'string' ? new Date(d) : d;
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    ...(opts?.year ? { year: 'numeric' as const } : {}),
+    timeZone: TRIP_TZ,
+  }).format(date);
+}
+
 export function mapsUrl(query: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }

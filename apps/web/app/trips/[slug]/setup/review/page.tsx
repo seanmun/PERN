@@ -6,6 +6,7 @@ import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
 import ReviewStepClient from '@/components/admin/EventWizard/ReviewStepClient';
+import { formatTripDateShort } from '@/lib/format';
 
 export default async function SetupReviewPage({
   params,
@@ -66,9 +67,9 @@ export default async function SetupReviewPage({
             <h2 className="text-xl font-bold tracking-tight">{trip.name}</h2>
             {(trip.startDate || trip.endDate) && (
               <p className="mt-1 text-[13px] text-green-200">
-                {trip.startDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {trip.startDate && formatTripDateShort(trip.startDate)}
                 {trip.endDate && trip.endDate.getTime() !== trip.startDate?.getTime()
-                  ? ` – ${trip.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                  ? ` – ${formatTripDateShort(trip.endDate, { year: true })}`
                   : ''}
               </p>
             )}

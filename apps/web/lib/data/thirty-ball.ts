@@ -38,7 +38,10 @@ export async function getThirtyBallEntryStates(
     })
     .from(matchParticipants)
     .innerJoin(tripMembers, eq(matchParticipants.tripMemberId, tripMembers.id))
-    .innerJoin(teams, eq(tripMembers.teamId, teams.id))
+    // Team AS RECORDED ON THE MATCH, not the player's current team —
+    // the engine buckets sides by match_participants.team_id, so joining
+    // on tripMembers.teamId drifts apart after a roster move.
+    .innerJoin(teams, eq(matchParticipants.teamId, teams.id))
     .where(inArray(matchParticipants.matchId, matchIds));
 
   const scores = await db
