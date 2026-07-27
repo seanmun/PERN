@@ -10,7 +10,7 @@ import {
   courseHoles,
   courseTees,
 } from '@/db/schema';
-import { toCourseHandicap } from '@buddycup/scoring/handicap';
+import { allocateCourseStrokes } from '@buddycup/scoring/handicap';
 import { isTeamInput, type FormatId } from '@buddycup/scoring/formats';
 
 type Team = typeof teams.$inferSelect;
@@ -58,27 +58,6 @@ export type Leaderboard = {
   pointsAvailable: number;      // points still up for grabs
   pointsContested: number;      // points already awarded
 };
-
-/**
- * Allocate handicap strokes across the 18 holes using stroke index — the
- * absolute (per-player) allocation, not match-relative. Stroke index 1 is
- * the hardest hole; strokes go there first.
- *
- *   strokes(hole) = floor(hcp / 18) + (hcp % 18 >= holeSI ? 1 : 0)
- */
-function allocateStrokes(
-  handicap: number,
-  holes: { holeNumber: number; handicapIndex: number }[],
-): Map<number, number> {
-  const result = new Map<number, number>();
-  const hcp = Math.max(0, Math.round(handicap));
-  for (const h of holes) {
-    const base = Math.floor(hcp / 18);
-    const extra = hcp % 18 >= h.handicapIndex ? 1 : 0;
-    result.set(h.holeNumber, base + extra);
-  }
-  return result;
-}
 
 export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
   const teamsList = await db
@@ -286,16 +265,20 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     if (!member || !holesMap) return null;
     const index = member.tripHandicap ? Number(member.tripHandicap) : 18;
     const tee = roundTeeById.get(roundId) ?? { slope: null, rating: null };
-    const courseHcp = toCourseHandicap(index, {
-      slope: tee.slope,
-      rating: tee.rating,
-      par: parByCourse.get(courseId) ?? null,
-    });
     const holesArr = Array.from(holesMap.entries()).map(([n, v]) => ({
       holeNumber: n,
       handicapIndex: v.handicapIndex,
     }));
-    const allocated = allocateStrokes(courseHcp, holesArr);
+    // Shared with the feed so the two can't drift apart again.
+    const allocated = allocateCourseStrokes(
+      index,
+      {
+        slope: tee.slope,
+        rating: tee.rating,
+        par: parByCourse.get(courseId) ?? null,
+      },
+      holesArr,
+    );
     strokesCache.set(key, allocated);
     return allocated;
   }

@@ -177,7 +177,14 @@ export async function getScheduleByDay(tripId: string): Promise<ScheduleDay[]> {
 
   // Surface rounds that have been created but don't have any tee times yet,
   // otherwise an admin sees an empty schedule after creating a round.
-  const roundIdsWithTeeTimes = new Set(teeTimesList.map((tt) => tt.roundId));
+  //
+  // Counts only tee times that actually render above (i.e. have a time).
+  // Counting timeless ones dropped the round from BOTH lists — golfItems
+  // filters them out, and the round no longer looked "empty" — so a round
+  // whose groups exist but whose times aren't set yet vanished entirely.
+  const roundIdsWithTeeTimes = new Set(
+    teeTimesList.filter((tt) => tt.time).map((tt) => tt.roundId),
+  );
   const emptyRoundItems: EmptyRoundItem[] = visibleRounds
     .filter((r) => !roundIdsWithTeeTimes.has(r.round.id))
     .map((r) => ({

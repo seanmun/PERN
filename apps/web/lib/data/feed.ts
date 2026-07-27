@@ -1,4 +1,5 @@
 import { eq, desc, and, inArray } from 'drizzle-orm';
+import { allocateCourseStrokes } from '@buddycup/scoring/handicap';
 import { db } from '@/db/client';
 import {
   tripMembers,
@@ -7,6 +8,7 @@ import {
   rounds,
   courses,
   courseHoles,
+  courseTees,
   holeScores,
   media,
   messages,
@@ -97,17 +99,6 @@ function scoreLabel(gross: number, par: number, strokes: number): string {
   const net = gross - strokes;
   const label = rawLabel(net, par);
   return strokes > 0 ? `Net ${label.toLowerCase()}` : label;
-}
-
-/**
- * Allocate handicap strokes for one hole given the player's handicap and the
- * hole's stroke index. Matches the absolute (per-player) allocation used in
- * the leaderboard — NOT match-relative.
- */
-function strokesForHole(handicap: number | null, holeSI: number): number {
-  if (handicap == null) return 0;
-  const h = Math.max(0, Math.round(handicap));
-  return Math.floor(h / 18) + (h % 18 >= holeSI ? 1 : 0);
 }
 
 export async function getFeed(
@@ -214,6 +205,65 @@ export async function getFeed(
     .orderBy(desc(holeScores.enteredAt))
     .limit(limit);
 
+  // Handicap strokes for the net labels, on the SAME basis as the
+  // individual leaderboard: full COURSE handicap (index converted via the
+  // round tee's slope/rating), allocated by stroke index. The feed used
+  // the raw index, so on a sloped course a hole could read "Net birdie"
+  // here and net par on the leaderboard.
+  const scoredCourseIds = Array.from(
+    new Set(scoreRows.map((r) => r.round.courseId)),
+  );
+  const teesList = scoredCourseIds.length
+    ? await db
+        .select()
+        .from(courseTees)
+        .where(inArray(courseTees.courseId, scoredCourseIds))
+    : [];
+  const holesForCourses = scoredCourseIds.length
+    ? await db
+        .select()
+        .from(courseHoles)
+        .where(inArray(courseHoles.courseId, scoredCourseIds))
+    : [];
+  const courseHoleList = new Map<
+    string,
+    { holeNumber: number; handicapIndex: number }[]
+  >();
+  const parByCourse = new Map<string, number>();
+  for (const ch of holesForCourses) {
+    const list = courseHoleList.get(ch.courseId) ?? [];
+    list.push({ holeNumber: ch.holeNumber, handicapIndex: ch.handicapIndex });
+    courseHoleList.set(ch.courseId, list);
+    parByCourse.set(ch.courseId, (parByCourse.get(ch.courseId) ?? 0) + ch.par);
+  }
+
+  const strokeCache = new Map<string, Map<number, number>>();
+  function strokesFor(
+    round: { id: string; courseId: string; courseTeeId: string | null },
+    tripMemberId: string,
+  ): Map<number, number> {
+    const key = `${round.id}::${tripMemberId}`;
+    const cached = strokeCache.get(key);
+    if (cached) return cached;
+    const member = memberById.get(tripMemberId);
+    const index = member?.tripHandicap ? Number(member.tripHandicap) : 18;
+    const tee =
+      teesList.find((t) => t.id === round.courseTeeId) ??
+      teesList.find((t) => t.courseId === round.courseId && t.isDefault) ??
+      null;
+    const allocated = allocateCourseStrokes(
+      index,
+      {
+        slope: tee?.slope ?? null,
+        rating: tee?.rating != null ? Number(tee.rating) : null,
+        par: parByCourse.get(round.courseId) ?? null,
+      },
+      courseHoleList.get(round.courseId) ?? [],
+    );
+    strokeCache.set(key, allocated);
+    return allocated;
+  }
+
   // One physical ball per player per round per hole. The score fan-out
   // writes an identical row into EVERY match that player is in for the
   // round (stacked side matches, round-wide rollups), and team formats
@@ -242,9 +292,8 @@ export async function getFeed(
 
   const scoreItems: FeedItem[] = Array.from(bestScoreRow.values())
     .map((r) => {
-      const member = memberById.get(r.score.tripMemberId);
-      const handicap = member?.tripHandicap ? parseFloat(member.tripHandicap) : null;
-      const strokes = strokesForHole(handicap, r.hole.handicapIndex);
+      const strokes =
+        strokesFor(r.round, r.score.tripMemberId).get(r.score.holeNumber) ?? 0;
       const gross = r.score.gross!;
       const net = gross - strokes;
       return {

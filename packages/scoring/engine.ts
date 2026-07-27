@@ -663,10 +663,25 @@ export function computeThirtyBallMatch(input: {
   }
 
   const holesPlayed = scoredHoles.size;
+  // Same rule as stableford: every hole being touched isn't enough to
+  // declare a winner — every card that was started must be complete,
+  // or a side is scored on a hole someone hasn't finished. A player with
+  // no scores at all is excluded so an absentee can't freeze the match.
+  const startedPlayers = players.filter((p) =>
+    sortedHoles.some((h) => scoreByPlayerHole.get(p.id)?.get(h.number) != null),
+  );
+  const allCardsComplete =
+    startedPlayers.length > 0 &&
+    sortedHoles.every((h) =>
+      startedPlayers.every(
+        (p) => scoreByPlayerHole.get(p.id)?.get(h.number) != null,
+      ),
+    );
+
   let status: ThirtyBallStatus;
   if (holesPlayed === 0) {
     status = { kind: 'not_started' };
-  } else if (holesPlayed < totalHoles) {
+  } else if (!allCardsComplete) {
     status = { kind: 'in_progress', totalA, totalB, holesPlayed };
   } else {
     const winner: 'A' | 'B' | 'halved' =
@@ -1132,10 +1147,27 @@ export function computeStableford(input: {
   const holesPlayed = scoredHoles.size;
   const totalHoles = input.holes.length;
 
+  // Going final needs every CARD complete, not just every hole touched.
+  // "Any player scored this hole" was enough before, so a side was
+  // declared the winner — and cup points awarded — while a player's card
+  // was still short, shorting them up to 4 points a hole.
+  //
+  // Scoped to players who actually started: a no-show with no scores at
+  // all is excluded, otherwise their empty card would hold the match
+  // in_progress forever and the points would never land.
+  const startedPlayers = input.players.filter((p) =>
+    input.holes.some((h) => grossByPH.has(`${p.id}:${h.number}`)),
+  );
+  const allCardsComplete =
+    startedPlayers.length > 0 &&
+    input.holes.every((h) =>
+      startedPlayers.every((p) => grossByPH.has(`${p.id}:${h.number}`)),
+    );
+
   let status: StablefordStatus;
   if (holesPlayed === 0) {
     status = { kind: 'not_started' };
-  } else if (holesPlayed < totalHoles) {
+  } else if (!allCardsComplete) {
     status = { kind: 'in_progress', aPoints, bPoints, holesPlayed };
   } else {
     const winner: 'A' | 'B' | 'halved' =

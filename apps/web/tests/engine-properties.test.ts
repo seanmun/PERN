@@ -319,17 +319,38 @@ describe('property: computeStableford', () => {
     }
   });
 
-  it('final status: kind="final" iff holesPlayed === totalHoles', () => {
+  // Every hole being *touched* is not enough to finish — a started
+  // player's card must be complete. The random scenarios drop ~10% of
+  // scores, so "all 18 holes have someone's score, but a player is
+  // missing one" is a case this generates on purpose.
+  it('final requires every started player to have every hole', () => {
     const rand = mulberry32(34);
+    let sawIncomplete = false;
     for (let t = 0; t < 50; t++) {
       const sc = randomScenario(rand, 'best_ball');
       const r = computeStableford(sc);
-      if (r.status.kind === 'final') {
-        expect(r.holesPlayed).toBe(r.totalHoles);
-      } else if (r.holesPlayed === r.totalHoles) {
-        // Unreachable: every hole played but not final.
-        expect(r.status.kind).toBe('final');
+
+      const has = new Set(sc.scores.map((s) => `${s.playerId}:${s.holeNumber}`));
+      const started = sc.players.filter((p) =>
+        sc.holes.some((h) => has.has(`${p.id}:${h.number}`)),
+      );
+      const complete =
+        started.length > 0 &&
+        sc.holes.every((h) =>
+          started.every((p) => has.has(`${p.id}:${h.number}`)),
+        );
+
+      expect(r.status.kind === 'final').toBe(complete);
+      // final still implies every hole was played...
+      if (r.status.kind === 'final') expect(r.holesPlayed).toBe(r.totalHoles);
+      // ...but the converse no longer holds, which is the point.
+      if (r.holesPlayed === r.totalHoles && !complete) {
+        sawIncomplete = true;
+        expect(r.status.kind).toBe('in_progress');
       }
     }
+    // Guard the guard: if the generator stopped producing short cards,
+    // this test would silently stop testing anything.
+    expect(sawIncomplete).toBe(true);
   });
 });

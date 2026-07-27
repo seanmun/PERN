@@ -685,6 +685,49 @@ describe('computeStableford', () => {
     }
   });
 
+  it('stays in_progress when a player is short a hole, even though every hole has a score', () => {
+    // Regression: holesPlayed counted holes ANY player had scored, so an
+    // 18-hole match where one card was missing the 18th went final and
+    // recompute awarded cup points on a short card.
+    const players: EnginePlayer[] = [
+      { id: 'A1', handicap: 0, teamSide: 'A' },
+      { id: 'B1', handicap: 0, teamSide: 'B' },
+    ];
+    const scores: EngineScore[] = [];
+    for (let h = 1; h <= 18; h++) {
+      scores.push({ playerId: 'A1', holeNumber: h, gross: 4 });
+      if (h < 18) scores.push({ playerId: 'B1', holeNumber: h, gross: 5 });
+    }
+    const result = computeStableford({ players, holes: HOLES_18, scores });
+    // Every hole has been touched...
+    expect(result.holesPlayed).toBe(18);
+    // ...but B1's card is short, so it must not be decided yet.
+    expect(result.status.kind).toBe('in_progress');
+
+    // Landing the missing score finalises it.
+    scores.push({ playerId: 'B1', holeNumber: 18, gross: 5 });
+    const done = computeStableford({ players, holes: HOLES_18, scores });
+    expect(done.status.kind).toBe('final');
+    if (done.status.kind === 'final') expect(done.status.winner).toBe('A');
+  });
+
+  it('a player with no scores at all does not hold the match open', () => {
+    // The absentee guard: requiring EVERY player would leave a match with
+    // a no-show stuck in_progress forever and never award its points.
+    const players: EnginePlayer[] = [
+      { id: 'A1', handicap: 0, teamSide: 'A' },
+      { id: 'B1', handicap: 0, teamSide: 'B' },
+      { id: 'NoShow', handicap: 0, teamSide: 'B' },
+    ];
+    const scores: EngineScore[] = [];
+    for (let h = 1; h <= 18; h++) {
+      scores.push({ playerId: 'A1', holeNumber: h, gross: 4 });
+      scores.push({ playerId: 'B1', holeNumber: h, gross: 5 });
+    }
+    const result = computeStableford({ players, holes: HOLES_18, scores });
+    expect(result.status.kind).toBe('final');
+  });
+
   it('strokes received bump a gross-bogey into a net-par (= more points)', () => {
     // Munley (29) gets strokes on every hole. Gross 5 on SI 1 (par 4) = bogey
     // before strokes (1 pt), but Munley gets 2 strokes on SI 1 → net 3 = birdie (3 pts).
