@@ -163,8 +163,13 @@ export async function getTeeTimeScoringData(
     const seen = new Set(
       data.scores.map((s) => `${s.tripMemberId}:${s.holeNumber}`),
     );
-    for (const otherId of otherMatchIds) {
-      const extra = await getMatchScoringData(otherId);
+    // Fetch concurrently, then merge in the ORIGINAL order — the dedupe
+    // below is order-sensitive (first writer of a hole wins), so the
+    // merge sequence must not change, only the waiting.
+    const extras = await Promise.all(
+      otherMatchIds.map((id) => getMatchScoringData(id)),
+    );
+    for (const extra of extras) {
       if (!extra) continue;
       for (const s of extra.scores) {
         if (!rosterMemberIds.includes(s.tripMemberId)) continue;

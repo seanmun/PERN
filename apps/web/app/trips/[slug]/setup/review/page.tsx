@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { rounds, teeTimes, matches, tripMembers, teams } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
@@ -32,16 +32,23 @@ export default async function SetupReviewPage({
     db.select({ id: rounds.id }).from(rounds).where(eq(rounds.tripId, trip.id)),
   ]);
 
-  // Simple counts — small trips, fine to do this as separate small
-  // queries rather than one big join.
-  let totalGroups = 0;
-  let totalMatches = 0;
-  for (const r of tripRounds) {
-    const tts = await db.select({ id: teeTimes.id }).from(teeTimes).where(eq(teeTimes.roundId, r.id));
-    totalGroups += tts.length;
-    const ms = await db.select({ id: matches.id }).from(matches).where(eq(matches.roundId, r.id));
-    totalMatches += ms.length;
-  }
+  // Counts across all of the trip's rounds in two queries, rather than
+  // two per round awaited one after another.
+  const roundIds = tripRounds.map((r) => r.id);
+  const [groupRows, matchRows] = roundIds.length
+    ? await Promise.all([
+        db
+          .select({ id: teeTimes.id })
+          .from(teeTimes)
+          .where(inArray(teeTimes.roundId, roundIds)),
+        db
+          .select({ id: matches.id })
+          .from(matches)
+          .where(inArray(matches.roundId, roundIds)),
+      ])
+    : [[], []];
+  const totalGroups = groupRows.length;
+  const totalMatches = matchRows.length;
 
   const membersWithEmail = members.filter((m) => m.email);
 

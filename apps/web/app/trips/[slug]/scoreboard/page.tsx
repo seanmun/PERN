@@ -195,12 +195,15 @@ async function TripDailyCupBoard({
     partsByMatch.set(r.p.matchId, list);
   }
 
-  // Compute live status per match. N queries per page render — OK at
-  // trip scale (small-double-digit matches).
+  // Compute live status per match. Still N queries per render, but issued
+  // concurrently rather than one-at-a-time — the awaits were serialising
+  // every match's scoring load behind the previous one's round trip.
+  // Same queries, same results; only the waiting changes.
   const liveByMatch = new Map<string, Awaited<ReturnType<typeof computeLive>>>();
-  for (const m of allMatches) {
-    liveByMatch.set(m.match.id, await computeLive(m.match.id));
-  }
+  const liveResults = await Promise.all(
+    allMatches.map(async (m) => [m.match.id, await computeLive(m.match.id)] as const),
+  );
+  for (const [matchId, live] of liveResults) liveByMatch.set(matchId, live);
 
   // Bucket rounds by ET date. Also bucket matches by their round id so
   // we can pull "matches for this day" by walking the day's round list.
@@ -550,11 +553,12 @@ async function OutingLiveBoard({
     partsByMatch.set(r.p.matchId, list);
   }
 
-  // Compute live status per match. N queries; fine for an outing scale.
+  // Concurrent, not serial — see the trip board above.
   const liveByMatch = new Map<string, Awaited<ReturnType<typeof computeLive>>>();
-  for (const m of allMatches) {
-    liveByMatch.set(m.match.id, await computeLive(m.match.id));
-  }
+  const liveResults = await Promise.all(
+    allMatches.map(async (m) => [m.match.id, await computeLive(m.match.id)] as const),
+  );
+  for (const [matchId, live] of liveResults) liveByMatch.set(matchId, live);
 
   // Group by tee time id (or "ungrouped" for matches without a tee time).
   // Round-wide / cross-foursome matches (no tee_time_id) render at the
