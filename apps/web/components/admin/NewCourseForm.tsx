@@ -6,6 +6,7 @@ import { FileSpreadsheet, Loader2, Search } from 'lucide-react';
 import { createCourse } from '@/lib/actions/courses';
 import { importCourseFromGolfCourseApi } from '@/lib/actions/course-import';
 import ImagePickerInput from '@/components/ImagePickerInput';
+import { rethrowIfControlFlow } from '@/lib/control-flow-error';
 
 type Suggestion = {
   placeId: string;
@@ -132,7 +133,8 @@ export default function NewCourseForm({
     startImport(async () => {
       try {
         await importCourseFromGolfCourseApi(tripId, r.id);
-      } catch {
+      } catch (err) {
+        rethrowIfControlFlow(err);
         setImportError(
           `Import failed for ${r.name} — try the Google result or manual entry.`,
         );

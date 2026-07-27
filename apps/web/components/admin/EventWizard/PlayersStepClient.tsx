@@ -6,6 +6,7 @@ import { Search, Plus, UserPlus, X } from 'lucide-react';
 import { addBuddyToTrip, createPlayer, deletePlayer } from '@/lib/actions/players';
 import { searchWizardPlayers } from '@/lib/actions/event-wizard';
 import type { Buddy } from '@/lib/data/buddies';
+import { rethrowIfControlFlow } from '@/lib/control-flow-error';
 
 type Member = {
   id: string;
@@ -88,6 +89,7 @@ export default function PlayersStepClient({
         await addBuddyToTrip(fd);
         router.refresh();
       } catch (err) {
+        rethrowIfControlFlow(err);
         // Un-hide them: the optimistic add drops the buddy from the chips
         // and search results, so a failure left them invisible for the
         // rest of the session despite never having been added.
@@ -120,6 +122,7 @@ export default function PlayersStepClient({
         }
         router.refresh();
       } catch (err) {
+        rethrowIfControlFlow(err);
         setRemoveError(err instanceof Error ? err.message : 'Could not remove player');
       }
     });

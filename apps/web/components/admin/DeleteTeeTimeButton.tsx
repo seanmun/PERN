@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { Trash2 } from 'lucide-react';
 import { deleteTeeTime } from '@/lib/actions/tee-times';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { rethrowIfControlFlow } from '@/lib/control-flow-error';
 
 export default function DeleteTeeTimeButton({
   teeTimeId,
@@ -12,12 +13,21 @@ export default function DeleteTeeTimeButton({
 }) {
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function run() {
     setOpen(false);
     const fd = new FormData();
     fd.set('id', teeTimeId);
-    startTransition(() => deleteTeeTime(fd));
+    startTransition(async () => {
+      try {
+        await deleteTeeTime(fd);
+      } catch (err) {
+        rethrowIfControlFlow(err);
+        console.error('Delete tee time failed', err);
+        setError(err instanceof Error ? err.message : 'Delete failed');
+      }
+    });
   }
 
   return (
@@ -31,6 +41,12 @@ export default function DeleteTeeTimeButton({
       >
         <Trash2 size={12} />
       </button>
+
+      {error && (
+        <p className="mt-1.5 font-mono text-[10px] uppercase tracking-widest text-red-500">
+          {error}
+        </p>
+      )}
 
       <ConfirmDialog
         open={open}

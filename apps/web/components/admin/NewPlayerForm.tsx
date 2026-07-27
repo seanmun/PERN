@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Loader2, Search, User as UserIcon, X } from 'lucide-react';
 import { createPlayer } from '@/lib/actions/players';
 import { searchUsers, type UserSearchResult } from '@/lib/actions/users';
+import { rethrowIfControlFlow } from '@/lib/control-flow-error';
 
 type Team = { id: string; name: string };
 
@@ -90,6 +91,7 @@ export default function NewPlayerForm({
       try {
         await createPlayer(formData);
       } catch (err) {
+        rethrowIfControlFlow(err);
         setError(err instanceof Error ? err.message : 'Add player failed.');
       }
     });

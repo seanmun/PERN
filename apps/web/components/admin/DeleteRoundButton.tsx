@@ -4,16 +4,26 @@ import { useState, useTransition } from 'react';
 import { Trash2 } from 'lucide-react';
 import { deleteRound } from '@/lib/actions/rounds';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { rethrowIfControlFlow } from '@/lib/control-flow-error';
 
 export default function DeleteRoundButton({ roundId }: { roundId: string }) {
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function run() {
     setOpen(false);
     const fd = new FormData();
     fd.set('id', roundId);
-    startTransition(() => deleteRound(fd));
+    startTransition(async () => {
+      try {
+        await deleteRound(fd);
+      } catch (err) {
+        rethrowIfControlFlow(err);
+        console.error('Delete round failed', err);
+        setError(err instanceof Error ? err.message : 'Delete failed');
+      }
+    });
   }
 
   return (
@@ -27,6 +37,12 @@ export default function DeleteRoundButton({ roundId }: { roundId: string }) {
         <Trash2 size={12} />
         {isPending ? 'Deleting…' : 'Delete round'}
       </button>
+
+      {error && (
+        <p className="mt-1.5 font-mono text-[10px] uppercase tracking-widest text-red-500">
+          {error}
+        </p>
+      )}
 
       <ConfirmDialog
         open={open}

@@ -4,17 +4,25 @@ import { useState, useTransition } from 'react';
 import { Trash2 } from 'lucide-react';
 import { deleteEvent } from '@/lib/actions/events';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { rethrowIfControlFlow } from '@/lib/control-flow-error';
 
 export default function DeleteEventButton({ eventId }: { eventId: string }) {
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function run() {
     setOpen(false);
     const fd = new FormData();
     fd.set('id', eventId);
-    startTransition(() => {
-      deleteEvent(fd);
+    startTransition(async () => {
+      try {
+        await deleteEvent(fd);
+      } catch (err) {
+        rethrowIfControlFlow(err);
+        console.error('Delete event failed', err);
+        setError(err instanceof Error ? err.message : 'Delete failed');
+      }
     });
   }
 
@@ -29,6 +37,12 @@ export default function DeleteEventButton({ eventId }: { eventId: string }) {
         <Trash2 size={12} />
         {isPending ? 'Deleting…' : 'Delete event'}
       </button>
+
+      {error && (
+        <p className="mt-1.5 font-mono text-[10px] uppercase tracking-widest text-red-500">
+          {error}
+        </p>
+      )}
 
       <ConfirmDialog
         open={open}

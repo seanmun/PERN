@@ -5,19 +5,27 @@ import { useRouter } from 'next/navigation';
 import { ShieldCheck } from 'lucide-react';
 import { unflagMediaPost } from '@/lib/actions/feed';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { rethrowIfControlFlow } from '@/lib/control-flow-error';
 
 export default function UnflagMediaButton({ mediaId }: { mediaId: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function run() {
     setOpen(false);
     const fd = new FormData();
     fd.set('id', mediaId);
     startTransition(async () => {
-      await unflagMediaPost(fd);
-      router.refresh();
+      try {
+        await unflagMediaPost(fd);
+        router.refresh();
+      } catch (err) {
+        rethrowIfControlFlow(err);
+        console.error('Unflag failed', err);
+        setError(err instanceof Error ? err.message : 'Unflag failed');
+      }
     });
   }
 
@@ -32,6 +40,12 @@ export default function UnflagMediaButton({ mediaId }: { mediaId: string }) {
         <ShieldCheck size={11} />
         {isPending ? 'Approving…' : 'Approve'}
       </button>
+
+      {error && (
+        <p className="mt-1.5 font-mono text-[10px] uppercase tracking-widest text-red-500">
+          {error}
+        </p>
+      )}
 
       <ConfirmDialog
         open={open}

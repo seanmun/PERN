@@ -4,17 +4,25 @@ import { useState, useTransition } from 'react';
 import { Trash2 } from 'lucide-react';
 import { deleteMatch } from '@/lib/actions/matches';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { rethrowIfControlFlow } from '@/lib/control-flow-error';
 
 export default function DeleteMatchButton({ matchId }: { matchId: string }) {
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function run() {
     setOpen(false);
     const fd = new FormData();
     fd.set('matchId', matchId);
-    startTransition(() => {
-      deleteMatch(fd);
+    startTransition(async () => {
+      try {
+        await deleteMatch(fd);
+      } catch (err) {
+        rethrowIfControlFlow(err);
+        console.error('Delete matchup failed', err);
+        setError(err instanceof Error ? err.message : 'Delete failed');
+      }
     });
   }
 
@@ -29,6 +37,12 @@ export default function DeleteMatchButton({ matchId }: { matchId: string }) {
         <Trash2 size={12} />
         {isPending ? 'Deleting…' : 'Delete matchup'}
       </button>
+
+      {error && (
+        <p className="mt-1.5 font-mono text-[10px] uppercase tracking-widest text-red-500">
+          {error}
+        </p>
+      )}
 
       <ConfirmDialog
         open={open}

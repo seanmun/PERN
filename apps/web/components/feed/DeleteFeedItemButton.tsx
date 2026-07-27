@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Trash2 } from 'lucide-react';
 import { deleteFeedItem } from '@/lib/actions/feed';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { rethrowIfControlFlow } from '@/lib/control-flow-error';
 
 export default function DeleteFeedItemButton({
   kind,
@@ -16,6 +17,7 @@ export default function DeleteFeedItemButton({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const label = kind === 'media' ? 'post' : 'message';
 
   function run() {
@@ -24,8 +26,14 @@ export default function DeleteFeedItemButton({
     fd.set('kind', kind);
     fd.set('id', id);
     startTransition(async () => {
-      await deleteFeedItem(fd);
-      router.refresh();
+      try {
+        await deleteFeedItem(fd);
+        router.refresh();
+      } catch (err) {
+        rethrowIfControlFlow(err);
+        console.error('Delete post failed', err);
+        setError(err instanceof Error ? err.message : 'Delete failed');
+      }
     });
   }
 
@@ -40,6 +48,12 @@ export default function DeleteFeedItemButton({
       >
         <Trash2 size={12} />
       </button>
+
+      {error && (
+        <p className="mt-1.5 font-mono text-[10px] uppercase tracking-widest text-red-500">
+          {error}
+        </p>
+      )}
 
       <ConfirmDialog
         open={open}
