@@ -46,18 +46,25 @@ export default function NewPlayerForm({
     const q = query.trim();
     if (q.length < 2) {
       setResults([]);
+      // Also clear the spinner: this branch used to leave `searching`
+      // true forever if you backspaced from 2 chars to 1 mid-search.
+      setSearching(false);
       return;
     }
+    // Ignore a response that arrives after a newer query has been
+    // issued — a slow "pine" must not overwrite a fast "pinehurst".
+    let current = true;
     setSearching(true);
     debounceRef.current = setTimeout(async () => {
       try {
         const r = await searchUsers(q);
-        setResults(r);
+        if (current) setResults(r);
       } finally {
-        setSearching(false);
+        if (current) setSearching(false);
       }
     }, 200);
     return () => {
+      current = false;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query, linked]);

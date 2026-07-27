@@ -64,6 +64,8 @@ export default function CourseStep({
       setDbResults([]);
       return;
     }
+    // Ignore responses for a query the user has already moved on from.
+    let current = true;
     debounceTimer.current = setTimeout(async () => {
       setSearchingDb(true);
       try {
@@ -72,14 +74,15 @@ export default function CourseStep({
         );
         if (res.ok) {
           const data: { results: DbResult[] } = await res.json();
-          setDbResults(data.results);
+          if (current) setDbResults(data.results);
         }
       } finally {
-        setSearchingDb(false);
+        if (current) setSearchingDb(false);
       }
     }, 250);
     // Clear the pending search if the query changes or we unmount.
     return () => {
+      current = false;
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
   }, [query, dbEnabled]);

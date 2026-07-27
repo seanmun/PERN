@@ -9,6 +9,7 @@ import {
   teams,
   matches,
   matchParticipants,
+  teeTimeParticipants,
   users,
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
@@ -143,6 +144,23 @@ async function RoundMatchesBlock({
     if (memberTeeTimeById.get(p.tripMemberId)) continue;
     const tee = matchToTee.get(p.matchId);
     if (tee) memberTeeTimeById.set(p.tripMemberId, tee);
+  }
+
+
+  // Authoritative foursome membership: the explicit tee_time_participants
+  // roster set in the Groups step. Fall back to the derived mapping above
+  // only for rounds predating that roster, otherwise the builder showed
+  // every player as "no foursome" right after groups were assigned —
+  // exactly when the grouping matters most.
+  const roundTeeTimeIds = allTeeTimes.map((t) => t.id);
+  const rosterRows = roundTeeTimeIds.length
+    ? await db
+        .select()
+        .from(teeTimeParticipants)
+        .where(inArray(teeTimeParticipants.teeTimeId, roundTeeTimeIds))
+    : [];
+  for (const r of rosterRows) {
+    memberTeeTimeById.set(r.tripMemberId, r.teeTimeId);
   }
 
   const builderMembers = allMembers

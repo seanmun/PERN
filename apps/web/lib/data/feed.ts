@@ -88,8 +88,10 @@ const SCORE_LABELS: Record<number, string> = {
 
 function rawLabel(net: number, par: number): string {
   const diff = net - par;
-  if (diff <= -3) return 'Albatross';
+  // Check the table BEFORE the catch-all, or SCORE_LABELS[-4] ('Condor')
+  // is unreachable and a net 4-under reads as an albatross.
   if (diff in SCORE_LABELS) return SCORE_LABELS[diff];
+  if (diff <= -3) return 'Albatross';
   return diff > 0 ? `+${diff}` : String(diff);
 }
 

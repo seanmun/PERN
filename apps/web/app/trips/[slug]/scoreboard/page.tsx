@@ -81,7 +81,12 @@ export default async function ScoreboardPage({
         {board.matchesContested} of {board.matchesTotal} matches in the books · {board.pointsAvailable} pts left
       </p>
 
-      <TripDailyCupBoard tripId={trip.id} tripStartDate={trip.startDate} slug={slug} />
+      <TripDailyCupBoard
+        tripId={trip.id}
+        tripStartDate={trip.startDate}
+        tripEndDate={trip.endDate}
+        slug={slug}
+      />
 
       <TripIndividualLeaderboard board={board} slug={slug} />
     </div>
@@ -126,10 +131,12 @@ function shortDayLabel(d: Date): string {
 async function TripDailyCupBoard({
   tripId,
   tripStartDate,
+  tripEndDate,
   slug,
 }: {
   tripId: string;
   tripStartDate: Date | null;
+  tripEndDate: Date | null;
   slug: string;
 }) {
   // Pull rounds with date + courseId. We bucket by ET date.
@@ -150,11 +157,15 @@ async function TripDailyCupBoard({
   // [startDate, endDate] window. Stray seed/test rounds with a random
   // date were leaking into the day tabs as a "D0 Tue 5/12" ghost tab.
   const startKey = tripStartDate ? trimToETDate(tripStartDate) : null;
+  const endKey = tripEndDate ? trimToETDate(tripEndDate) : null;
   const tripRounds = tripRoundsRaw.filter((r) => {
     if (r.isHidden) return false;
     if (!r.date) return false;
     const key = trimToETDate(r.date);
     if (startKey && key < startKey) return false;
+    // The upper bound was never enforced despite the comment above, so a
+    // stray round dated AFTER the trip still made a ghost day tab.
+    if (endKey && key > endKey) return false;
     return true;
   });
 

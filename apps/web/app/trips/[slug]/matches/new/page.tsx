@@ -4,13 +4,14 @@ import { ArrowLeft } from 'lucide-react';
 import { asc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
-  teeTimes,
-  rounds,
   courses,
-  tripMembers,
-  teams,
-  matches,
   matchParticipants,
+  matches,
+  rounds,
+  teams,
+  teeTimeParticipants,
+  teeTimes,
+  tripMembers,
   users,
 } from '@/db/schema';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
@@ -111,12 +112,9 @@ export default async function NewMatchPage({
     .where(eq(teeTimes.roundId, roundId))
     .orderBy(asc(teeTimes.groupNumber));
 
-  // Derive each member's tee time for this round. Today there's no
-  // explicit tee_time_participants table — instead a member's tee time
-  // is whichever round's tee time has at least one match they're a
-  // participant in. Step 8+ of the spec promotes this to an explicit
-  // join table. For now derive it on the fly so the builder can show
-  // foursome groupings.
+  // Legacy fallback: for rounds created before the explicit roster
+  // existed, a member's foursome is whichever tee time has a match
+  // they're in. The real roster is applied after this and wins.
   const roundMatches = await db
     .select({ matchId: matches.id, teeTimeId: matches.teeTimeId })
     .from(matches)
@@ -141,6 +139,23 @@ export default async function NewMatchPage({
     if (memberTeeTimeById.get(p.tripMemberId)) continue;
     const tee = matchToTee.get(p.matchId);
     if (tee) memberTeeTimeById.set(p.tripMemberId, tee);
+  }
+
+
+  // Authoritative foursome membership: the explicit tee_time_participants
+  // roster set in the Groups step. Fall back to the derived mapping above
+  // only for rounds predating that roster, otherwise the builder showed
+  // every player as "no foursome" right after groups were assigned —
+  // exactly when the grouping matters most.
+  const roundTeeTimeIds = allTeeTimes.map((t) => t.id);
+  const rosterRows = roundTeeTimeIds.length
+    ? await db
+        .select()
+        .from(teeTimeParticipants)
+        .where(inArray(teeTimeParticipants.teeTimeId, roundTeeTimeIds))
+    : [];
+  for (const r of rosterRows) {
+    memberTeeTimeById.set(r.tripMemberId, r.teeTimeId);
   }
 
   const builderMembers = allMembers

@@ -18,36 +18,51 @@ import { Check, Loader2, Pencil } from 'lucide-react';
 type ServerAction = (formData: FormData) => Promise<void>;
 type Hidden = Record<string, string>;
 
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 function useInlineSave(action: ServerAction, hidden: Hidden, field: string) {
-  const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [status, setStatus] = useState<SaveStatus>('idle');
   const [, startTransition] = useTransition();
 
-  function save(value: string | null | undefined) {
-    startTransition(async () => {
-      setStatus('saving');
-      const fd = new FormData();
-      for (const [k, v] of Object.entries(hidden)) fd.set(k, v);
-      fd.set('field', field);
-      fd.set('value', value ?? '');
-      try {
-        await action(fd);
-        setStatus('saved');
-        setTimeout(() => setStatus('idle'), 1200);
-      } catch (err) {
-        console.error('Inline save failed', err);
-        setStatus('idle');
-      }
+  /** Resolves to whether the save actually landed — callers that hold
+   *  optimistic local state need to revert when it didn't. */
+  function save(value: string | null | undefined): Promise<boolean> {
+    return new Promise((resolve) => {
+      startTransition(async () => {
+        setStatus('saving');
+        const fd = new FormData();
+        for (const [k, v] of Object.entries(hidden)) fd.set(k, v);
+        fd.set('field', field);
+        fd.set('value', value ?? '');
+        try {
+          await action(fd);
+          setStatus('saved');
+          setTimeout(() => setStatus('idle'), 1200);
+          resolve(true);
+        } catch (err) {
+          // Was 'idle', which looked identical to "nothing happened".
+          console.error('Inline save failed', err);
+          setStatus('error');
+          resolve(false);
+        }
+      });
     });
   }
 
   return { status, save };
 }
 
-function StatusBadge({ status }: { status: 'idle' | 'saving' | 'saved' }) {
+function StatusBadge({ status }: { status: SaveStatus }) {
   if (status === 'saving')
     return <Loader2 size={11} className="animate-spin text-zinc-500" />;
   if (status === 'saved')
     return <Check size={12} className="text-emerald-500" />;
+  if (status === 'error')
+    return (
+      <span title="Didn't save" className="font-mono text-[10px] font-bold text-red-500">
+        !
+      </span>
+    );
   return null;
 }
 
@@ -377,10 +392,15 @@ export function InlineCheckbox({
   return (
     <button
       type="button"
-      onClick={() => {
+      onClick={async () => {
         const next = !local;
+        const prev = local;
         setLocal(next);
-        save(next ? 'on' : '');
+        // Unlike the text/number/date variants (which re-render from
+        // `value`), this owns its state — so a rejected save has to be
+        // rolled back or the box lies about what the server holds.
+        const ok = await save(next ? 'on' : '');
+        if (!ok) setLocal(prev);
       }}
       className={`flex w-full items-start gap-3 rounded-sm border px-3 py-3 text-left transition-colors ${
         local

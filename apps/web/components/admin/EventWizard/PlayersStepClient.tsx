@@ -49,13 +49,20 @@ export default function PlayersStepClient({
       setSearching(false);
       return;
     }
+    // Ignore a stale response — a slow earlier query must not overwrite
+    // fresher results, or repopulate the list after the box was cleared.
+    let current = true;
     setSearching(true);
     debounceRef.current = setTimeout(async () => {
-      const found = await searchWizardPlayers(tripId, q);
-      setResults(found);
-      setSearching(false);
+      try {
+        const found = await searchWizardPlayers(tripId, q);
+        if (current) setResults(found);
+      } finally {
+        if (current) setSearching(false);
+      }
     }, 250);
     return () => {
+      current = false;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query, tripId]);
@@ -72,13 +79,25 @@ export default function PlayersStepClient({
   function addBuddy(buddy: Buddy) {
     setAddingUserIds((prev) => new Set(prev).add(buddy.userId));
     startTransition(async () => {
-      const fd = new FormData();
-      fd.set('tripId', tripId);
-      fd.set('userId', buddy.userId);
-      fd.set('nickname', buddy.recentNickname);
-      if (buddy.recentHandicap) fd.set('handicap', buddy.recentHandicap);
-      await addBuddyToTrip(fd);
-      router.refresh();
+      try {
+        const fd = new FormData();
+        fd.set('tripId', tripId);
+        fd.set('userId', buddy.userId);
+        fd.set('nickname', buddy.recentNickname);
+        if (buddy.recentHandicap) fd.set('handicap', buddy.recentHandicap);
+        await addBuddyToTrip(fd);
+        router.refresh();
+      } catch (err) {
+        // Un-hide them: the optimistic add drops the buddy from the chips
+        // and search results, so a failure left them invisible for the
+        // rest of the session despite never having been added.
+        console.error('Failed to add buddy', err);
+        setAddingUserIds((prev) => {
+          const next = new Set(prev);
+          next.delete(buddy.userId);
+          return next;
+        });
+      }
     });
   }
 

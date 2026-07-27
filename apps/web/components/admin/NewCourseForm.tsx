@@ -74,6 +74,8 @@ export default function NewCourseForm({
       setDbResults([]);
       return;
     }
+    // Ignore responses for a query the user has already moved on from.
+    let current = true;
     debounceTimer.current = setTimeout(async () => {
       setSearching(true);
       try {
@@ -83,21 +85,27 @@ export default function NewCourseForm({
             ? fetch(`/api/course-db/search?q=${encodeURIComponent(searchQuery)}`)
             : Promise.resolve(null),
         ]);
+        if (!current) return;
         if (placesRes.ok) {
           const data: { suggestions: Suggestion[] } = await placesRes.json();
-          setSuggestions(data.suggestions);
+          if (current) setSuggestions(data.suggestions);
         }
         if (dbRes?.ok) {
           const data: { enabled: boolean; results: DbResult[] } =
             await dbRes.json();
           if (!data.enabled) setDbEnabled(false);
-          setDbResults(data.results);
+          if (current) setDbResults(data.results);
         }
-        setShowDropdown(true);
+        if (current) setShowDropdown(true);
       } finally {
-        setSearching(false);
+        if (current) setSearching(false);
       }
     }, 250);
+    // Was missing entirely: the pending timer outlived the query change.
+    return () => {
+      current = false;
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
   }, [searchQuery, dbEnabled]);
 
   // Click-outside closes the dropdown.
