@@ -43,17 +43,16 @@ export default function DetailsStep({
 
   // Team1/Team2 default the same way createTrip already defaults them
   // when the fields are absent — no team setup here, that's Step 4.
-  // The wizard's next step is Players, keyed off the slug we're about
-  // to create. createTrip slugifies the same input the same way
-  // (slugifyTripName), so the client-known slug and the server-computed
-  // one match — no placeholder substitution needed here (unlike
-  // createRound, where the id truly doesn't exist yet).
-  const redirectTo = slug ? `/trips/${slug}/setup/players` : undefined;
+  // The next step is requested BY NAME; the server builds the redirect
+  // from the slug that actually got created. Computing the path here
+  // 404'd whenever the server had to change the slug.
+  const [slugEditing, setSlugEditing] = useState(false);
 
   return (
     <form action={createTrip} className="mt-6 space-y-6">
       <input type="hidden" name="kind" value={kind} />
-      {redirectTo && <input type="hidden" name="redirectTo" value={redirectTo} />}
+      <input type="hidden" name="next" value="setup-players" />
+      {slugTouched && <input type="hidden" name="slugCustomized" value="1" />}
       {course && <input type="hidden" name="courseId" value={course.id} />}
 
       {/* The course picked in the previous step — pinned so it's never a
@@ -102,33 +101,39 @@ export default function DetailsStep({
         />
       </div>
 
-      <div>
-        <label htmlFor="trip-slug" className={labelCls}>
-          URL slug <span className="text-yellow-800 dark:text-yellow-500">*</span>
-        </label>
-        <div className="mt-1.5 flex items-stretch overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 focus-within:border-yellow-500/60 focus-within:ring-1 focus-within:ring-yellow-500/40">
-          <span className="flex items-center bg-zinc-100 dark:bg-zinc-900 px-3 font-mono text-[11px] text-zinc-500">
-            /trips/
-          </span>
-          <input
-            id="trip-slug"
-            type="text"
-            name="slug"
-            required
-            maxLength={60}
-            pattern="[a-z0-9-]+"
-            placeholder="pcup26"
-            value={slug}
-            onChange={(e) => {
-              setSlug(slugifyTripName(e.target.value));
-              setSlugTouched(true);
-            }}
-            className="w-full bg-transparent px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-600 focus:outline-none"
-          />
-        </div>
-        <p className={hintCls}>
-          Auto-generated from the name. Lowercase letters, numbers, and dashes.
-        </p>
+      {/* URL derives from the name; nobody setting up a golf game should
+          be asked to design a URL. The field only appears on request. */}
+      <div className="-mt-3 flex items-center gap-1.5 font-mono text-[11px] text-zinc-500">
+        {slugEditing ? (
+          <>
+            <span>/trips/</span>
+            <input
+              type="text"
+              name="slug"
+              autoFocus
+              maxLength={60}
+              pattern="[a-z0-9-]+"
+              value={slug}
+              onChange={(e) => {
+                setSlug(slugifyTripName(e.target.value));
+                setSlugTouched(true);
+              }}
+              className="border-0 border-b border-yellow-500 bg-transparent p-0 font-mono text-[11px] text-zinc-800 dark:text-zinc-200 focus:outline-none"
+            />
+          </>
+        ) : (
+          <>
+            <input type="hidden" name="slug" value={slug} />
+            <span className="truncate">/trips/{slug || '…'}</span>
+            <button
+              type="button"
+              onClick={() => setSlugEditing(true)}
+              className="shrink-0 text-yellow-700 underline-offset-2 hover:underline dark:text-yellow-500"
+            >
+              customize
+            </button>
+          </>
+        )}
       </div>
 
       {singleDay ? (
@@ -155,27 +160,35 @@ export default function DetailsStep({
         </div>
       )}
 
-      <div>
-        <label htmlFor="trip-description" className={labelCls}>
-          Description
-        </label>
-        <textarea
-          id="trip-description"
-          name="description"
-          rows={3}
-          maxLength={500}
-          placeholder="One sentence. Optional."
-          className={`mt-1.5 ${inputCls} resize-y`}
-        />
-      </div>
-
-      <div>
-        <p className={labelCls}>Icon</p>
-        <p className={`${hintCls} mt-1`}>Optional. Shown on the trip header and cards.</p>
-        <div className="mt-2">
-          <ImagePickerInput name="imageUrl" aspect="1/1" previewMaxWidth={112} />
+      {/* Neither of these should sit between the user and a created
+          event — tucked away, both still fully available. */}
+      <details className="rounded-sm border border-zinc-200 dark:border-zinc-900">
+        <summary className="cursor-pointer px-3 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500 hover:text-zinc-300">
+          + Description &amp; icon (optional)
+        </summary>
+        <div className="space-y-5 px-3 pb-4 pt-1">
+          <div>
+            <label htmlFor="trip-description" className={labelCls}>
+              Description
+            </label>
+            <textarea
+              id="trip-description"
+              name="description"
+              rows={3}
+              maxLength={500}
+              placeholder="One sentence. Optional."
+              className={`mt-1.5 ${inputCls} resize-y`}
+            />
+          </div>
+          <div>
+            <p className={labelCls}>Icon</p>
+            <p className={`${hintCls} mt-1`}>Shown on the trip header and cards.</p>
+            <div className="mt-2">
+              <ImagePickerInput name="imageUrl" aspect="1/1" previewMaxWidth={112} />
+            </div>
+          </div>
         </div>
-      </div>
+      </details>
 
       <div className="flex items-center gap-3 pt-2">
         <button

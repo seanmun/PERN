@@ -60,6 +60,11 @@ export default async function NewEventCoursePage({
     longitude: c.longitude,
     isFavorite: favoriteIds.has(c.id),
     played: playedIds.has(c.id),
+    // Lets the client hide course-database results that are ALREADY in
+    // the library by external id — the name-only dedupe missed the same
+    // course under a slightly different name and imported it twice.
+    externalId:
+      c.externalSource === 'golfcourseapi' ? c.externalId : null,
   }));
 
   const copy = COPY[kind];

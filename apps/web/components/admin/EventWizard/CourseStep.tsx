@@ -40,7 +40,7 @@ export default function CourseStep({
   dbEnabled,
 }: {
   kind: 'outing' | 'match';
-  rows: CourseRowBase[];
+  rows: (CourseRowBase & { externalId?: string | null })[];
   dbEnabled: boolean;
 }) {
   const router = useRouter();
@@ -133,14 +133,22 @@ export default function CourseStep({
         : buildCourseSections(localMatches, pos),
     [localMatches, pos, q],
   );
-  // Hide DB results that are already in the library (same external id
-  // isn't visible client-side, so match on name).
+  // Hide DB results already in the library. External id is the real key
+  // (the import dedupes on it); name stays as a fallback for courses
+  // added before external ids were stored.
+  const localExternalIds = useMemo(
+    () =>
+      new Set(rows.map((r) => r.externalId).filter((x): x is string => !!x)),
+    [rows],
+  );
   const localNames = useMemo(
     () => new Set(rows.map((r) => r.name.toLowerCase())),
     [rows],
   );
   const freshDbResults = dbResults.filter(
-    (r) => !localNames.has(r.name.toLowerCase()),
+    (r) =>
+      !localExternalIds.has(String(r.id)) &&
+      !localNames.has(r.name.toLowerCase()),
   );
 
   return (
@@ -263,6 +271,9 @@ export default function CourseStep({
           className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 hover:text-zinc-300"
         >
           Skip for now →
+          <span className="mt-1 block text-[10px] normal-case tracking-normal text-zinc-600">
+            No course means no round yet — add both later in Groups
+          </span>
         </Link>
         <Link
           href="/trips/new"

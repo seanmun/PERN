@@ -63,19 +63,35 @@ export async function createTrip(formData: FormData): Promise<void> {
     kindRaw === 'outing' || kindRaw === 'match' ? kindRaw : 'trip';
 
   const slugInput = trim(formData.get('slug')) ?? name;
-  const slug = slugifyTripName(slugInput);
-  if (!slug) throw new Error('Slug is required');
-  if (RESERVED_SLUGS.has(slug)) {
-    throw new Error(`Slug "${slug}" is reserved. Pick a different one.`);
+  const base = slugifyTripName(slugInput);
+  if (!base) throw new Error('Slug is required');
+  if (RESERVED_SLUGS.has(base)) {
+    throw new Error(`Slug "${base}" is reserved. Pick a different one.`);
   }
 
-  const [existing] = await db
-    .select({ id: trips.id })
-    .from(trips)
-    .where(eq(trips.slug, slug))
-    .limit(1);
-  if (existing) {
-    throw new Error(`Slug "${slug}" is already taken.`);
+  // Only a slug the user explicitly customized is allowed to hard-fail on
+  // collision. A derived one (from the event name) auto-suffixes instead —
+  // "Saturday at Pine Hills" should never error because someone used that
+  // name last month, over a URL the user was never asked about.
+  const customized = trim(formData.get('slugCustomized')) === '1';
+  const taken = async (s: string) => {
+    const [row] = await db
+      .select({ id: trips.id })
+      .from(trips)
+      .where(eq(trips.slug, s))
+      .limit(1);
+    return Boolean(row);
+  };
+
+  let slug = base;
+  if (await taken(base)) {
+    if (customized) {
+      throw new Error(`Slug "${base}" is already taken.`);
+    }
+    let n = 2;
+    while (n < 100 && (await taken(`${base}-${n}`))) n++;
+    if (n >= 100) throw new Error(`Slug "${base}" is already taken.`);
+    slug = `${base}-${n}`;
   }
 
   const startDate = parseDate(formData.get('startDate'));
@@ -159,6 +175,13 @@ export async function createTrip(formData: FormData): Promise<void> {
   // Optional override so the event-creation wizard can land the admin on
   // its own next step instead of the classic admin/players page. Absent
   // for every existing caller — default behavior is unchanged.
+  // The wizard can't know the final slug (it may have been suffixed), so
+  // it asks for its next step by name and the redirect is built HERE from
+  // the slug that actually exists. A client-computed path 404'd the moment
+  // the server changed the slug.
+  if (trim(formData.get('next')) === 'setup-players') {
+    redirect(`/trips/${slug}/setup/players`);
+  }
   const dest = resolveRedirect(formData, `/trips/${slug}/admin/players`);
   if (dest) redirect(dest);
 }
