@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Plus, UserPlus, X } from 'lucide-react';
-import { addBuddyToTrip, createPlayer, deletePlayer } from '@/lib/actions/players';
+import { addBuddyToTrip, createPlayer, deletePlayer, updatePlayerField } from '@/lib/actions/players';
 import { searchWizardPlayers } from '@/lib/actions/event-wizard';
 import type { Buddy } from '@/lib/data/buddies';
 import { rethrowIfControlFlow } from '@/lib/control-flow-error';
@@ -161,9 +161,7 @@ export default function PlayersStepClient({
                     )}
                   </div>
                 </a>
-                {m.tripHandicap && (
-                  <span className="font-mono text-xs tabular-nums text-zinc-500">{m.tripHandicap}</span>
-                )}
+                <HandicapInput memberId={m.id} initial={m.tripHandicap} />
                 <button
                   type="button"
                   disabled={pending}
@@ -282,6 +280,7 @@ function NewPlayerForm({
   const [pending, startTransition] = useTransition();
   const [nickname, setNickname] = useState('');
   const [email, setEmail] = useState('');
+  const [handicap, setHandicap] = useState('');
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -291,10 +290,12 @@ function NewPlayerForm({
       fd.set('tripId', tripId);
       fd.set('nickname', nickname.trim());
       if (email.trim()) fd.set('email', email.trim());
+      if (handicap.trim()) fd.set('tripHandicap', handicap.trim());
       fd.set('redirectTo', 'none');
       await createPlayer(fd);
       setNickname('');
       setEmail('');
+      setHandicap('');
       router.refresh();
       onDone();
     });
@@ -311,13 +312,26 @@ function NewPlayerForm({
         required
         className="w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm focus:border-yellow-500/60 focus:outline-none"
       />
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="Email (optional — needed to send an invite later)"
-        className="w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm focus:border-yellow-500/60 focus:outline-none"
-      />
+      <div className="flex gap-2">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email (optional — needed to invite later)"
+          className="min-w-0 flex-1 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm focus:border-yellow-500/60 focus:outline-none"
+        />
+        <input
+          type="number"
+          inputMode="decimal"
+          step="0.1"
+          min={-10}
+          max={54}
+          value={handicap}
+          onChange={(e) => setHandicap(e.target.value)}
+          placeholder="Hcp"
+          className="w-20 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm tabular-nums focus:border-yellow-500/60 focus:outline-none"
+        />
+      </div>
       <div className="flex gap-2">
         <button
           type="submit"
@@ -377,6 +391,80 @@ function PlayerAvatar({
       }}
     >
       {name.charAt(0)}
+    </span>
+  );
+}
+
+/**
+ * Handicap, editable where the roster lives. It drives every format and
+ * the auto-split, and used to require leaving the wizard for
+ * /admin/players/[id]/edit and coming back — once per player.
+ */
+function HandicapInput({
+  memberId,
+  initial,
+}: {
+  memberId: string;
+  initial: string | null;
+}) {
+  const [value, setValue] = useState(initial ?? '');
+  const [saved, setSaved] = useState(initial ?? '');
+  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>(
+    'idle',
+  );
+
+  function save() {
+    if (value.trim() === saved.trim()) return;
+    setState('saving');
+    (async () => {
+      try {
+        const fd = new FormData();
+        fd.set('id', memberId);
+        fd.set('field', 'tripHandicap');
+        fd.set('value', value.trim());
+        await updatePlayerField(fd);
+        setSaved(value);
+        setState('saved');
+        setTimeout(() => setState('idle'), 1200);
+      } catch (err) {
+        rethrowIfControlFlow(err);
+        console.error('Failed to save handicap', err);
+        setState('error');
+      }
+    })();
+  }
+
+  return (
+    <span className="flex flex-none items-center gap-1">
+      <input
+        type="number"
+        inputMode="decimal"
+        step="0.1"
+        min={-10}
+        max={54}
+        value={value}
+        placeholder="hcp"
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        }}
+        aria-label="Trip handicap"
+        className={`w-16 rounded-sm border bg-white px-2 py-1 text-right font-mono text-xs tabular-nums focus:outline-none dark:bg-zinc-950 ${
+          state === 'error'
+            ? 'border-red-500'
+            : 'border-zinc-300 focus:border-yellow-500/60 dark:border-zinc-800'
+        }`}
+      />
+      <span className="w-3.5 text-center">
+        {state === 'saving' && (
+          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-zinc-400" />
+        )}
+        {state === 'saved' && <span className="text-[10px] text-emerald-500">✓</span>}
+        {state === 'error' && (
+          <span className="text-[10px] font-bold text-red-500" title="Didn't save">!</span>
+        )}
+      </span>
     </span>
   );
 }
