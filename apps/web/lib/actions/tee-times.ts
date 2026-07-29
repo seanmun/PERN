@@ -79,6 +79,11 @@ export async function createTeeTime(formData: FormData): Promise<void> {
   revalidatePath(`/trips/${tripSlug}/schedule`);
   revalidatePath(`/trips/${tripSlug}/admin/rounds/${roundId}/edit`);
   revalidatePath(`/trips/${tripSlug}/setup/groups`);
+  // The match builder reads this roster to know who's in which foursome —
+  // without this it can render a payload built before the roster existed
+  // and show everyone as ungrouped.
+  revalidatePath(`/trips/${tripSlug}/setup/matches`);
+  revalidatePath(`/trips/${tripSlug}/matches/new`);
   // Event-creation wizard's Groups step reuses this action and stays in
   // place ("none") so the freshly-created group appears in the same
   // page render. Absent for every other caller — unchanged.
@@ -229,6 +234,11 @@ export async function updateTeeTimeRoster(formData: FormData): Promise<void> {
   revalidatePath(`/trips/${tripSlug}/tee-times/${teeTimeId}/score`);
   revalidatePath(`/trips/${tripSlug}/schedule`);
   revalidatePath(`/trips/${tripSlug}/setup/groups`);
+  // The match builder reads this roster to know who's in which foursome —
+  // without this it can render a payload built before the roster existed
+  // and show everyone as ungrouped.
+  revalidatePath(`/trips/${tripSlug}/setup/matches`);
+  revalidatePath(`/trips/${tripSlug}/matches/new`);
   // Event-creation wizard's Groups step reuses this action and stays in
   // place ("none") instead of navigating to the classic round-edit page.
   // Absent for every other caller — unchanged.
@@ -260,6 +270,8 @@ export async function deleteTeeTime(formData: FormData): Promise<void> {
 
   const tripSlug = await getTripSlugById(existing.round.tripId);
   revalidatePath(`/trips/${tripSlug}/schedule`);
+  revalidatePath(`/trips/${tripSlug}/setup/groups`);
+  revalidatePath(`/trips/${tripSlug}/setup/matches`);
   revalidatePath(`/trips/${tripSlug}/admin/rounds/${existing.teeTime.roundId}/edit`);
   redirect(`/trips/${tripSlug}/admin/rounds/${existing.teeTime.roundId}/edit`);
 }

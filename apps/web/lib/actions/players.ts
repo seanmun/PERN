@@ -121,10 +121,9 @@ export async function createPlayer(formData: FormData): Promise<void> {
   });
 
   const tripSlug = await getTripSlugById(tripId);
-  revalidatePath(`/trips/${tripSlug}/admin/players`);
-  revalidatePath(`/trips/${tripSlug}/schedule`);
-  revalidatePath(`/trips/${tripSlug}/scoreboard`);
-  revalidatePath(`/trips/${tripSlug}/setup/players`);
+  // Roster changes touch every setup screen (teams, groups,
+  // matches) — revalidate the whole trip subtree, not one page.
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
   // Event-creation wizard reuses this action from its Players step and
   // stays in place ("none") instead of navigating to the classic
   // admin/players page. Absent for every other caller — unchanged.
@@ -308,8 +307,9 @@ export async function addBuddyToTrip(formData: FormData): Promise<void> {
     .limit(1);
   if (existing) {
     const tripSlug = await getTripSlugById(tripId);
-    revalidatePath(`/trips/${tripSlug}/admin/players`);
-    revalidatePath(`/trips/${tripSlug}/setup/players`);
+  // Roster changes touch every setup screen (teams, groups,
+  // matches) — revalidate the whole trip subtree, not one page.
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
     return;
   }
 
@@ -335,8 +335,6 @@ export async function addBuddyToTrip(formData: FormData): Promise<void> {
   });
 
   const tripSlug = await getTripSlugById(tripId);
-  revalidatePath(`/trips/${tripSlug}/admin/players`);
-  revalidatePath(`/trips/${tripSlug}/setup/players`);
 }
 
 export async function updatePlayer(formData: FormData): Promise<void> {
