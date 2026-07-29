@@ -317,34 +317,55 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
         .where(inArray(tripMembers.id, allMemberIds))
     : [];
 
-  // Build context the same way the client did. memberTeamById comes
-  // from trip_members; memberTeeTimeById is derived by intersecting
-  // the round's tee times with any match.tee_time_id the member is in.
-  // For now (steps 1–7 of the spec), tee-time membership is implicit:
-  // a player's tee time is whichever round's tee time has at least one
-  // match they participate in. Step 8+ promotes this to an explicit
-  // tee_time_participants table.
-  const existingMatches = await db
-    .select({ matchId: matches.id, teeTimeId: matches.teeTimeId })
-    .from(matches)
-    .where(eq(matches.roundId, roundId));
-  const matchIds = existingMatches.map((m) => m.matchId);
-  const participantRows = matchIds.length
-    ? await db
-        .select()
-        .from(matchParticipants)
-        .where(inArray(matchParticipants.matchId, matchIds))
-    : [];
-  const matchToTee = new Map(
-    existingMatches.map((m) => [m.matchId, m.teeTimeId]),
-  );
+  // Build context the same way the client did.
+  //
+  // Foursome membership is the tee_time_participants roster set in the
+  // Groups step — the authoritative source. This used to DERIVE it from
+  // existing match participation, which is empty for a round's first
+  // match, so every foursome-locked format failed validation with
+  // "aren't assigned to any foursome yet" no matter how the groups were
+  // set. The derived mapping is kept only as a fallback for rounds
+  // created before the roster table was populated.
   const memberTeeTimeById = new Map<string, string | null>();
   for (const m of members) memberTeeTimeById.set(m.id, null);
-  for (const p of participantRows) {
-    if (!memberTeeTimeById.has(p.tripMemberId)) continue;
-    if (memberTeeTimeById.get(p.tripMemberId)) continue; // first wins
-    const tee = matchToTee.get(p.matchId);
-    if (tee) memberTeeTimeById.set(p.tripMemberId, tee);
+
+  const teeTimeIds = allTeeTimes.map((t) => t.id);
+  const rosterRows =
+    teeTimeIds.length && allMemberIds.length
+      ? await db
+          .select()
+          .from(teeTimeParticipants)
+          .where(inArray(teeTimeParticipants.teeTimeId, teeTimeIds))
+      : [];
+  for (const r of rosterRows) {
+    if (!memberTeeTimeById.has(r.tripMemberId)) continue;
+    memberTeeTimeById.set(r.tripMemberId, r.teeTimeId);
+  }
+
+  // Legacy fallback: anyone the roster doesn't cover gets the tee time of
+  // a match they're already in.
+  const uncovered = members.filter((m) => !memberTeeTimeById.get(m.id));
+  if (uncovered.length) {
+    const existingMatches = await db
+      .select({ matchId: matches.id, teeTimeId: matches.teeTimeId })
+      .from(matches)
+      .where(eq(matches.roundId, roundId));
+    const matchIds = existingMatches.map((m) => m.matchId);
+    const participantRows = matchIds.length
+      ? await db
+          .select()
+          .from(matchParticipants)
+          .where(inArray(matchParticipants.matchId, matchIds))
+      : [];
+    const matchToTee = new Map(
+      existingMatches.map((m) => [m.matchId, m.teeTimeId]),
+    );
+    for (const p of participantRows) {
+      if (!memberTeeTimeById.has(p.tripMemberId)) continue;
+      if (memberTeeTimeById.get(p.tripMemberId)) continue; // first wins
+      const tee = matchToTee.get(p.matchId);
+      if (tee) memberTeeTimeById.set(p.tripMemberId, tee);
+    }
   }
 
   const memberTeamById = new Map<string, string>();
