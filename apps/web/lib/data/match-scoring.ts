@@ -253,16 +253,22 @@ export async function getMatchScoringData(
         const side = sideByTeam.get(team.id);
         if (!side) return null;
         const teammates = participants.filter((p) => p.team.id === team.id);
-        // Defensive: team formats require exactly 2 per side. If misconfigured,
-        // fall back so the engine can still produce SOMETHING instead of
-        // throwing — the score-entry UI also blocks this state up-front.
         const handicaps = teammates.map((p) =>
           p.participant.tripHandicap ? Number(p.participant.tripHandicap) : 18,
         );
-        const handicap =
-          handicaps.length === 2
-            ? computeTeamHandicap(handicaps, fmt)
-            : handicaps[0] ?? 18;
+        // Use the real allowance for whatever the side size is. This used
+        // to call the engine ONLY for 2-player sides and otherwise fall
+        // back to handicaps[0] — so a 4-man scramble was scored off the
+        // first player's handicap while the engine's four-man formula
+        // (0.25/0.20/0.15/0.10) sat unused.
+        let handicap: number;
+        try {
+          handicap = computeTeamHandicap(handicaps, fmt);
+        } catch {
+          // Genuinely misconfigured side size — still produce something
+          // rather than throwing; score entry blocks this state up front.
+          handicap = handicaps[0] ?? 18;
+        }
         return { id: team.id, side, handicap };
       })
       .filter((t): t is EngineTeam => t !== null);

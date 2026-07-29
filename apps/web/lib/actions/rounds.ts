@@ -4,7 +4,13 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { rounds, courses, courseTees, matches } from '@/db/schema';
+import {
+  courseTees,
+  courses,
+  matches,
+  roundFormatEnum,
+  rounds,
+} from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
   AuthorizationError,
@@ -16,14 +22,15 @@ import { tripWallTimeToDate } from '@/lib/trip-time';
 import type { AuthContext } from '@/lib/auth/current-user';
 import { resolveRedirect } from '@/lib/actions/wizard-redirect';
 
-type RoundFormat = 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate';
-const VALID_FORMATS: ReadonlySet<RoundFormat> = new Set([
-  'best_ball',
-  'singles',
-  'scramble',
-  'stroke',
-  'two_man_aggregate',
-]);
+// Derived from the DB enum, not hand-listed. The old copy was missing
+// thirty_ball and bingo_bango_bongo — both valid enum values and both
+// buildable as matches — so a round could never be set to the format it
+// was actually playing. A third hand-maintained list is what let that
+// drift in the first place.
+type RoundFormat = (typeof roundFormatEnum.enumValues)[number];
+const VALID_FORMATS: ReadonlySet<RoundFormat> = new Set(
+  roundFormatEnum.enumValues,
+);
 
 function requireRoundAdmin(ctx: AuthContext, tripId: string): void {
   if (isPlatformAdmin(ctx)) return;

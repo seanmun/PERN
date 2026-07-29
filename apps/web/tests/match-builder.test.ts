@@ -263,3 +263,53 @@ describe('canDropOnSide', () => {
     expect(canDropOnSide(state, makeCtx(), 'A', PLAYERS.A3.id)).toBe(true);
   });
 });
+
+describe('Bingo Bango Bongo — whole group must share a foursome', () => {
+  // Points are awarded per hole by the group watching each other play, so
+  // sides in different foursomes is not "unusual", it's unplayable. The
+  // per-side rule alone allowed it.
+  const ctx: BuilderContext = {
+    memberTeamById: new Map([
+      ['a1', 'teamA'], ['a2', 'teamA'], ['b1', 'teamB'], ['b2', 'teamB'],
+    ]),
+    memberTeeTimeById: new Map([
+      ['a1', 'tee1'], ['a2', 'tee1'], ['b1', 'tee2'], ['b2', 'tee2'],
+    ]),
+  };
+
+  const split: BuilderState = {
+    format: 'bingo_bango_bongo',
+    sideSize: 2,
+    sideATeamId: 'teamA',
+    sideBTeamId: 'teamB',
+    sideAPlayerIds: ['a1', 'a2'],
+    sideBPlayerIds: ['b1', 'b2'],
+  };
+
+  it('rejects two sides sitting in different foursomes', () => {
+    const result = validateBuilderState(split, ctx);
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(' ')).toMatch(/same foursome/i);
+  });
+
+  it('accepts it once everyone shares one foursome', () => {
+    const together: BuilderContext = {
+      ...ctx,
+      memberTeeTimeById: new Map([
+        ['a1', 'tee1'], ['a2', 'tee1'], ['b1', 'tee1'], ['b2', 'tee1'],
+      ]),
+    };
+    expect(validateBuilderState(split, together).ok).toBe(true);
+  });
+
+  it('greys out a drop from another foursome while dragging', () => {
+    const partial: BuilderState = { ...split, sideBPlayerIds: [null, null] };
+    // b1 is in tee2; a1/a2 already in the match are in tee1.
+    expect(canDropOnSide(partial, ctx, 'B', 'b1')).toBe(false);
+  });
+
+  it('still allows a scramble to be foursome 1 vs foursome 2', () => {
+    const scramble: BuilderState = { ...split, format: 'scramble' };
+    expect(validateBuilderState(scramble, ctx).ok).toBe(true);
+  });
+});

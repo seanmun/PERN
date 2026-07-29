@@ -5,13 +5,14 @@ import { redirect } from 'next/navigation';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
-  matches,
   matchParticipants,
+  matches,
+  roundFormatEnum,
   rounds,
-  teeTimes,
-  teeTimeParticipants,
-  tripMembers,
   teams,
+  teeTimeParticipants,
+  teeTimes,
+  tripMembers,
 } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import {
@@ -68,14 +69,11 @@ function requireMatchAdmin(ctx: AuthContext, tripId: string): void {
   throw new AuthorizationError('Trip admin required to edit matches');
 }
 
-type RoundFormat = 'best_ball' | 'singles' | 'scramble' | 'stroke' | 'two_man_aggregate';
-const VALID_FORMATS: ReadonlySet<RoundFormat> = new Set<RoundFormat>([
-  'best_ball',
-  'singles',
-  'scramble',
-  'stroke',
-  'two_man_aggregate',
-]);
+// Derived from the DB enum — see the note in rounds.ts.
+type RoundFormat = (typeof roundFormatEnum.enumValues)[number];
+const VALID_FORMATS: ReadonlySet<RoundFormat> = new Set<RoundFormat>(
+  roundFormatEnum.enumValues,
+);
 
 function parseFormat(v: FormDataEntryValue | null): RoundFormat | null {
   if (v == null) return null;

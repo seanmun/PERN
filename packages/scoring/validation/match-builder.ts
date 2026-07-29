@@ -159,6 +159,22 @@ export function validateBuilderState(
     }
   }
 
+  // Whole-match constraint. The per-side rule above still allows Side A in
+  // one foursome and Side B in another — fine for a scramble, impossible
+  // for a game the group judges hole by hole while watching each other.
+  if (meta.requiresSingleFoursome) {
+    const allTees = new Set(
+      [...aFilled, ...bFilled]
+        .map((id) => ctx.memberTeeTimeById.get(id))
+        .filter((t): t is string => !!t),
+    );
+    if (allTees.size > 1) {
+      errors.push(
+        `${meta.label} is decided by the group watching each other play — every player must be in the same foursome.`,
+      );
+    }
+  }
+
   return { ok: errors.length === 0, errors };
 }
 
@@ -208,8 +224,14 @@ export function canDropOnSide(
   const targetTee = ctx.memberTeeTimeById.get(tripMemberId);
   if (!targetTee) return true; // player has no tee time — let the save-time validator yell
 
-  const sidePlayers =
-    side === 'A' ? state.sideAPlayerIds : state.sideBPlayerIds;
+  // For whole-group formats the incumbents to match against are everyone
+  // already in the match, not just this side — otherwise the UI happily
+  // accepts a drop it will reject at save time.
+  const sidePlayers = meta.requiresSingleFoursome
+    ? [...state.sideAPlayerIds, ...state.sideBPlayerIds]
+    : side === 'A'
+      ? state.sideAPlayerIds
+      : state.sideBPlayerIds;
   const existingTees = sidePlayers
     .filter((id): id is string => !!id && id !== tripMemberId)
     .map((id) => ctx.memberTeeTimeById.get(id))

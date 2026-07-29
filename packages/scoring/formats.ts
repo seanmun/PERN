@@ -35,6 +35,11 @@ export type FormatMeta = {
   // tee time. This is what lets a 4-man scramble be Foursome 1 vs
   // Foursome 2, while a 1v1 singles can pull from anywhere.
   requiresSameFoursomePerSide: boolean;
+  // Stronger than the per-side rule: EVERY player in the match must share
+  // one tee time. Only true for games decided by watching each other play,
+  // where the two sides being in different groups is physically impossible
+  // rather than merely unusual.
+  requiresSingleFoursome: boolean;
   // How scores are recorded for this format:
   //   'individual' — each player records their own gross per hole.
   //                  Result is computed by the engine (best of N, sum, etc).
@@ -49,6 +54,7 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
     label: 'Singles',
     allowedSideSizes: [1],
     requiresSameFoursomePerSide: false,
+    requiresSingleFoursome: false,
     inputMode: 'individual',
   },
   best_ball: {
@@ -56,6 +62,7 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
     label: 'Best Ball',
     allowedSideSizes: [2, 3, 4],
     requiresSameFoursomePerSide: false,
+    requiresSingleFoursome: false,
     inputMode: 'individual',
   },
   two_man_aggregate: {
@@ -63,6 +70,7 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
     label: 'Two-Man Aggregate',
     allowedSideSizes: [2],
     requiresSameFoursomePerSide: true,
+    requiresSingleFoursome: false,
     inputMode: 'individual',
   },
   scramble: {
@@ -70,6 +78,7 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
     label: 'Scramble',
     allowedSideSizes: [2, 3, 4],
     requiresSameFoursomePerSide: true,
+    requiresSingleFoursome: false,
     inputMode: 'team',
   },
   alternate_shot: {
@@ -77,6 +86,7 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
     label: 'Alternate Shot',
     allowedSideSizes: [2],
     requiresSameFoursomePerSide: true,
+    requiresSingleFoursome: false,
     inputMode: 'team',
   },
   stroke: {
@@ -84,6 +94,7 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
     label: 'Stroke Play',
     allowedSideSizes: [1, 2, 3, 4],
     requiresSameFoursomePerSide: false,
+    requiresSingleFoursome: false,
     inputMode: 'individual',
   },
   thirty_ball: {
@@ -97,6 +108,7 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
     // stroke-play engines the other formats share.
     allowedSideSizes: [3],
     requiresSameFoursomePerSide: true,
+    requiresSingleFoursome: false,
     inputMode: 'individual',
   },
   bingo_bango_bongo: {
@@ -110,6 +122,9 @@ export const FORMAT_META: Record<FormatId, FormatMeta> = {
     // resolution, not the generic engines.
     allowedSideSizes: [1, 2],
     requiresSameFoursomePerSide: true,
+    // Points are awarded per hole by the group watching the shots, so a
+    // match split across two foursomes cannot be played at all.
+    requiresSingleFoursome: true,
     inputMode: 'individual',
   },
 };
@@ -130,6 +145,10 @@ export function isIndividualInput(id: FormatId): boolean {
 
 export function requiresSameFoursomePerSide(id: FormatId): boolean {
   return FORMAT_META[id].requiresSameFoursomePerSide;
+}
+
+export function requiresSingleFoursome(id: FormatId): boolean {
+  return FORMAT_META[id].requiresSingleFoursome;
 }
 
 export function isSideSizeAllowed(id: FormatId, size: number): boolean {

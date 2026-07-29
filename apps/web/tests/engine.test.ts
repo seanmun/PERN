@@ -527,10 +527,12 @@ describe('computeTeamHandicap — USGA team formulas', () => {
     expect(computeTeamHandicap([10, 20], 'alternate_shot')).toBe(15);
   });
 
-  it('scramble with 1, 3, or 5 players → throws', () => {
+  // 3 is a side size the registry allows and the builder offers, so it
+  // must compute rather than throw. 1 and 5 are not offered anywhere.
+  it('scramble with 1 or 5 players → throws; 3 is supported', () => {
     expect(() => computeTeamHandicap([10], 'scramble')).toThrow();
-    expect(() => computeTeamHandicap([10, 12, 14], 'scramble')).toThrow();
     expect(() => computeTeamHandicap([10, 12, 14, 16, 18], 'scramble')).toThrow();
+    expect(() => computeTeamHandicap([10, 12, 14], 'scramble')).not.toThrow();
   });
 
   it('alternate_shot with anything ≠ 2 → throws', () => {
@@ -802,5 +804,31 @@ describe('DEFAULT_STABLEFORD_POINTS', () => {
       bogey: 1,
       doublePlus: 0,
     });
+  });
+});
+
+describe('computeTeamHandicap — scramble side sizes offered by the builder', () => {
+  // The registry allows scramble sides of 2, 3 and 4. Every allowed size
+  // must have a formula, or the builder offers a match that can't score.
+  it('supports a 3-man side (30/20/10)', () => {
+    // 10, 20, 30 → 3.0 + 4.0 + 3.0 = 10.0
+    expect(computeTeamHandicap([30, 10, 20], 'scramble')).toBe(10);
+  });
+
+  it('supports a 4-man side (25/20/15/10)', () => {
+    // 8, 12, 16, 24 → 2.0 + 2.4 + 2.4 + 2.4 = 9.2
+    expect(computeTeamHandicap([24, 8, 16, 12], 'scramble')).toBe(9.2);
+  });
+
+  it('weights the lowest handicap heaviest regardless of input order', () => {
+    const a = computeTeamHandicap([5, 25, 15], 'scramble');
+    const b = computeTeamHandicap([25, 15, 5], 'scramble');
+    expect(a).toBe(b);
+    // Lowest man carries the most weight, so the team number sits nearer him.
+    expect(a).toBeLessThan(15);
+  });
+
+  it('still rejects a side size no allowance table covers', () => {
+    expect(() => computeTeamHandicap([10, 12, 14, 16, 18], 'scramble')).toThrow();
   });
 });

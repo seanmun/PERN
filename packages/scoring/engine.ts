@@ -856,7 +856,7 @@ export type TeamInputFormat = 'scramble' | 'alternate_shot';
  *    two full handicaps. Always 2 players per side — there's no widely used
  *    multi-player alt-shot format.
  *
- * Rounds to one decimal at the end. Scramble accepts 2 or 4 player teams;
+ * Rounds to one decimal at the end. Scramble accepts 2, 3 or 4 player teams;
  * alternate_shot requires exactly 2. Anything else throws.
  */
 export function computeTeamHandicap(
@@ -872,10 +872,17 @@ export function computeTeamHandicap(
     const [a, b] = playerHandicaps;
     return Math.round(0.5 * (a + b) * 10) / 10;
   }
-  // scramble
+  // scramble — USGA allowance tables, lowest handicap weighted heaviest
   const sorted = [...playerHandicaps].sort((a, b) => a - b);
   if (sorted.length === 2) {
     return Math.round((0.35 * sorted[0] + 0.15 * sorted[1]) * 10) / 10;
+  }
+  if (sorted.length === 3) {
+    // 3-man was an allowed side size with no formula behind it, so the
+    // builder offered it and scoring then threw.
+    return Math.round(
+      (0.30 * sorted[0] + 0.20 * sorted[1] + 0.10 * sorted[2]) * 10,
+    ) / 10;
   }
   if (sorted.length === 4) {
     return Math.round(
@@ -883,7 +890,7 @@ export function computeTeamHandicap(
     ) / 10;
   }
   throw new Error(
-    `Scramble team handicap requires 2 or 4 players (got ${sorted.length}).`,
+    `Scramble team handicap requires 2, 3 or 4 players (got ${sorted.length}).`,
   );
 }
 
