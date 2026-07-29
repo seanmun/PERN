@@ -7,6 +7,7 @@ import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissi
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
 import ReviewStepClient from '@/components/admin/EventWizard/ReviewStepClient';
 import { formatTripDateShort } from '@/lib/format';
+import Link from 'next/link';
 
 export default async function SetupReviewPage({
   params,
@@ -89,12 +90,12 @@ export default async function SetupReviewPage({
         />
 
         <div className="mt-8 border-t border-zinc-200 dark:border-zinc-900 pt-6">
-          <a
+          <Link
             href={`/trips/${slug}/setup/matches`}
             className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 hover:text-zinc-300"
           >
             ← Matches
-          </a>
+          </Link>
         </div>
       </div>
     </div>

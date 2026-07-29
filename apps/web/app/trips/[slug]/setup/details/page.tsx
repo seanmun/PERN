@@ -4,6 +4,7 @@ import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissi
 import { updateTrip } from '@/lib/actions/trips';
 import ImagePickerInput from '@/components/ImagePickerInput';
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
+import Link from 'next/link';
 
 /**
  * Details tab of the event-settings surface — the post-creation
@@ -137,12 +138,12 @@ export default async function SetupDetailsPage({
             >
               Save details
             </button>
-            <a
+            <Link
               href={`/trips/${slug}/setup/players`}
               className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 hover:text-zinc-300"
             >
               Players →
-            </a>
+            </Link>
           </div>
         </form>
       </div>

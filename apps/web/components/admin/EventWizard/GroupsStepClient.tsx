@@ -251,6 +251,9 @@ export default function GroupsStepClient({
     }
 
     for (const m of members) move(m.id, next[m.id]);
+    // Bulk fill saves NOW, not on a timer — a queued save died silently
+    // if the user clicked straight through to the next step.
+    void flush();
     if (seated < members.length) {
       setNotice(
         `${members.length - seated} player${members.length - seated === 1 ? '' : 's'} left unassigned — add another group.`,

@@ -6,6 +6,7 @@ import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
 import TeamsStepClient from '@/components/admin/EventWizard/TeamsStepClient';
+import Link from 'next/link';
 
 export default async function SetupTeamsPage({
   params,
@@ -52,18 +53,18 @@ export default async function SetupTeamsPage({
         <TeamsStepClient teams={tripTeams} members={members} />
 
         <div className="mt-8 flex items-center justify-between border-t border-zinc-200 dark:border-zinc-900 pt-6">
-          <a
+          <Link
             href={`/trips/${slug}/setup/players`}
             className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 hover:text-zinc-300"
           >
             ← Players
-          </a>
-          <a
+          </Link>
+          <Link
             href={`/trips/${slug}/setup/groups`}
             className="rounded-sm bg-yellow-500 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.4)] hover:bg-yellow-400"
           >
             Groups →
-          </a>
+          </Link>
         </div>
       </div>
     </div>

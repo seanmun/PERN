@@ -15,6 +15,7 @@ import { createRound } from '@/lib/actions/rounds';
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
 import GroupsStepClient from '@/components/admin/EventWizard/GroupsStepClient';
 import { FORMAT_META, type FormatId } from '@buddycup/scoring/formats';
+import Link from 'next/link';
 
 const inputCls =
   'mt-1.5 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
@@ -97,18 +98,18 @@ export default async function SetupGroupsPage({
         />
 
         <div className="mt-8 flex items-center justify-between border-t border-zinc-200 dark:border-zinc-900 pt-6">
-          <a
+          <Link
             href={`/trips/${slug}/setup/teams`}
             className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 hover:text-zinc-300"
           >
             ← Teams
-          </a>
-          <a
+          </Link>
+          <Link
             href={`/trips/${slug}/setup/matches`}
             className="rounded-sm bg-yellow-500 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.4)] hover:bg-yellow-400"
           >
             Matches →
-          </a>
+          </Link>
         </div>
       </div>
     </div>
@@ -187,12 +188,12 @@ async function RoundBlock({
           </p>
           <p className="mt-0.5 text-sm font-semibold">{courseName}</p>
         </div>
-        <a
+        <Link
           href={`/trips/${tripSlug}/admin/rounds/${round.id}/edit`}
           className="shrink-0 rounded-sm border border-zinc-400 dark:border-zinc-700 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:border-yellow-500/40 hover:text-yellow-400"
         >
           Edit round
-        </a>
+        </Link>
       </div>
 
       <div className="p-4">

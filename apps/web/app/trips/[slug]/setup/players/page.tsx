@@ -7,6 +7,7 @@ import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissi
 import { getBuddies } from '@/lib/data/buddies';
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
 import PlayersStepClient from '@/components/admin/EventWizard/PlayersStepClient';
+import Link from 'next/link';
 
 export default async function SetupPlayersPage({
   params,
@@ -61,18 +62,18 @@ export default async function SetupPlayersPage({
         />
 
         <div className="mt-8 flex items-center justify-between border-t border-zinc-200 dark:border-zinc-900 pt-6">
-          <a
+          <Link
             href={`/trips/${slug}/setup/details`}
             className="font-mono text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500 hover:text-zinc-300"
           >
             ← Details
-          </a>
-          <a
+          </Link>
+          <Link
             href={`/trips/${slug}/setup/teams`}
             className="rounded-sm bg-yellow-500 px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.4)] hover:bg-yellow-400"
           >
             Teams →
-          </a>
+          </Link>
         </div>
       </div>
     </div>
