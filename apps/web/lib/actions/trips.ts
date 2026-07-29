@@ -14,8 +14,8 @@ import {
   users,
 } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
-import { getTripAuthContext } from '@/lib/auth/trip-context';
-import { AuthorizationError, canEditTrip } from '@/lib/auth/permissions';
+import { getTripAuthContext, getTripSlugById } from '@/lib/auth/trip-context';
+import { AuthorizationError, canEditTrip, requireAuth } from '@/lib/auth/permissions';
 import { slugifyTripName } from '@/lib/slug';
 import { resolveRedirect } from '@/lib/actions/wizard-redirect';
 import { tripWallTimeToDate } from '@/lib/trip-time';
@@ -257,4 +257,38 @@ export async function updateTrip(formData: FormData): Promise<void> {
   revalidatePath('/home');
   revalidatePath(`/trips/${existing.slug}`, 'layout');
   redirect(`/trips/${existing.slug}/setup/details`);
+}
+
+/**
+ * Archive: hide the event from home without deleting anything — scores,
+ * roster and history all stay, and unarchive restores it as it was.
+ * Allowed for the trip's admins (the creator is one) and platform admins.
+ */
+export async function archiveTrip(formData: FormData): Promise<void> {
+  await setArchived(formData, new Date());
+  redirect('/home');
+}
+
+export async function unarchiveTrip(formData: FormData): Promise<void> {
+  await setArchived(formData, null);
+}
+
+async function setArchived(formData: FormData, value: Date | null): Promise<void> {
+  const id = trim(formData.get('tripId'));
+  if (!id) throw new Error('tripId required');
+
+  const ctx = await getTripAuthContext(id);
+  requireAuth(ctx);
+  if (!canEditTrip(ctx, id)) {
+    throw new AuthorizationError('Trip admin required');
+  }
+
+  await db
+    .update(trips)
+    .set({ archivedAt: value })
+    .where(eq(trips.id, id));
+
+  const tripSlug = await getTripSlugById(id);
+  revalidatePath('/home');
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
 }

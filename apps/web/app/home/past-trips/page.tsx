@@ -24,6 +24,7 @@ export default async function PastTripsPage() {
       tripImageUrl: trips.imageUrl,
       startDate: trips.startDate,
       endDate: trips.endDate,
+      archivedAt: trips.archivedAt,
     })
     .from(tripMembers)
     .innerJoin(trips, eq(tripMembers.tripId, trips.id))
@@ -32,6 +33,8 @@ export default async function PastTripsPage() {
 
   const today = getTripLocalToday();
   const past = memberships
+    // Archived events live in home's Archived section, not here.
+    .filter((m) => !m.archivedAt)
     .filter((m) => m.endDate && m.endDate < today)
     .sort((a, b) => b.endDate!.getTime() - a.endDate!.getTime());
 

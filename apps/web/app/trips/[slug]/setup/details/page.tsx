@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { updateTrip } from '@/lib/actions/trips';
+import ArchiveTripButton from '@/components/admin/ArchiveTripButton';
 import ImagePickerInput from '@/components/ImagePickerInput';
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
 import Link from 'next/link';
@@ -146,6 +147,17 @@ export default async function SetupDetailsPage({
             </Link>
           </div>
         </form>
+
+        <div className="mt-10 border-t border-zinc-200 dark:border-zinc-900 pt-6">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
+            Housekeeping
+          </p>
+          <p className="mt-1.5 mb-3 text-[12px] text-zinc-500">
+            Archiving hides this event from home. Nothing is deleted, and you
+            can restore it from home&apos;s Archived section anytime.
+          </p>
+          <ArchiveTripButton tripId={trip.id} tripName={trip.name} />
+        </div>
       </div>
     </div>
   );

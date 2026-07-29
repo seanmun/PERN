@@ -39,7 +39,7 @@ Data-model reference. **The source of truth is [`apps/web/db/schema.ts`](../apps
 
 ### Trip-scoped
 
-- **`trips`** — `slug` (unique), name, `kind` (trip/outing/match), dates, description, image, `defaultHandicapMethod`, createdBy.
+- **`trips`** — `slug` (unique), name, `kind` (trip/outing/match), dates, description, image, `defaultHandicapMethod`, `archivedAt` (null = live; set = hidden from home, restorable), createdBy.
 - **`teams`** — name, color, `captainUserId`.
 - **`trip_members`** — the roster. Nullable `userId` (lazy-claim: shell rows claim on first matching login) and nullable `email` (shell players). Nickname, avatar, `role`, `isCaptain`, `tripHandicap`, scouting report, flight details.
 - **`trip_events`** — non-golf itinerary (meals, flights, hotels). Type, title, location, address, start/end.

@@ -129,6 +129,8 @@ export const trips = pgTable('trips', {
   defaultHandicapMethod: handicapMethodEnum('default_handicap_method')
     .default('group_low')
     .notNull(),
+  // Archived events hide from home (restorable; nothing deleted).
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

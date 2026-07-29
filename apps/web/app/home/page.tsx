@@ -8,6 +8,7 @@ import { trips, tripMembers } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import { claimTripMember, listClaimableSlots } from '@/lib/actions/claim';
 import SignOutLink from '@/components/SignOutLink';
+import ArchivedTripsList from '@/components/trips/ArchivedTripsList';
 import { tripWallTimeToDate, tripLocalToday } from '@/lib/trip-time';
 
 export default async function GlobalMePage() {
@@ -29,6 +30,7 @@ export default async function GlobalMePage() {
       tripImageUrl: trips.imageUrl,
       startDate: trips.startDate,
       endDate: trips.endDate,
+      archivedAt: trips.archivedAt,
     })
     .from(tripMembers)
     .innerJoin(trips, eq(tripMembers.tripId, trips.id))
@@ -39,10 +41,14 @@ export default async function GlobalMePage() {
   // (endDate strictly before today, trip-TZ). Trips without an endDate are
   // treated as current — they're not over yet.
   const today = getTripLocalToday();
-  const currentMemberships = memberships.filter(
+  // Archived events leave both lists; they live in their own collapsed
+  // section below with one-tap restore. Nothing is deleted.
+  const archivedMemberships = memberships.filter((m) => m.archivedAt);
+  const liveMemberships = memberships.filter((m) => !m.archivedAt);
+  const currentMemberships = liveMemberships.filter(
     (m) => !m.endDate || m.endDate >= today
   );
-  const pastMemberships = memberships
+  const pastMemberships = liveMemberships
     .filter((m) => m.endDate && m.endDate < today)
     // Most-recent past trip first.
     .sort((a, b) => (b.endDate!.getTime() - a.endDate!.getTime()));
@@ -264,6 +270,13 @@ export default async function GlobalMePage() {
             </div>
           </div>
         )}
+
+        <ArchivedTripsList
+          trips={archivedMemberships.map((m) => ({
+            tripId: m.tripId,
+            tripName: m.tripName,
+          }))}
+        />
 
         {isPlatformAdmin && otherTrips.length > 0 && (
           <>
