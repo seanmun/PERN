@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { teeTimes, rounds, teeTimeParticipants, tripMembers } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
@@ -55,10 +55,24 @@ export async function createTeeTime(formData: FormData): Promise<void> {
 
   requireTeeTimeAdmin(ctx, round.tripId);
 
+  // Group number defaults to the next free one — the app knows it, so
+  // the form no longer asks. An explicit number is still accepted.
+  const rawGroup = String(formData.get('groupNumber') ?? '').trim();
+  let groupNumber: number;
+  if (rawGroup) {
+    groupNumber = parseGroup(rawGroup);
+  } else {
+    const [top] = await db
+      .select({ n: sql<number>`coalesce(max(${teeTimes.groupNumber}), 0)::int` })
+      .from(teeTimes)
+      .where(eq(teeTimes.roundId, roundId));
+    groupNumber = (top?.n ?? 0) + 1;
+  }
+
   await db.insert(teeTimes).values({
     roundId,
     time: parseWallTime(formData.get('time')),
-    groupNumber: parseGroup(formData.get('groupNumber')),
+    groupNumber,
   });
 
   const tripSlug = await getTripSlugById(round.tripId);
@@ -134,8 +148,9 @@ export async function updateTeeTimeField(formData: FormData): Promise<void> {
   const patch: Partial<typeof teeTimes.$inferInsert> = {};
   switch (field) {
     case 'time': {
+      // Empty clears it — tee times are optional until the sheet is set;
+      // the schedule shows the group as "Time TBD" meanwhile.
       const d = parseWallTime(raw);
-      if (!d) throw new Error('Time required');
       patch.time = d;
       break;
     }

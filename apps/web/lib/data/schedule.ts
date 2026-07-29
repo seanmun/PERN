@@ -38,6 +38,9 @@ export type ScheduleMatch = Match & {
 export type GolfItem = {
   kind: 'golf';
   startTime: Date;
+  // The group has no tee time set yet — startTime is a sort-only stand-in
+  // (round date at noon) and the UI shows "TBD" instead of a clock time.
+  timeTbd: boolean;
   teeTime: TeeTime;
   round: Round;
   course: Course;
@@ -161,30 +164,31 @@ export async function getScheduleByDay(tripId: string): Promise<ScheduleDay[]> {
     matchesByTeeTime.set(m.teeTimeId, list);
   }
 
-  const golfItems: GolfItem[] = teeTimesList
-    .filter((tt) => tt.time)
-    .map((tt) => {
-      const r = roundsById.get(tt.roundId)!;
-      return {
-        kind: 'golf' as const,
-        startTime: tt.time!,
-        teeTime: tt,
-        round: r.round,
-        course: r.course,
-        matches: matchesByTeeTime.get(tt.id) ?? [],
-      };
-    });
+  // A group with no time still renders — as "Time TBD", sorted into its
+  // round's day at noon (epoch when the round is undated too). Dropping
+  // them made an event with groups-but-no-times look completely empty.
+  const golfItems: GolfItem[] = teeTimesList.map((tt) => {
+    const r = roundsById.get(tt.roundId)!;
+    const fallback = r.round.date
+      ? new Date(r.round.date.getTime() + 12 * 60 * 60 * 1000)
+      : new Date(0);
+    return {
+      kind: 'golf' as const,
+      startTime: tt.time ?? fallback,
+      timeTbd: !tt.time,
+      teeTime: tt,
+      round: r.round,
+      course: r.course,
+      matches: matchesByTeeTime.get(tt.id) ?? [],
+    };
+  });
 
   // Surface rounds that have been created but don't have any tee times yet,
   // otherwise an admin sees an empty schedule after creating a round.
   //
-  // Counts only tee times that actually render above (i.e. have a time).
-  // Counting timeless ones dropped the round from BOTH lists — golfItems
-  // filters them out, and the round no longer looked "empty" — so a round
-  // whose groups exist but whose times aren't set yet vanished entirely.
-  const roundIdsWithTeeTimes = new Set(
-    teeTimesList.filter((tt) => tt.time).map((tt) => tt.roundId),
-  );
+  // Timeless tee times render above as "Time TBD" golf items, so any
+  // tee time at all means the round is not empty.
+  const roundIdsWithTeeTimes = new Set(teeTimesList.map((tt) => tt.roundId));
   const emptyRoundItems: EmptyRoundItem[] = visibleRounds
     .filter((r) => !roundIdsWithTeeTimes.has(r.round.id))
     .map((r) => ({

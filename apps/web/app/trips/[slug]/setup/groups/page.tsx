@@ -12,8 +12,8 @@ import {
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import { createRound } from '@/lib/actions/rounds';
-import { createTeeTime, updateTeeTimeRoster } from '@/lib/actions/tee-times';
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
+import GroupsStepClient from '@/components/admin/EventWizard/GroupsStepClient';
 
 const inputCls =
   'mt-1.5 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
@@ -25,6 +25,26 @@ const TRIP_TZ = 'America/New_York';
 function toDateInputValue(d: Date | null): string {
   if (!d) return '';
   return new Intl.DateTimeFormat('en-CA', { timeZone: TRIP_TZ }).format(d);
+}
+
+/** Date → "YYYY-MM-DDTHH:MM" on the trip's wall clock, for datetime-local. */
+function toDateTimeLocal(d: Date | null): string | null {
+  if (!d) return null;
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: TRIP_TZ,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+      .formatToParts(d)
+      .map((x) => [x.type, x.value]),
+  );
+  const hour = parts.hour === '24' ? '00' : parts.hour;
+  return `${parts.year}-${parts.month}-${parts.day}T${hour}:${parts.minute}`;
 }
 
 export default async function SetupGroupsPage({
@@ -111,6 +131,51 @@ async function RoundBlock({
     .where(eq(teeTimes.roundId, round.id))
     .orderBy(asc(teeTimes.groupNumber));
 
+  const tripTeams = await db
+    .select()
+    .from(teams)
+    .where(eq(teams.tripId, tripId))
+    .orderBy(asc(teams.name));
+  const teamById = new Map(tripTeams.map((t) => [t.id, t]));
+
+  const allMembers = await db
+    .select()
+    .from(tripMembers)
+    .where(eq(tripMembers.tripId, tripId))
+    .orderBy(asc(tripMembers.nickname));
+
+  const rosterRows = roundTeeTimes.length
+    ? await db
+        .select()
+        .from(teeTimeParticipants)
+        .where(
+          inArray(
+            teeTimeParticipants.teeTimeId,
+            roundTeeTimes.map((t) => t.id),
+          ),
+        )
+    : [];
+  const assignByMember: Record<string, string | null> = {};
+  for (const m of allMembers) assignByMember[m.id] = null;
+  for (const r of rosterRows) assignByMember[r.tripMemberId] = r.teeTimeId;
+
+  const clientGroups = roundTeeTimes.map((tt) => ({
+    id: tt.id,
+    groupNumber: tt.groupNumber,
+    timeLocal: toDateTimeLocal(tt.time),
+  }));
+  const clientMembers = allMembers.map((m) => {
+    const team = m.teamId ? teamById.get(m.teamId) ?? null : null;
+    return {
+      id: m.id,
+      nickname: m.nickname,
+      teamId: m.teamId,
+      teamName: team?.name ?? null,
+      teamColor: team?.color ?? null,
+      tripHandicap: m.tripHandicap,
+    };
+  });
+
   return (
     <section className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
       <div className="flex items-start justify-between gap-3 border-b border-zinc-200 dark:border-zinc-900 px-4 py-3">
@@ -128,121 +193,18 @@ async function RoundBlock({
         </a>
       </div>
 
-      <div className="space-y-4 p-4">
-        {roundTeeTimes.length === 0 && (
-          <p className="text-[13px] text-zinc-500">No groups yet — add one below.</p>
-        )}
-        {roundTeeTimes.map((tt) => (
-          <GroupRosterEditor key={tt.id} tripId={tripId} tripSlug={tripSlug} roundId={round.id} teeTime={tt} />
-        ))}
-
-        <form action={createTeeTime} className="flex items-end gap-2 border-t border-zinc-200 dark:border-zinc-900 pt-4">
-          <input type="hidden" name="roundId" value={round.id} />
-          <input type="hidden" name="redirectTo" value="none" />
-          <label className="flex-1">
-            <span className={labelCls}>Group #</span>
-            <input type="number" name="groupNumber" min={1} max={99} defaultValue={roundTeeTimes.length + 1} required className={inputCls} />
-          </label>
-          <label className="flex-1">
-            <span className={labelCls}>Tee time</span>
-            <input type="datetime-local" name="time" className={inputCls} />
-          </label>
-          <button
-            type="submit"
-            className="rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
-          >
-            + Group
-          </button>
-        </form>
+      <div className="p-4">
+        <GroupsStepClient
+          roundId={round.id}
+          groups={clientGroups}
+          members={clientMembers}
+          initialAssign={assignByMember}
+        />
       </div>
     </section>
   );
 }
 
-async function GroupRosterEditor({
-  tripId,
-  tripSlug,
-  roundId,
-  teeTime,
-}: {
-  tripId: string;
-  tripSlug: string;
-  roundId: string;
-  teeTime: typeof teeTimes.$inferSelect;
-}) {
-  void tripSlug;
-  const tripTeams = await db.select().from(teams).where(eq(teams.tripId, tripId)).orderBy(asc(teams.name));
-  const allMembers = tripTeams.length
-    ? await db
-        .select()
-        .from(tripMembers)
-        .where(inArray(tripMembers.teamId, tripTeams.map((t) => t.id)))
-        .orderBy(asc(tripMembers.nickname))
-    : [];
-
-  const existing = await db
-    .select({ tripMemberId: teeTimeParticipants.tripMemberId })
-    .from(teeTimeParticipants)
-    .where(eq(teeTimeParticipants.teeTimeId, teeTime.id));
-  const checked = new Set(existing.map((e) => e.tripMemberId));
-
-  // Players already rostered to a DIFFERENT tee time in the same round —
-  // greyed out + disabled so a group can't double-book someone (same
-  // rule as the classic per-tee-time roster editor).
-  const sisterTeeTimes = await db.select({ id: teeTimes.id }).from(teeTimes).where(eq(teeTimes.roundId, roundId));
-  const sisterIds = sisterTeeTimes.map((t) => t.id).filter((id) => id !== teeTime.id);
-  const elsewhereRows = sisterIds.length
-    ? await db
-        .select({ tripMemberId: teeTimeParticipants.tripMemberId })
-        .from(teeTimeParticipants)
-        .where(inArray(teeTimeParticipants.teeTimeId, sisterIds))
-    : [];
-  const elsewhere = new Set(elsewhereRows.map((r) => r.tripMemberId));
-
-  return (
-    <form action={updateTeeTimeRoster} className="rounded-sm border border-zinc-200 dark:border-zinc-900 bg-white dark:bg-black/30 p-3">
-      <input type="hidden" name="teeTimeId" value={teeTime.id} />
-      <input type="hidden" name="redirectTo" value="none" />
-      <div className="flex items-center justify-between">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-          Group {teeTime.groupNumber} · {checked.size}/4
-        </p>
-      </div>
-      <div className="mt-2 grid grid-cols-2 gap-1.5">
-        {allMembers.map((m) => {
-          const inOther = elsewhere.has(m.id);
-          return (
-            <label
-              key={m.id}
-              className={
-                inOther
-                  ? 'flex items-center gap-2 rounded-sm border border-zinc-200 dark:border-zinc-900 bg-zinc-100/60 dark:bg-zinc-950/20 px-2.5 py-1.5 text-sm opacity-40 cursor-not-allowed'
-                  : 'flex cursor-pointer items-center gap-2 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 px-2.5 py-1.5 text-sm hover:border-zinc-600 has-checked:border-yellow-500/60 has-checked:bg-yellow-500/10'
-              }
-              title={inOther ? 'Already in another group this round' : undefined}
-            >
-              <input
-                type="checkbox"
-                name="memberIds"
-                value={m.id}
-                defaultChecked={checked.has(m.id)}
-                disabled={inOther}
-                className="h-4 w-4 accent-yellow-500"
-              />
-              <span className="truncate">{m.nickname}</span>
-            </label>
-          );
-        })}
-      </div>
-      <button
-        type="submit"
-        className="mt-2 w-full rounded-sm bg-yellow-500 px-4 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-black hover:bg-yellow-400"
-      >
-        Save roster
-      </button>
-    </form>
-  );
-}
 
 function AddRoundForm({
   tripId,

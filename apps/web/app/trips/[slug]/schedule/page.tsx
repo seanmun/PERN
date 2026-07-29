@@ -45,6 +45,7 @@ export default async function TripSchedulePage({
         return {
           kind: 'golf',
           startTimeISO: item.startTime.toISOString(),
+          timeTbd: item.timeTbd,
           teeTimeId: item.teeTime.id,
           roundId: item.round.id,
           groupNumber: item.teeTime.groupNumber,

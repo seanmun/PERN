@@ -54,6 +54,7 @@ const MATCH_FORMAT_ORDER: Record<ClientMatch['format'], number> = {
 export type ClientGolfItem = {
   kind: 'golf';
   startTimeISO: string;
+  timeTbd?: boolean;
   teeTimeId: string;
   // Round the foursome belongs to. Used for "round-level" actions like
   // "+ Add cross-foursome match" which open the match builder scoped
@@ -498,7 +499,7 @@ function GolfRow({
   canEdit?: boolean;
   tripSlug: string;
 }) {
-  const time = formatTime(item.startTimeISO);
+  const time = item.timeTbd ? 'TBD' : formatTime(item.startTimeISO);
 
   // No matches yet — render placeholder card (e.g., R5 captain-pick, R6 scramble)
   if (item.matches.length === 0) {
