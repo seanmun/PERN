@@ -230,6 +230,7 @@ async function RoundMatchesBlock({
             redirectTo="none"
             teeHasSlopeRating={teeHasSlopeRating}
             defaultHandicapMethod={defaultHandicapMethod}
+            alreadyMatchedIds={participantRows.map((p) => p.tripMemberId)}
           />
         </div>
       </details>

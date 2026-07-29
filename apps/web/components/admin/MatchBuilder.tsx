@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -66,6 +66,7 @@ export default function MatchBuilder({
   redirectTo,
   teeHasSlopeRating = true,
   defaultHandicapMethod = 'group_low',
+  alreadyMatchedIds = [],
 }: {
   tripSlug: string;
   roundId: string;
@@ -84,6 +85,10 @@ export default function MatchBuilder({
   // Trip-level default (trips.default_handicap_method) — pre-selects
   // the Handicaps dropdown; admin can still override per match.
   defaultHandicapMethod?: 'group_low' | 'match_low' | 'course';
+  // Members already placed in a match in THIS round. Lets "Fill next
+  // pairing" advance through the roster instead of handing back the same
+  // two players every time.
+  alreadyMatchedIds?: string[];
 }) {
   const [format, setFormat] = useState<FormatId>(defaultFormat);
   const meta = FORMAT_META[format];
@@ -132,6 +137,58 @@ export default function MatchBuilder({
     () => Array(sideSize).fill(null),
   );
   const [activeDrag, setActiveDrag] = useState<string | null>(null);
+
+  // Carry the last match's settings into the next one. Building six
+  // singles matches meant re-answering format, side size, scoring, points
+  // and the stableford scale six times; nothing was remembered.
+  // Read after mount so the server-rendered markup matches.
+  const cfgKey = `buildercfg:${tripSlug}`;
+  const [cfgRestored, setCfgRestored] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(cfgKey);
+      if (raw) {
+        const c = JSON.parse(raw) as Partial<{
+          format: FormatId;
+          sideSize: number;
+          scoring: 'match_play' | 'stableford' | 'stroke';
+          handicapMethod: 'group_low' | 'match_low' | 'course';
+          matchPoints: { overall: number; front9: number; back9: number };
+          pts: typeof pts;
+        }>;
+        if (c.format && BUILDER_FORMATS.includes(c.format)) {
+          setFormat(c.format);
+          const allowed = FORMAT_META[c.format].allowedSideSizes;
+          const size =
+            c.sideSize && allowed.includes(c.sideSize)
+              ? c.sideSize
+              : allowed[0] ?? 1;
+          setSideSize(size);
+          setSideAPlayerIds(Array(size).fill(null));
+          setSideBPlayerIds(Array(size).fill(null));
+        }
+        if (c.scoring) setScoring(c.scoring);
+        if (c.handicapMethod) setHandicapMethod(c.handicapMethod);
+        if (c.matchPoints) setMatchPoints(c.matchPoints);
+        if (c.pts) setPts(c.pts);
+      }
+    } catch {
+      // Corrupt or unavailable storage just means "use the defaults".
+    }
+    setCfgRestored(true);
+  }, [cfgKey]);
+
+  useEffect(() => {
+    if (!cfgRestored) return;
+    try {
+      localStorage.setItem(
+        cfgKey,
+        JSON.stringify({ format, sideSize, scoring, handicapMethod, matchPoints, pts }),
+      );
+    } catch {
+      // Non-fatal — the builder still works, it just won't remember.
+    }
+  }, [cfgRestored, cfgKey, format, sideSize, scoring, handicapMethod, matchPoints, pts]);
 
   // Re-init slot arrays when sideSize changes — preserve existing
   // selections up to the new size, drop overflow.
@@ -198,6 +255,24 @@ export default function MatchBuilder({
       (id): id is string => !!id,
     ),
   );
+
+  // Next unplaced players per side: not already in a match this round,
+  // and not already dropped into a slot right now.
+  const matchedSet = new Set(alreadyMatchedIds);
+  // Cheap and depends on values rebuilt every render anyway (placedIds is
+  // a fresh Set each pass), so memoising it would never actually hit.
+  const nextPairing = (() => {
+    const taken = new Set([...matchedSet, ...placedIds]);
+    const pick = (teamId: string) =>
+      members
+        .filter((m) => m.teamId === teamId && !taken.has(m.id))
+        .slice(0, sideSize)
+        .map((m) => m.id);
+    return { a: pick(sideATeamId), b: pick(sideBTeamId) };
+  })();
+  const unmatchedCount = members.filter(
+    (m) => !matchedSet.has(m.id) && (m.teamId === sideATeamId || m.teamId === sideBTeamId),
+  ).length;
 
   const teamById = new Map(teams.map((t) => [t.id, t]));
   const memberById = new Map(members.map((m) => [m.id, m]));
@@ -506,32 +581,29 @@ export default function MatchBuilder({
             : ' Any combination of players from any foursome.'}
         </p>
 
-        {/* Auto-fill presets. The "Fill from teams" button is the
-            critical UX for the 4v4-across-two-foursomes case — instead
-            of dragging 8 chips manually, snap each side's slots to
-            that side's full team roster in one click. The slots clamp
-            to sideSize; extra players (e.g. team has 5, sideSize=4)
-            keep the first N and admin can swap by drag if needed. */}
+        {/* Fill the slots from each team's roster, SKIPPING anyone already
+            matched in this round. The old version always took the first N
+            of each team, so building a second match handed back the same
+            two players — useless past match one. Now each click advances
+            through the roster, which is what turns 6 singles matches into
+            6 clicks instead of 12 drags. */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
+            disabled={nextPairing.a.length === 0 && nextPairing.b.length === 0}
             onClick={() => {
-              const teamAMembers = members
-                .filter((m) => m.teamId === sideATeamId)
-                .slice(0, sideSize);
-              const teamBMembers = members
-                .filter((m) => m.teamId === sideBTeamId)
-                .slice(0, sideSize);
               setSideAPlayerIds(
-                Array.from({ length: sideSize }, (_, i) => teamAMembers[i]?.id ?? null),
+                Array.from({ length: sideSize }, (_, i) => nextPairing.a[i] ?? null),
               );
               setSideBPlayerIds(
-                Array.from({ length: sideSize }, (_, i) => teamBMembers[i]?.id ?? null),
+                Array.from({ length: sideSize }, (_, i) => nextPairing.b[i] ?? null),
               );
             }}
-            className="inline-flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
+            className="inline-flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20 disabled:opacity-40"
           >
-            Fill: Team A vs Team B
+            {unmatchedCount > 0
+              ? `Fill next pairing · ${unmatchedCount} left`
+              : 'Everyone matched'}
           </button>
           <button
             type="button"

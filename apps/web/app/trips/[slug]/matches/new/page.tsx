@@ -209,6 +209,7 @@ export default async function NewMatchPage({
           defaultTeeTimeId={sp.teeTimeId ?? null}
           teeHasSlopeRating={teeHasSlopeRating}
           defaultHandicapMethod={tripDefault}
+          alreadyMatchedIds={participants.map((p) => p.tripMemberId)}
         />
       </div>
     </div>
