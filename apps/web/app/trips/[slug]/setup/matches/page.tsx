@@ -17,6 +17,7 @@ import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissi
 import { type FormatId, FORMAT_META } from '@buddycup/scoring/formats';
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
 import MatchBuilder from '@/components/admin/MatchBuilder';
+import { getRoundMatchTemplate } from '@/lib/data/round-template';
 import { roundTeeHasSlopeRating } from '@/lib/scoring/handicap-method';
 
 export default async function SetupMatchesPage({
@@ -231,6 +232,7 @@ async function RoundMatchesBlock({
             teeHasSlopeRating={teeHasSlopeRating}
             defaultHandicapMethod={defaultHandicapMethod}
             alreadyMatchedIds={participantRows.map((p) => p.tripMemberId)}
+            lastMatch={await getRoundMatchTemplate(round.id)}
           />
         </div>
       </details>

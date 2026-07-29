@@ -4,7 +4,15 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { courses, rounds, teams, tripMembers, trips, users } from '@/db/schema';
+import {
+  courses,
+  roundFormatEnum,
+  rounds,
+  teams,
+  tripMembers,
+  trips,
+  users,
+} from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import { getTripAuthContext } from '@/lib/auth/trip-context';
 import { AuthorizationError, canEditTrip } from '@/lib/auth/permissions';
@@ -161,10 +169,19 @@ export async function createTrip(formData: FormData): Promise<void> {
       .where(eq(courses.id, courseId))
       .limit(1);
     if (course) {
+      // The game, chosen on the Details step. Hardcoding best_ball here
+      // is what made every downstream screen (groups, matches) guess.
+      const rawFormat = trim(formData.get('roundFormat'));
+      const format = (
+        rawFormat &&
+        (roundFormatEnum.enumValues as readonly string[]).includes(rawFormat)
+          ? rawFormat
+          : 'best_ball'
+      ) as (typeof roundFormatEnum.enumValues)[number];
       await db.insert(rounds).values({
         tripId: trip.id,
         courseId: course.id,
-        format: 'best_ball',
+        format,
         date: startDate,
         order: 1,
       });

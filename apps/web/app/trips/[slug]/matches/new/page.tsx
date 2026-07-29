@@ -17,6 +17,7 @@ import {
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissions';
 import MatchBuilder from '@/components/admin/MatchBuilder';
+import { getRoundMatchTemplate } from '@/lib/data/round-template';
 import { roundTeeHasSlopeRating } from '@/lib/scoring/handicap-method';
 import { type FormatId } from '@buddycup/scoring/formats';
 
@@ -210,6 +211,7 @@ export default async function NewMatchPage({
           teeHasSlopeRating={teeHasSlopeRating}
           defaultHandicapMethod={tripDefault}
           alreadyMatchedIds={participants.map((p) => p.tripMemberId)}
+          lastMatch={await getRoundMatchTemplate(round.round.id)}
         />
       </div>
     </div>

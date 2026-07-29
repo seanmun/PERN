@@ -59,11 +59,15 @@ export type GroupMember = {
  */
 export default function GroupsStepClient({
   roundId,
+  roundFormat,
   groups,
   members,
   initialAssign,
 }: {
   roundId: string;
+  /** The round's game — decides which auto-fill is recommended, the seat
+   *  size it uses, and when a grouping earns a constraint warning. */
+  roundFormat: string;
   groups: GroupInfo[];
   members: GroupMember[];
   initialAssign: Record<string, string | null>;
@@ -193,7 +197,7 @@ export default function GroupsStepClient({
    * foursome). Fills existing groups only, by handicap, and says when
    * there aren't enough seats.
    */
-  function autoFill(mode: 'same-team' | 'mixed') {
+  function autoFill(mode: 'same-team' | 'mixed', seatSize: number = GROUP_CAP) {
     setNotice(null);
     const hcp = (m: GroupMember) =>
       m.tripHandicap ? Number(m.tripHandicap) : 18;
@@ -231,7 +235,7 @@ export default function GroupsStepClient({
       // boundary mid-team; advancing on cap handles both modes.
       while (
         gi < groups.length &&
-        members.filter((x) => next[x.id] === groups[gi].id).length >= GROUP_CAP
+        members.filter((x) => next[x.id] === groups[gi].id).length >= seatSize
       ) {
         gi++;
       }
@@ -254,6 +258,32 @@ export default function GroupsStepClient({
     }
   }
 
+  // What the game recommends. Same-team grouping is a hard requirement
+  // for 30 Ball (sides of 3 share a foursome) and the safe default for
+  // scramble at any side size; everything else wants both teams in each
+  // foursome. 30 Ball seats 3 to a group so the side IS the group.
+  const rec: { mode: 'same-team' | 'mixed'; seat: number; label: string } =
+    roundFormat === 'thirty_ball'
+      ? { mode: 'same-team', seat: 3, label: 'Group for 30 Ball · 3 per side' }
+      : roundFormat === 'scramble'
+        ? { mode: 'same-team', seat: GROUP_CAP, label: 'One team per group' }
+        : { mode: 'mixed', seat: GROUP_CAP, label: 'Mix teams' };
+
+  // Constraint warning, not convention: only 30 Ball makes a mixed group
+  // impossible to play (a side of 3 teammates must share the foursome).
+  // Cross-group best ball etc. is legal and must never warn.
+  const thirtyBallViolations =
+    roundFormat === 'thirty_ball'
+      ? groups.filter((g) => {
+          const teamsIn = new Set(
+            members
+              .filter((m) => assign[m.id] === g.id)
+              .map((m) => m.teamId ?? '__none__'),
+          );
+          return teamsIn.size > 1;
+        })
+      : [];
+
   const pool = members.filter((m) => !(assign[m.id] ?? null));
   const activeMember = members.find((m) => m.id === activeId) ?? null;
   // Pool shown clustered by team so the two sides are never interleaved.
@@ -268,24 +298,34 @@ export default function GroupsStepClient({
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          onClick={() => autoFill('same-team')}
-          className="rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
-          title="Scramble / 30 Ball: a side must share a foursome"
+          onClick={() => autoFill(rec.mode, rec.seat)}
+          className="rounded-sm bg-yellow-500 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-black hover:bg-yellow-400"
+          title="Recommended for this round's game"
         >
-          <Users size={11} className="mr-1 inline" /> One team per group
+          <Users size={11} className="mr-1 inline" /> {rec.label}
         </button>
         <button
           type="button"
-          onClick={() => autoFill('mixed')}
-          className="rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
-          title="Best ball / singles: both teams in every foursome"
+          onClick={() =>
+            autoFill(rec.mode === 'mixed' ? 'same-team' : 'mixed', GROUP_CAP)
+          }
+          className="rounded-sm border border-zinc-300 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-600 hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
         >
-          Mix teams
+          {rec.mode === 'mixed' ? 'One team per group' : 'Mix teams'}
         </button>
         <span className="ml-auto">
           <SaveStatus status={status} onRetry={() => void flush()} />
         </span>
       </div>
+
+      {thirtyBallViolations.length > 0 && (
+        <p className="flex items-center gap-1.5 rounded-sm border border-red-500/40 bg-red-500/5 px-3 py-2 text-[12px] text-red-600 dark:text-red-400">
+          <AlertTriangle size={13} className="shrink-0" />
+          {thirtyBallViolations.length === 1
+            ? `Group ${thirtyBallViolations[0].groupNumber} mixes teams — a 30 Ball side is 3 teammates in one foursome.`
+            : `Groups ${thirtyBallViolations.map((g) => g.groupNumber).join(', ')} mix teams — a 30 Ball side is 3 teammates in one foursome.`}
+        </p>
+      )}
 
       {notice && (
         <p className="rounded-sm border border-yellow-600/40 bg-yellow-500/10 px-3 py-2 text-[12px] text-yellow-900 dark:text-yellow-200">

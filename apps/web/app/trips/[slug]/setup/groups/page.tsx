@@ -14,6 +14,7 @@ import { canViewTrip, isPlatformAdmin, isTripAdminOf } from '@/lib/auth/permissi
 import { createRound } from '@/lib/actions/rounds';
 import WizardShell from '@/components/admin/EventWizard/WizardShell';
 import GroupsStepClient from '@/components/admin/EventWizard/GroupsStepClient';
+import { FORMAT_META, type FormatId } from '@buddycup/scoring/formats';
 
 const inputCls =
   'mt-1.5 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500';
@@ -181,7 +182,8 @@ async function RoundBlock({
       <div className="flex items-start justify-between gap-3 border-b border-zinc-200 dark:border-zinc-900 px-4 py-3">
         <div className="min-w-0">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-800 dark:text-yellow-500">
-            Round {round.order}{round.label ? ` · ${round.label}` : ''}
+            Round {round.order}{round.label ? ` · ${round.label}` : ''} ·{' '}
+            {FORMAT_META[round.format as FormatId]?.label ?? round.format}
           </p>
           <p className="mt-0.5 text-sm font-semibold">{courseName}</p>
         </div>
@@ -196,6 +198,7 @@ async function RoundBlock({
       <div className="p-4">
         <GroupsStepClient
           roundId={round.id}
+          roundFormat={round.format}
           groups={clientGroups}
           members={clientMembers}
           initialAssign={assignByMember}
@@ -267,6 +270,8 @@ function AddRoundForm({
             <option value="singles">Singles — 1v1</option>
             <option value="scramble">Scramble</option>
             <option value="stroke">Stroke play</option>
+            <option value="thirty_ball">30 Ball — 3v3</option>
+            <option value="bingo_bango_bongo">Bingo Bango Bongo</option>
           </select>
         </label>
         <button

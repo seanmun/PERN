@@ -67,6 +67,7 @@ export default function MatchBuilder({
   teeHasSlopeRating = true,
   defaultHandicapMethod = 'group_low',
   alreadyMatchedIds = [],
+  lastMatch = null,
 }: {
   tripSlug: string;
   roundId: string;
@@ -89,17 +90,44 @@ export default function MatchBuilder({
   // pairing" advance through the roster instead of handing back the same
   // two players every time.
   alreadyMatchedIds?: string[];
+  /**
+   * The round's most recent match, if any — the defaults for the next
+   * one. Server data, not client memory: a localStorage version of this
+   * went stale, fought the round's own format, and haunted other rounds.
+   * No previous match → the round's format and stock settings.
+   */
+  lastMatch?: {
+    format: FormatId;
+    sideSize: number;
+    scoring: 'match_play' | 'stableford' | 'stroke';
+    handicapMethod: 'group_low' | 'match_low' | 'course';
+    matchPoints: { overall: number; front9: number; back9: number };
+    pts: {
+      eagle: number;
+      birdie: number;
+      par: number;
+      bogey: number;
+      doublePlus: number;
+    } | null;
+  } | null;
 }) {
-  const [format, setFormat] = useState<FormatId>(defaultFormat);
+  const seedFormat =
+    lastMatch && BUILDER_FORMATS.includes(lastMatch.format)
+      ? lastMatch.format
+      : defaultFormat;
+  const [format, setFormat] = useState<FormatId>(seedFormat);
   const meta = FORMAT_META[format];
-  const [sideSize, setSideSize] = useState<number>(
-    meta.allowedSideSizes[0] ?? 1,
-  );
+  const [sideSize, setSideSize] = useState<number>(() => {
+    const allowed = FORMAT_META[seedFormat].allowedSideSizes;
+    return lastMatch && allowed.includes(lastMatch.sideSize)
+      ? lastMatch.sideSize
+      : allowed[0] ?? 1;
+  });
   // How the match is RESOLVED (orthogonal to format). Default
   // match_play; stableford = sum of per-hole points; stroke is reserved
   // for stroke-play scoring (low total wins).
   const [scoring, setScoring] = useState<'match_play' | 'stableford' | 'stroke'>(
-    'match_play',
+    lastMatch?.scoring ?? 'match_play',
   );
   // Stroke-computation basis. group_low (foursome's lowest plays
   // scratch) is the house default; match_low floats scratch to the
@@ -107,7 +135,7 @@ export default function MatchBuilder({
   // handicap (index converted via the tee's slope/rating).
   const [handicapMethod, setHandicapMethod] = useState<
     'group_low' | 'match_low' | 'course'
-  >(defaultHandicapMethod);
+  >(lastMatch?.handicapMethod ?? defaultHandicapMethod);
   // Stableford point overrides — null per slot = use the default.
   // Shown only when scoring === 'stableford'.
   const [pts, setPts] = useState<{
@@ -116,14 +144,14 @@ export default function MatchBuilder({
     par: number;
     bogey: number;
     doublePlus: number;
-  }>({ eagle: 4, birdie: 3, par: 2, bogey: 1, doublePlus: 0 });
+  }>(lastMatch?.pts ?? { eagle: 4, birdie: 3, par: 2, bogey: 1, doublePlus: 0 });
   // Match-point allocation. Defaults to "1 point overall" — same as
   // the prior single-point system. Presets snap to common splits.
   const [matchPoints, setMatchPoints] = useState<{
     overall: number;
     front9: number;
     back9: number;
-  }>({ overall: 1, front9: 0, back9: 0 });
+  }>(lastMatch?.matchPoints ?? { overall: 1, front9: 0, back9: 0 });
   const [sideATeamId, setSideATeamId] = useState<string>(
     teams[0]?.id ?? '',
   );
@@ -137,58 +165,6 @@ export default function MatchBuilder({
     () => Array(sideSize).fill(null),
   );
   const [activeDrag, setActiveDrag] = useState<string | null>(null);
-
-  // Carry the last match's settings into the next one. Building six
-  // singles matches meant re-answering format, side size, scoring, points
-  // and the stableford scale six times; nothing was remembered.
-  // Read after mount so the server-rendered markup matches.
-  const cfgKey = `buildercfg:${tripSlug}`;
-  const [cfgRestored, setCfgRestored] = useState(false);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(cfgKey);
-      if (raw) {
-        const c = JSON.parse(raw) as Partial<{
-          format: FormatId;
-          sideSize: number;
-          scoring: 'match_play' | 'stableford' | 'stroke';
-          handicapMethod: 'group_low' | 'match_low' | 'course';
-          matchPoints: { overall: number; front9: number; back9: number };
-          pts: typeof pts;
-        }>;
-        if (c.format && BUILDER_FORMATS.includes(c.format)) {
-          setFormat(c.format);
-          const allowed = FORMAT_META[c.format].allowedSideSizes;
-          const size =
-            c.sideSize && allowed.includes(c.sideSize)
-              ? c.sideSize
-              : allowed[0] ?? 1;
-          setSideSize(size);
-          setSideAPlayerIds(Array(size).fill(null));
-          setSideBPlayerIds(Array(size).fill(null));
-        }
-        if (c.scoring) setScoring(c.scoring);
-        if (c.handicapMethod) setHandicapMethod(c.handicapMethod);
-        if (c.matchPoints) setMatchPoints(c.matchPoints);
-        if (c.pts) setPts(c.pts);
-      }
-    } catch {
-      // Corrupt or unavailable storage just means "use the defaults".
-    }
-    setCfgRestored(true);
-  }, [cfgKey]);
-
-  useEffect(() => {
-    if (!cfgRestored) return;
-    try {
-      localStorage.setItem(
-        cfgKey,
-        JSON.stringify({ format, sideSize, scoring, handicapMethod, matchPoints, pts }),
-      );
-    } catch {
-      // Non-fatal — the builder still works, it just won't remember.
-    }
-  }, [cfgRestored, cfgKey, format, sideSize, scoring, handicapMethod, matchPoints, pts]);
 
   // Re-init slot arrays when sideSize changes — preserve existing
   // selections up to the new size, drop overflow.

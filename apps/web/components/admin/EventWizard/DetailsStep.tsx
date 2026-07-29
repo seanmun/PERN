@@ -17,6 +17,18 @@ const hintCls = 'mt-1 text-[11px] text-zinc-500';
 
 type Kind = 'trip' | 'outing' | 'match';
 
+// Same list the match builder offers; alternate_shot stays hidden until
+// its round_format enum value ships.
+const ROUND_FORMATS = [
+  { id: 'best_ball', label: 'Best Ball' },
+  { id: 'singles', label: 'Singles' },
+  { id: 'two_man_aggregate', label: '2-Man Agg' },
+  { id: 'scramble', label: 'Scramble' },
+  { id: 'stroke', label: 'Stroke' },
+  { id: 'thirty_ball', label: '30 Ball' },
+  { id: 'bingo_bango_bongo', label: 'Bingo Bango Bongo' },
+] as const;
+
 const KIND_COPY: Record<Kind, { nameLabel: string; namePlaceholder: string }> = {
   trip: { nameLabel: 'Trip name', namePlaceholder: 'Pinehurst Cup 2026' },
   outing: { nameLabel: 'Outing name', namePlaceholder: 'Sunday at Pine Hills' },
@@ -32,6 +44,7 @@ export default function DetailsStep({
 }) {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
+  const [roundFormat, setRoundFormat] = useState('best_ball');
   const [slugTouched, setSlugTouched] = useState(false);
   const copy = KIND_COPY[kind];
   const singleDay = kind === 'outing' || kind === 'match';
@@ -81,6 +94,34 @@ export default function DetailsStep({
           >
             {course ? 'Change' : 'Pick course'}
           </Link>
+        </div>
+      )}
+
+      {/* The game shapes everything downstream — how foursomes are
+          grouped, what the match builder defaults to — so it's asked
+          here, where round 1 is born, instead of silently defaulting to
+          best ball. Only a default: rounds can still stack other games. */}
+      {singleDay && course && (
+        <div>
+          <p className={labelCls}>What are you playing?</p>
+          <input type="hidden" name="roundFormat" value={roundFormat} />
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {ROUND_FORMATS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setRoundFormat(f.id)}
+                aria-pressed={roundFormat === f.id}
+                className={
+                  roundFormat === f.id
+                    ? 'rounded-full bg-yellow-500 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-black'
+                    : 'rounded-full border border-zinc-300 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-600 hover:border-zinc-500 dark:border-zinc-700 dark:text-zinc-400'
+                }
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
