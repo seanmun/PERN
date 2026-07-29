@@ -65,7 +65,26 @@ export async function searchGolfCourses(query: string): Promise<GcaCourse[]> {
 }
 
 export async function getGolfCourse(id: number): Promise<GcaCourse> {
-  return gcaFetch<GcaCourse>(`/v1/courses/${id}`);
+  // The single-course endpoint wraps its payload — { course: {...} } —
+  // just as search wraps { courses: [...] }. This used to cast the
+  // envelope straight to GcaCourse, so every field read as undefined: the
+  // import created courses named "Course #undefined" (the last-resort
+  // fallback in gcaDisplayName, with an undefined id) carrying no
+  // location, no tees and no hole data, even when the search result had
+  // shown a scorecard badge.
+  const data = await gcaFetch<{ course?: GcaCourse } & Partial<GcaCourse>>(
+    `/v1/courses/${id}`,
+  );
+  const course = (data.course ?? data) as GcaCourse;
+  // Fail loudly rather than importing an empty shell. If the payload ever
+  // changes shape again, this throws instead of silently writing junk
+  // rows that look like real courses until someone tries to score on one.
+  if (typeof course?.id !== 'number') {
+    throw new Error(
+      `golfcourseapi: unexpected payload for course ${id} — no course object in response`,
+    );
+  }
+  return course;
 }
 
 /** "Pinehurst Resort — No. 2" style display name; falls back sensibly. */
