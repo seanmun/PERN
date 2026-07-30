@@ -4,35 +4,17 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import {
-  courses,
-  roundFormatEnum,
-  rounds,
-  teams,
-  tripMembers,
-  trips,
-  users,
-} from '@/db/schema';
+import { rounds, trips } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import { getTripAuthContext, getTripSlugById } from '@/lib/auth/trip-context';
 import { AuthorizationError, canEditTrip, requireAuth } from '@/lib/auth/permissions';
-import { slugifyTripName } from '@/lib/slug';
+import {
+  isRoundFormat,
+  provisionTrip,
+  resolveUniqueTripSlug,
+} from '@/lib/trip-provision';
 import { resolveRedirect } from '@/lib/actions/wizard-redirect';
 import { tripWallTimeToDate } from '@/lib/trip-time';
-
-// Slugs that would collide with our route structure or other reserved paths.
-const RESERVED_SLUGS: ReadonlySet<string> = new Set([
-  'new',
-  'edit',
-  'admin',
-  'api',
-  'me',
-  'join',
-  'sign-in',
-  'sign-up',
-  'privacy',
-  'brand',
-]);
 
 function trim(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;
@@ -71,36 +53,8 @@ export async function createTrip(formData: FormData): Promise<void> {
     kindRaw === 'outing' || kindRaw === 'match' ? kindRaw : 'trip';
 
   const slugInput = trim(formData.get('slug')) ?? name;
-  const base = slugifyTripName(slugInput);
-  if (!base) throw new Error('Slug is required');
-  if (RESERVED_SLUGS.has(base)) {
-    throw new Error(`Slug "${base}" is reserved. Pick a different one.`);
-  }
-
-  // Only a slug the user explicitly customized is allowed to hard-fail on
-  // collision. A derived one (from the event name) auto-suffixes instead —
-  // "Saturday at Pine Hills" should never error because someone used that
-  // name last month, over a URL the user was never asked about.
   const customized = trim(formData.get('slugCustomized')) === '1';
-  const taken = async (s: string) => {
-    const [row] = await db
-      .select({ id: trips.id })
-      .from(trips)
-      .where(eq(trips.slug, s))
-      .limit(1);
-    return Boolean(row);
-  };
-
-  let slug = base;
-  if (await taken(base)) {
-    if (customized) {
-      throw new Error(`Slug "${base}" is already taken.`);
-    }
-    let n = 2;
-    while (n < 100 && (await taken(`${base}-${n}`))) n++;
-    if (n >= 100) throw new Error(`Slug "${base}" is already taken.`);
-    slug = `${base}-${n}`;
-  }
+  const slug = await resolveUniqueTripSlug(slugInput, customized);
 
   const startDate = parseDate(formData.get('startDate'));
   // Single-day kinds: the form only shows one date input. End date defaults to
@@ -119,74 +73,29 @@ export async function createTrip(formData: FormData): Promise<void> {
   const team2Name = trim(formData.get('team2Name')) ?? 'Team B';
   const team2Color = readColor(formData.get('team2Color'), '#eab308');
 
-  const [trip] = await db
-    .insert(trips)
-    .values({
-      slug,
-      name,
-      kind,
-      startDate,
-      endDate,
-      description,
-      imageUrl,
-      createdBy: ctx.user.id,
-    })
-    .returning();
-
-  await db.insert(teams).values([
-    { tripId: trip.id, name: team1Name, color: team1Color },
-    { tripId: trip.id, name: team2Name, color: team2Color },
-  ]);
-
-  const creatorEmail = ctx.user.email.toLowerCase();
-  const creatorNickname =
-    ctx.user.displayName ??
-    ctx.user.fullName ??
-    creatorEmail.split('@')[0];
-  await db.insert(tripMembers).values({
-    tripId: trip.id,
-    userId: ctx.user.id,
-    email: creatorEmail,
-    nickname: creatorNickname,
-    role: 'trip_admin',
-    isCaptain: false,
+  // Single-day kinds picked their course in the wizard's Course step, so
+  // round 1 is created on it here — a match never touches rounds
+  // plumbing and an outing starts with its first round in place.
+  const rawFormat = trim(formData.get('roundFormat'));
+  await provisionTrip({
+    creator: {
+      id: ctx.user.id,
+      email: ctx.user.email,
+      displayName: ctx.user.displayName,
+      fullName: ctx.user.fullName,
+    },
+    name,
+    kind,
+    slug,
+    startDate,
+    endDate,
+    description,
+    imageUrl,
+    teamA: { name: team1Name, color: team1Color },
+    teamB: { name: team2Name, color: team2Color },
+    courseId: singleDay ? trim(formData.get('courseId')) : null,
+    roundFormat: isRoundFormat(rawFormat) ? rawFormat : null,
   });
-
-  await db
-    .update(users)
-    .set({ defaultTripId: trip.id, updatedAt: new Date() })
-    .where(eq(users.id, ctx.user.id));
-
-  // Single-day kinds picked their course in the wizard's Course step —
-  // auto-create round 1 on it so a match never touches rounds plumbing
-  // and an outing starts with its first round in place. Bad/missing
-  // courseId just skips this; the admin can add the round in Groups.
-  const courseId = trim(formData.get('courseId'));
-  if (singleDay && courseId) {
-    const [course] = await db
-      .select({ id: courses.id })
-      .from(courses)
-      .where(eq(courses.id, courseId))
-      .limit(1);
-    if (course) {
-      // The game, chosen on the Details step. Hardcoding best_ball here
-      // is what made every downstream screen (groups, matches) guess.
-      const rawFormat = trim(formData.get('roundFormat'));
-      const format = (
-        rawFormat &&
-        (roundFormatEnum.enumValues as readonly string[]).includes(rawFormat)
-          ? rawFormat
-          : 'best_ball'
-      ) as (typeof roundFormatEnum.enumValues)[number];
-      await db.insert(rounds).values({
-        tripId: trip.id,
-        courseId: course.id,
-        format,
-        date: startDate,
-        order: 1,
-      });
-    }
-  }
 
   revalidatePath('/home');
   // Optional override so the event-creation wizard can land the admin on

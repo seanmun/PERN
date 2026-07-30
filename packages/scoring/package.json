@@ -7,6 +7,7 @@
     "./engine": "./engine.ts",
     "./formats": "./formats.ts",
     "./handicap": "./handicap.ts",
+    "./lineup": "./lineup.ts",
     "./team-split": "./team-split.ts",
     "./validation/match-builder": "./validation/match-builder.ts"
   }
