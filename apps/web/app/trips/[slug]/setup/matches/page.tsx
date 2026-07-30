@@ -217,7 +217,14 @@ async function RoundMatchesBlock({
         )}
       </div>
 
-      <details className="border-t border-zinc-200 dark:border-zinc-900">
+      {/* Open by default when the round has no matches: this screen's
+          entire job is making one, and hiding the builder behind a
+          disclosure made the page read as empty ("No matches yet" and
+          nothing else). Collapsed once at least one match exists. */}
+      <details
+        open={roundMatches.length === 0}
+        className="border-t border-zinc-200 dark:border-zinc-900"
+      >
         <summary className="cursor-pointer px-4 py-3 font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:text-yellow-800 dark:hover:text-yellow-400">
           + Add match
         </summary>

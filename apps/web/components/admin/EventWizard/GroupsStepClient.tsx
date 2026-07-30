@@ -250,7 +250,23 @@ export default function GroupsStepClient({
       seated++;
     }
 
-    for (const m of members) move(m.id, next[m.id]);
+    // Apply the whole computed assignment in one shot. Routing it through
+    // move() ran the live cap check against interim state — regrouping
+    // already-full groups bounced legitimate swaps and silently left
+    // players behind. Dirty groups and assignRef are updated synchronously
+    // because flush() reads both immediately (the assignRef effect only
+    // syncs after render, so the old path saved the PRE-fill rosters).
+    const prev = assignRef.current;
+    for (const m of members) {
+      const from = prev[m.id] ?? null;
+      const to = next[m.id] ?? null;
+      if (from !== to) {
+        if (from) dirty.current.add(from);
+        if (to) dirty.current.add(to);
+      }
+    }
+    setAssign(next);
+    assignRef.current = next;
     // Bulk fill saves NOW, not on a timer — a queued save died silently
     // if the user clicked straight through to the next step.
     void flush();

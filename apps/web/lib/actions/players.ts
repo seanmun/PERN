@@ -334,7 +334,10 @@ export async function addBuddyToTrip(formData: FormData): Promise<void> {
     tripHandicap: parseHandicap(formData.get('handicap')),
   });
 
+  // Roster changes touch every setup screen (teams, groups, matches) —
+  // revalidate the whole trip subtree, same as the duplicate path above.
   const tripSlug = await getTripSlugById(tripId);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
 }
 
 export async function updatePlayer(formData: FormData): Promise<void> {

@@ -17,6 +17,36 @@ import { updateMatchParticipants } from '@/lib/actions/matches';
 import DeleteMatchButton from '@/components/schedule/DeleteMatchButton';
 import { roundFormatLabel } from '@/lib/format';
 
+// Every round_format enum value must appear here: a defaultValue with no
+// matching <option> makes the browser fall back to the first option, and
+// Save then silently rewrites the match's format.
+const FORMAT_OPTIONS: { value: string; label: string }[] = [
+  { value: 'best_ball', label: 'Best Ball — 2v2 (lowest net per side)' },
+  { value: 'two_man_aggregate', label: 'Two-Man Aggregate — 2v2 (sum of nets)' },
+  { value: 'singles', label: 'Singles — 1v1 match play' },
+  { value: 'scramble', label: 'Scramble' },
+  { value: 'stroke', label: 'Stroke play' },
+  { value: 'thirty_ball', label: '30 Ball — 3v3 (best 30 balls count)' },
+  { value: 'bingo_bango_bongo', label: 'Bingo Bango Bongo — judgment points per hole' },
+];
+
+const SCORING_OPTIONS: { value: string; label: string }[] = [
+  { value: 'match_play', label: 'Match Play — win holes vs opponent' },
+  { value: 'stableford', label: 'Stableford — points per hole' },
+  { value: 'stroke', label: 'Stroke — low total wins' },
+];
+
+/** The saved value always renders, even if this list ever falls behind the
+ *  enum again — an unknown value gets its own option instead of silently
+ *  snapping to the first one. */
+function withCurrent(
+  options: { value: string; label: string }[],
+  current: string,
+) {
+  if (options.some((o) => o.value === current)) return options;
+  return [{ value: current, label: roundFormatLabel(current) }, ...options];
+}
+
 export default async function EditMatchPage({
   params,
 }: {
@@ -93,11 +123,11 @@ export default async function EditMatchPage({
             defaultValue={match.match.format}
             className="mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
           >
-            <option value="best_ball">Best Ball — 2v2 (lowest net per side)</option>
-            <option value="two_man_aggregate">Two-Man Aggregate — 2v2 (sum of nets)</option>
-            <option value="singles">Singles — 1v1 match play</option>
-            <option value="scramble">Scramble</option>
-            <option value="stroke">Stroke play</option>
+            {withCurrent(FORMAT_OPTIONS, match.match.format).map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </select>
           <p className="mt-1.5 text-[11px] text-zinc-500">
             Changing the format resets this match&apos;s status — scores stay, but the result recomputes against the new rules on the next entry.
@@ -113,8 +143,11 @@ export default async function EditMatchPage({
             defaultValue={match.match.scoring}
             className="mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500"
           >
-            <option value="match_play">Match Play — win holes vs opponent</option>
-            <option value="stableford">Stableford — points per hole</option>
+            {withCurrent(SCORING_OPTIONS, match.match.scoring).map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </select>
           <p className="mt-1.5 text-[11px] text-zinc-500">
             How the match is resolved. Stableford sums per-hole points; default scale is 4/3/2/1/0 (eagle / birdie / par / bogey / double+).

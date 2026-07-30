@@ -76,6 +76,17 @@ export type ClientGolfItem = {
   scoreMatchId: string | null;
   canEnterScores: boolean;
   matches: ClientMatch[];
+  /** This group's own players, independent of which matches are hosted
+   *  here. A round-wide match lives under one group, but every group
+   *  still shows its foursome and keeps its own scorecard. */
+  roster: {
+    tripMemberId: string;
+    nickname: string;
+    tripHandicap: string | null;
+    teamId: string | null;
+    teamName: string | null;
+    teamColor: string | null;
+  }[];
 };
 
 export type ClientEventItem = {
@@ -501,42 +512,6 @@ function GolfRow({
 }) {
   const time = item.timeTbd ? 'TBD' : formatTime(item.startTimeISO);
 
-  // No matches yet — render placeholder card (e.g., R5 captain-pick, R6 scramble)
-  if (item.matches.length === 0) {
-    return (
-      <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-3">
-        <div className="flex items-start gap-3">
-          <div className="w-16 shrink-0">
-            <p className="font-mono text-xs font-bold tabular-nums text-yellow-800 dark:text-yellow-400">{time}</p>
-            <p className="font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-600">
-              Group {item.groupNumber}
-            </p>
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <Trophy size={14} className="text-yellow-800 dark:text-yellow-500" />
-              <p className="truncate font-semibold">{item.courseName}</p>
-            </div>
-            <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-              R{item.roundOrder} · {formatLabel(item.roundFormat)}
-            </p>
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-zinc-600">
-              Matchups TBD
-            </p>
-            {canEdit && (
-              <Link
-                href={`/trips/${tripSlug}/matches/new?teeTimeId=${item.teeTimeId}`}
-                className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-400 hover:text-yellow-300"
-              >
-                <Plus size={11} /> Add matchup
-              </Link>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // One card per TEE TIME (foursome). Matches inside the same tee time are
   // sub-rows of that card — so a Best Ball + Singles stack reads as "one
   // group, two scoring games" instead of two unrelated cards.
@@ -572,6 +547,39 @@ function GolfRow({
       {/* Match sub-rows — each renders a compact NBA-Jam showdown card.
           Sorted so identical formats sit next to each other. */}
       <div className="divide-y divide-zinc-200 dark:divide-zinc-900">
+        {/* No matchup hosted in this group — show the foursome itself.
+            Same card shell as a group with a match: one design, one
+            header, one footer. Previously this rendered from a second,
+            completely different placeholder component. */}
+        {item.matches.length === 0 && (
+          <div className="px-3 py-2.5">
+            {item.roster.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {item.roster.map((p) => {
+                  const c = p.teamColor ?? '#71717a';
+                  return (
+                    <span
+                      key={p.tripMemberId}
+                      className="rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                      style={{ borderColor: `${c}55`, color: c, background: `${c}0a` }}
+                    >
+                      {p.nickname}
+                      {p.tripHandicap && (
+                        <span className="ml-1 font-mono text-[9px] tabular-nums opacity-70">
+                          {p.tripHandicap}
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+                No players in this group yet
+              </p>
+            )}
+          </div>
+        )}
         {[...item.matches]
           .sort((x, y) => MATCH_FORMAT_ORDER[x.format] - MATCH_FORMAT_ORDER[y.format])
           .map((m) => (
@@ -595,8 +603,11 @@ function GolfRow({
           ))}
       </div>
 
-      {/* One "Enter scores" button per foursome — only for participants + admins. */}
-      {item.canEnterScores && item.scoreMatchId && (
+      {/* One "Enter scores" button per foursome — only for participants +
+          admins. Gated on the group having players, NOT on a match being
+          hosted here: with a round-wide match only one group hosts it,
+          and the other group still needs its own scorecard. */}
+      {item.canEnterScores && (item.scoreMatchId || item.roster.length > 0) && (
         <div className="border-t border-yellow-600/15 bg-zinc-50 dark:bg-black/30 p-2">
           <Link
             href={`/trips/${tripSlug}/tee-times/${item.teeTimeId}/score`}

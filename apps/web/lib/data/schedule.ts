@@ -4,6 +4,7 @@ import {
   rounds,
   courses,
   teeTimes,
+  teeTimeParticipants,
   matches,
   matchParticipants,
   tripMembers,
@@ -35,9 +36,23 @@ export type ScheduleMatch = Match & {
   participants: ScheduleParticipant[];
 };
 
+export type GolfRosterEntry = {
+  tripMemberId: string;
+  nickname: string;
+  tripHandicap: string | null;
+  teamId: string | null;
+  teamName: string | null;
+  teamColor: string | null;
+};
+
 export type GolfItem = {
   kind: 'golf';
   startTime: Date;
+  /** Who is IN this foursome (tee_time_participants), independent of
+   *  which matches happen to be attached to it. A round-wide match is
+   *  hosted by one group, but every group still has its own players and
+   *  its own scorecard. */
+  roster: GolfRosterEntry[];
   // The group has no tee time set yet — startTime is a sort-only stand-in
   // (round date at noon) and the UI shows "TBD" instead of a clock time.
   timeTbd: boolean;
@@ -156,12 +171,85 @@ export async function getScheduleByDay(tripId: string): Promise<ScheduleDay[]> {
     participantsByMatch.set(p.participant.matchId, list);
   }
 
+  // Foursome rosters, used to place round-wide matches under the groups
+  // their players are actually in.
+  const rosterRows = teeTimesList.length
+    ? await db
+        .select()
+        .from(teeTimeParticipants)
+        .where(inArray(teeTimeParticipants.teeTimeId, teeTimesList.map((t) => t.id)))
+    : [];
+  const rosterByTee = new Map<string, Set<string>>();
+  for (const r of rosterRows) {
+    const set = rosterByTee.get(r.teeTimeId) ?? new Set<string>();
+    set.add(r.tripMemberId);
+    rosterByTee.set(r.teeTimeId, set);
+  }
+
+  // Member + team details for rendering each group's own player list.
+  const allRosterIds = [...new Set(rosterRows.map((r) => r.tripMemberId))];
+  const rosterMembers = allRosterIds.length
+    ? await db
+        .select({ member: tripMembers, team: teams })
+        .from(tripMembers)
+        .leftJoin(teams, eq(tripMembers.teamId, teams.id))
+        .where(inArray(tripMembers.id, allRosterIds))
+    : [];
+  const memberDetail = new Map(
+    rosterMembers.map((r) => [
+      r.member.id,
+      {
+        tripMemberId: r.member.id,
+        nickname: r.member.nickname,
+        tripHandicap: r.member.tripHandicap,
+        teamId: r.member.teamId,
+        teamName: r.team?.name ?? null,
+        teamColor: r.team?.color ?? null,
+      },
+    ]),
+  );
+  const rosterListByTee = new Map<string, GolfRosterEntry[]>();
+  for (const r of rosterRows) {
+    const d = memberDetail.get(r.tripMemberId);
+    if (!d) continue;
+    rosterListByTee.set(r.teeTimeId, [
+      ...(rosterListByTee.get(r.teeTimeId) ?? []),
+      d,
+    ]);
+  }
+
   const matchesByTeeTime = new Map<string, ScheduleMatch[]>();
+  const pushToTee = (teeTimeId: string, sm: ScheduleMatch) => {
+    const list = matchesByTeeTime.get(teeTimeId) ?? [];
+    list.push(sm);
+    matchesByTeeTime.set(teeTimeId, list);
+  };
   for (const m of matchesList) {
-    if (!m.teeTimeId) continue;
-    const list = matchesByTeeTime.get(m.teeTimeId) ?? [];
-    list.push({ ...m, participants: participantsByMatch.get(m.id) ?? [] });
-    matchesByTeeTime.set(m.teeTimeId, list);
+    const sm: ScheduleMatch = {
+      ...m,
+      participants: participantsByMatch.get(m.id) ?? [],
+    };
+    if (m.teeTimeId) {
+      pushToTee(m.teeTimeId, sm);
+      continue;
+    }
+    // Round-wide match (sides span foursomes, tee_time_id null). Dropping
+    // it made the schedule claim "MATCHUPS TBD" for a round that had a
+    // saved match — but rendering it under every group holding one of
+    // its players drew the SAME match once per foursome. It belongs to
+    // the round, so it renders exactly once: under the first group that
+    // holds any of its players (else the round's first group), never
+    // duplicated.
+    const memberIds = new Set(sm.participants.map((p) => p.tripMemberId));
+    const roundTees = teeTimesList.filter((t) => t.roundId === m.roundId);
+    const host =
+      roundTees.find((t) => {
+        const roster = rosterByTee.get(t.id);
+        if (!roster) return false;
+        for (const id of memberIds) if (roster.has(id)) return true;
+        return false;
+      }) ?? roundTees[0];
+    if (host) pushToTee(host.id, sm);
   }
 
   // A group with no time still renders — as "Time TBD", sorted into its
@@ -176,6 +264,9 @@ export async function getScheduleByDay(tripId: string): Promise<ScheduleDay[]> {
       kind: 'golf' as const,
       startTime: tt.time ?? fallback,
       timeTbd: !tt.time,
+      roster: (rosterListByTee.get(tt.id) ?? []).sort((a, b) =>
+        a.nickname.localeCompare(b.nickname),
+      ),
       teeTime: tt,
       round: r.round,
       course: r.course,

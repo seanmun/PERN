@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   DndContext,
   DragOverlay,
@@ -39,6 +40,7 @@ import {
   type BuilderContext,
 } from '@buddycup/scoring/validation/match-builder';
 import { createMatchFromBuilder } from '@/lib/actions/matches';
+import { rethrowIfControlFlow } from '@/lib/control-flow-error';
 
 type Team = { id: string; name: string; color: string | null };
 type Member = {
@@ -111,23 +113,36 @@ export default function MatchBuilder({
     } | null;
   } | null;
 }) {
-  const seedFormat =
-    lastMatch && BUILDER_FORMATS.includes(lastMatch.format)
-      ? lastMatch.format
-      : defaultFormat;
+  // The round's declared game wins. lastMatch is only a template for
+  // "add another one like the last" — when its format differs from the
+  // round's (stale attempts, a side game), it must NOT hijack the
+  // default: the admin picked the round's game on the Details step and
+  // the builder has to open showing that choice. This is the exact
+  // "remembered settings fight the round's own format" failure
+  // documented in docs/session-failures-2026-07.md.
+  const template =
+    lastMatch &&
+    BUILDER_FORMATS.includes(lastMatch.format) &&
+    lastMatch.format === defaultFormat
+      ? lastMatch
+      : null;
+  const seedFormat = template ? template.format : defaultFormat;
   const [format, setFormat] = useState<FormatId>(seedFormat);
   const meta = FORMAT_META[format];
   const [sideSize, setSideSize] = useState<number>(() => {
     const allowed = FORMAT_META[seedFormat].allowedSideSizes;
-    return lastMatch && allowed.includes(lastMatch.sideSize)
-      ? lastMatch.sideSize
+    return template && allowed.includes(template.sideSize)
+      ? template.sideSize
       : allowed[0] ?? 1;
   });
   // How the match is RESOLVED (orthogonal to format). Default
   // match_play; stableford = sum of per-hole points; stroke is reserved
   // for stroke-play scoring (low total wins).
   const [scoring, setScoring] = useState<'match_play' | 'stableford' | 'stroke'>(
-    lastMatch?.scoring ?? 'match_play',
+    template?.scoring ??
+      (seedFormat === 'thirty_ball' || seedFormat === 'bingo_bango_bongo'
+        ? 'stroke'
+        : 'match_play'),
   );
   // Stroke-computation basis. group_low (foursome's lowest plays
   // scratch) is the house default; match_low floats scratch to the
@@ -135,7 +150,7 @@ export default function MatchBuilder({
   // handicap (index converted via the tee's slope/rating).
   const [handicapMethod, setHandicapMethod] = useState<
     'group_low' | 'match_low' | 'course'
-  >(lastMatch?.handicapMethod ?? defaultHandicapMethod);
+  >(template?.handicapMethod ?? defaultHandicapMethod);
   // Stableford point overrides — null per slot = use the default.
   // Shown only when scoring === 'stableford'.
   const [pts, setPts] = useState<{
@@ -144,27 +159,107 @@ export default function MatchBuilder({
     par: number;
     bogey: number;
     doublePlus: number;
-  }>(lastMatch?.pts ?? { eagle: 4, birdie: 3, par: 2, bogey: 1, doublePlus: 0 });
+  }>(template?.pts ?? { eagle: 4, birdie: 3, par: 2, bogey: 1, doublePlus: 0 });
   // Match-point allocation. Defaults to "1 point overall" — same as
   // the prior single-point system. Presets snap to common splits.
   const [matchPoints, setMatchPoints] = useState<{
     overall: number;
     front9: number;
     back9: number;
-  }>(lastMatch?.matchPoints ?? { overall: 1, front9: 0, back9: 0 });
+  }>(template?.matchPoints ?? { overall: 1, front9: 0, back9: 0 });
   const [sideATeamId, setSideATeamId] = useState<string>(
     teams[0]?.id ?? '',
   );
   const [sideBTeamId, setSideBTeamId] = useState<string>(
     teams[1]?.id ?? teams[0]?.id ?? '',
   );
+  // Open pre-filled with the next unmatched pairing. The groups (and the
+  // round's game) already determine who plays whom in the common case —
+  // making the admin re-assemble a lineup the app can compute is exactly
+  // the redundancy this screen kept getting yelled at for. Clear Slots
+  // remains for building something else.
+  //
+  // Foursome-aware: formats that require a side to share a foursome (or
+  // the whole match to, like Bingo Bango Bongo) must draw from within a
+  // group, or the lineup is born invalid and Create is disabled forever
+  // with no way for the admin to see why.
+  const pickPairing = (
+    fmt: FormatId,
+    size: number,
+    teamA: string,
+    teamB: string,
+    exclude: ReadonlySet<string> = new Set(),
+  ): { a: (string | null)[]; b: (string | null)[] } => {
+    const fm = FORMAT_META[fmt];
+    const taken = new Set([...alreadyMatchedIds, ...exclude]);
+    const avail = members.filter((m) => !taken.has(m.id));
+    const pad = (ids: string[]) => {
+      const slots = Array<string | null>(size).fill(null);
+      ids.slice(0, size).forEach((id, i) => (slots[i] = id));
+      return slots;
+    };
+    const from = (pool: typeof members, team: string) =>
+      pool.filter((m) => m.teamId === team).map((m) => m.id);
+
+    if (fm.requiresSingleFoursome || fm.requiresSameFoursomePerSide) {
+      // Group the available players by foursome, best candidate first.
+      const byTee = new Map<string, typeof members>();
+      for (const m of avail) {
+        if (!m.teeTimeId) continue;
+        byTee.set(m.teeTimeId, [...(byTee.get(m.teeTimeId) ?? []), m]);
+      }
+      if (fm.requiresSingleFoursome) {
+        // Both sides must come out of ONE group.
+        for (const [, pool] of byTee) {
+          const a = from(pool, teamA);
+          const b = from(pool, teamB);
+          if (a.length >= size && b.length >= size) {
+            return { a: pad(a), b: pad(b) };
+          }
+        }
+        return { a: pad([]), b: pad([]) };
+      }
+      // Per-side: each side within one group; the two may differ.
+      let aIds: string[] = [];
+      let bIds: string[] = [];
+      for (const [, pool] of byTee) {
+        if (aIds.length < size) {
+          const cand = from(pool, teamA);
+          if (cand.length >= size) aIds = cand.slice(0, size);
+        }
+      }
+      for (const [, pool] of byTee) {
+        const cand = from(pool, teamB).filter((id) => !aIds.includes(id));
+        if (cand.length >= size) { bIds = cand.slice(0, size); break; }
+      }
+      return { a: pad(aIds), b: pad(bIds) };
+    }
+    return { a: pad(from(avail, teamA)), b: pad(from(avail, teamB)) };
+  };
+
+  const initialPairing = pickPairing(
+    seedFormat,
+    FORMAT_META[seedFormat].allowedSideSizes.includes(
+      template?.sideSize ?? -1,
+    )
+      ? template!.sideSize
+      : FORMAT_META[seedFormat].allowedSideSizes[0] ?? 1,
+    teams[0]?.id ?? '',
+    teams[1]?.id ?? teams[0]?.id ?? '',
+  );
   const [sideAPlayerIds, setSideAPlayerIds] = useState<(string | null)[]>(
-    () => Array(sideSize).fill(null),
+    () => initialPairing.a,
   );
   const [sideBPlayerIds, setSideBPlayerIds] = useState<(string | null)[]>(
-    () => Array(sideSize).fill(null),
+    () => initialPairing.b,
   );
   const [activeDrag, setActiveDrag] = useState<string | null>(null);
+  // Submit lifecycle — the button must visibly work, confirm, and
+  // disarm. Silent success left the form loaded and users double-created.
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [justCreated, setJustCreated] = useState(false);
 
   // Re-init slot arrays when sideSize changes — preserve existing
   // selections up to the new size, drop overflow.
@@ -203,6 +298,11 @@ export default function MatchBuilder({
     if (f === 'bingo_bango_bongo') {
       setScoring('stroke');
     }
+    // Team-input formats (scramble, alternate shot) only have match-play
+    // resolution — the server rejects anything else, so don't offer it.
+    if (FORMAT_META[f].inputMode === 'team') {
+      setScoring('match_play');
+    }
   }
 
   const ctx: BuilderContext = useMemo(() => {
@@ -238,13 +338,19 @@ export default function MatchBuilder({
   // Cheap and depends on values rebuilt every render anyway (placedIds is
   // a fresh Set each pass), so memoising it would never actually hit.
   const nextPairing = (() => {
-    const taken = new Set([...matchedSet, ...placedIds]);
-    const pick = (teamId: string) =>
-      members
-        .filter((m) => m.teamId === teamId && !taken.has(m.id))
-        .slice(0, sideSize)
-        .map((m) => m.id);
-    return { a: pick(sideATeamId), b: pick(sideBTeamId) };
+    // Same foursome-aware rules as the initial seed, so Fill can never
+    // hand back a lineup the validator rejects.
+    const p = pickPairing(
+      format,
+      sideSize,
+      sideATeamId,
+      sideBTeamId,
+      placedIds,
+    );
+    return {
+      a: p.a.filter((id): id is string => !!id),
+      b: p.b.filter((id): id is string => !!id),
+    };
   })();
   const unmatchedCount = members.filter(
     (m) => !matchedSet.has(m.id) && (m.teamId === sideATeamId || m.teamId === sideBTeamId),
@@ -319,9 +425,38 @@ export default function MatchBuilder({
 
   const payload = JSON.stringify(state);
 
+  function submit(fd: FormData) {
+    setSubmitError(null);
+    setJustCreated(false);
+    startTransition(async () => {
+      try {
+        await createMatchFromBuilder(fd);
+        // Standalone builder redirects to the match page (Next handles
+        // it). The wizard stays put: clear the slots so the form is
+        // disarmed and confirm out loud.
+        if (redirectTo === 'none') {
+          setSideAPlayerIds(Array(sideSize).fill(null));
+          setSideBPlayerIds(Array(sideSize).fill(null));
+          setJustCreated(true);
+          // revalidatePath alone doesn't repaint a client component that
+          // never navigates — without this the banner said "it's in the
+          // list above" while the list still read "No matches yet".
+          router.refresh();
+        }
+      } catch (err) {
+        rethrowIfControlFlow(err);
+        setSubmitError(
+          err instanceof Error && err.message
+            ? err.message
+            : 'Could not create the match — try again.',
+        );
+      }
+    });
+  }
+
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-      <form action={createMatchFromBuilder} className="space-y-6">
+      <form action={submit} className="space-y-6">
         <input type="hidden" name="roundId" value={roundId} />
         <input type="hidden" name="tripSlug" value={tripSlug} />
         <input type="hidden" name="state" value={payload} />
@@ -363,6 +498,17 @@ export default function MatchBuilder({
                 </option>
               ))}
             </select>
+            {format === defaultFormat ? (
+              <p className="mt-1.5 text-[11px] text-zinc-500">
+                The round&apos;s game — already set on the Details step.
+                Change it here only for a side game.
+              </p>
+            ) : (
+              <p className="mt-1.5 text-[11px] text-yellow-800 dark:text-yellow-500">
+                Side game — this round plays{' '}
+                {FORMAT_META[defaultFormat]?.label ?? defaultFormat}.
+              </p>
+            )}
           </label>
 
           {meta.allowedSideSizes.length > 1 && (
@@ -397,7 +543,12 @@ export default function MatchBuilder({
           </span>
           <select
             value={scoring}
-            disabled={format === 'thirty_ball' || format === 'bingo_bango_bongo'}
+            disabled={
+              format === 'thirty_ball' ||
+              format === 'bingo_bango_bongo' ||
+              // Team-input formats lock to match play (server enforces).
+              FORMAT_META[format].inputMode === 'team'
+            }
             onChange={(e) => setScoring(e.target.value as 'match_play' | 'stableford' | 'stroke')}
             className="mt-2 block w-full rounded-sm border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2.5 text-base text-zinc-900 dark:text-zinc-100 focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500 disabled:opacity-50"
           >
@@ -642,13 +793,25 @@ export default function MatchBuilder({
           </ul>
         )}
 
+        {submitError && (
+          <p className="rounded-sm border border-red-500/40 bg-red-500/5 p-3 text-[12px] text-red-700 dark:text-red-300">
+            {submitError}
+          </p>
+        )}
+
+        {justCreated && !submitError && (
+          <p className="rounded-sm border border-emerald-500/40 bg-emerald-500/5 p-3 font-mono text-[11px] font-semibold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+            ✓ Match created — it&apos;s in the list above.
+          </p>
+        )}
+
         <div className="flex items-center gap-3 pt-2">
           <button
             type="submit"
-            disabled={!validation.ok}
+            disabled={!validation.ok || isPending}
             className="flex-1 rounded-sm bg-yellow-500 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-black shadow-[0_0_30px_rgba(202,138,4,0.3)] hover:bg-yellow-400 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-yellow-500"
           >
-            Create matchup
+            {isPending ? 'Creating…' : 'Create matchup'}
           </button>
         </div>
       </form>

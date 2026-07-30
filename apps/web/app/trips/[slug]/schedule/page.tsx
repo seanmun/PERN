@@ -36,11 +36,15 @@ export default async function TripSchedulePage({
         const widestMatch = [...item.matches].sort(
           (a, b) => b.participants.length - a.participants.length,
         )[0];
+        // A player can be in this foursome via the group roster even when
+        // the round's match is hosted by another group (round-wide 30
+        // Ball etc.) — they still need their own scorecard.
         const selfIsParticipant =
           ctx.tripMember
             ? item.matches.some((m) =>
                 m.participants.some((p) => p.tripMemberId === ctx.tripMember!.id),
-              )
+              ) ||
+              item.roster.some((r) => r.tripMemberId === ctx.tripMember!.id)
             : false;
         return {
           kind: 'golf',
@@ -56,6 +60,7 @@ export default async function TripSchedulePage({
           courseLocation: item.course.location,
           scoreMatchId: widestMatch?.id ?? null,
           canEnterScores: canEdit || selfIsParticipant,
+          roster: item.roster,
           matches: item.matches.map((m) => ({
             id: m.id,
             format: m.format,

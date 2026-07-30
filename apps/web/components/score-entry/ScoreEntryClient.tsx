@@ -451,6 +451,11 @@ function PlayerScoreEntry({
           isHoleCommitted={(h) =>
             tbCommittedMember(activePlayer?.tripMemberId ?? '', h)
           }
+          noMatch={
+            matchIdByPlayer != null &&
+            activePlayer != null &&
+            !matchIdByPlayer[activePlayer.tripMemberId]
+          }
         />
       )}
     </div>
@@ -604,22 +609,32 @@ function HoleByHole({
       )}
 
       <div className="mt-2 space-y-1.5">
-        {players.map((p) => (
-          <PlayerHoleRow
-            key={p.tripMemberId}
-            matchId={matchIdByPlayer?.[p.tripMemberId] ?? matchId}
-            hole={hole}
-            player={p}
-            score={getScore(p.tripMemberId)}
-            enteredBy={getEnteredBy(p.tripMemberId)}
-            onScoreChange={(g) => onScoreChange(p.tripMemberId, g)}
-            disabled={
-              (!canEdit && !p.isSelf) ||
-              locked ||
-              isMemberCommitted(p.tripMemberId, hole.number)
-            }
-          />
-        ))}
+        {players.map((p) => {
+          // Roster player with no match this round: there is nowhere to
+          // store their score (hole_scores hangs off a match), so entry
+          // is disabled with an explicit label. Falling through to the
+          // primary match made the server reject the save with a 500.
+          const noMatch =
+            matchIdByPlayer != null && !matchIdByPlayer[p.tripMemberId];
+          return (
+            <PlayerHoleRow
+              key={p.tripMemberId}
+              matchId={matchIdByPlayer?.[p.tripMemberId] ?? matchId}
+              hole={hole}
+              player={p}
+              score={getScore(p.tripMemberId)}
+              enteredBy={getEnteredBy(p.tripMemberId)}
+              onScoreChange={(g) => onScoreChange(p.tripMemberId, g)}
+              noMatch={noMatch}
+              disabled={
+                noMatch ||
+                (!canEdit && !p.isSelf) ||
+                locked ||
+                isMemberCommitted(p.tripMemberId, hole.number)
+              }
+            />
+          );
+        })}
       </div>
 
       {/* Keyed by hole too — panel state (open selection, picks) must
@@ -1105,6 +1120,7 @@ function PlayerHoleRow({
   enteredBy,
   onScoreChange,
   disabled,
+  noMatch = false,
 }: {
   matchId: string;
   hole: ScoreClientHole;
@@ -1113,6 +1129,8 @@ function PlayerHoleRow({
   enteredBy: string | null;
   onScoreChange: (g: number | null) => void;
   disabled: boolean;
+  /** Player is on this foursome's roster but in no match this round. */
+  noMatch?: boolean;
 }) {
   const color = player.teamColor ?? '#3f3f46';
   const strokes = player.strokesByHole[hole.number] ?? 0;
@@ -1162,15 +1180,21 @@ function PlayerHoleRow({
                 Clear
               </button>
             </>
+          ) : noMatch ? (
+            <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">
+              Not in a match — no scorecard
+            </span>
           ) : (
             <SaveStatusHint score={score} />
           )}
-          <SaveStatus
-            matchId={matchId}
-            tripMemberId={player.tripMemberId}
-            holeNumber={hole.number}
-            gross={score}
-          />
+          {!noMatch && (
+            <SaveStatus
+              matchId={matchId}
+              tripMemberId={player.tripMemberId}
+              holeNumber={hole.number}
+              gross={score}
+            />
+          )}
         </div>
         {score != null && enteredBy && (
           <p className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-zinc-400 dark:text-zinc-600">
@@ -1244,6 +1268,7 @@ function CardView({
   getScore,
   onScoreChange,
   isHoleCommitted = () => false,
+  noMatch = false,
 }: {
   matchId: string;
   holes: ScoreClientHole[];
@@ -1252,6 +1277,8 @@ function CardView({
   onScoreChange: (h: number, g: number | null) => void;
   // 30 Ball: committed holes render read-only in card view too.
   isHoleCommitted?: (h: number) => boolean;
+  /** Player is on this foursome's roster but in no match this round. */
+  noMatch?: boolean;
 }) {
   const total = holes.reduce((acc, h) => {
     const g = getScore(h.number);
@@ -1265,6 +1292,12 @@ function CardView({
 
   return (
     <div className="mt-6 rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
+      {noMatch && (
+        <p className="border-b border-zinc-300 dark:border-zinc-800 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+          {player.nickname} isn&apos;t in a match this round — no scorecard to
+          write to.
+        </p>
+      )}
       <div className="grid grid-cols-[28px_28px_28px_28px_1fr_56px] items-center gap-2 border-b border-zinc-300 dark:border-zinc-800 px-3 py-2 font-mono text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
         <span>#</span>
         <span>Par</span>
@@ -1297,7 +1330,11 @@ function CardView({
             <span className="font-mono text-xs tabular-nums text-emerald-400">
               {strokes > 0 ? `+${strokes}` : ''}
             </span>
-            {isHoleCommitted(h.number) ? (
+            {noMatch ? (
+              <span className="px-2 py-1 text-right font-mono text-sm tabular-nums text-zinc-400 dark:text-zinc-600">
+                —
+              </span>
+            ) : isHoleCommitted(h.number) ? (
               <span className="flex items-center justify-end gap-1.5 px-2 py-1 text-right font-mono text-sm tabular-nums text-zinc-700 dark:text-zinc-300">
                 <Lock size={11} className="text-zinc-500" />
                 {score ?? '—'}

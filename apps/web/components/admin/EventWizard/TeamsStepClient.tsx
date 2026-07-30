@@ -73,6 +73,11 @@ export default function TeamsStepClient({
 
   const pending = useRef<Map<string, string | null>>(new Map());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Mirror of `assign` for the failure path: a failed batch is re-queued
+  // from what the screen currently shows, not from the stale batch values.
+  const assignRef = useRef<Record<string, string | null>>(
+    Object.fromEntries(members.map((m) => [m.id, m.teamId])),
+  );
 
   const flush = useCallback(async () => {
     if (timer.current) {
@@ -98,6 +103,14 @@ export default function TeamsStepClient({
     } catch (err) {
       rethrowIfControlFlow(err);
       console.error('Failed to save team assignments', err);
+      // Re-queue the failed members so retry has something to send.
+      // Values come from the current on-screen assignment (not the stale
+      // batch), and never clobber a newer queued move for the same member.
+      for (const [id] of batch) {
+        if (!pending.current.has(id)) {
+          pending.current.set(id, assignRef.current[id] ?? null);
+        }
+      }
       setStatus('error');
     }
   }, []);
@@ -108,6 +121,7 @@ export default function TeamsStepClient({
       setAssign((prev) =>
         prev[memberId] === teamId ? prev : { ...prev, [memberId]: teamId },
       );
+      assignRef.current = { ...assignRef.current, [memberId]: teamId };
       pending.current.set(memberId, teamId);
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => void flush(), 500);

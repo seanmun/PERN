@@ -85,6 +85,32 @@ function parseFormat(v: FormDataEntryValue | null): RoundFormat | null {
   return s as RoundFormat;
 }
 
+type MatchScoring = 'match_play' | 'stableford' | 'stroke';
+
+/**
+ * Reject format/scoring combos the scoring pipeline cannot resolve
+ * correctly today, instead of saving them and mis-scoring later.
+ *
+ * Team-input formats (scramble, alternate shot) record ONE gross per
+ * side, fanned to every player's row. Stableford would score that team
+ * gross once per player against individual strokes (garbage totals),
+ * and stroke silently falls through to match play. Only match play is
+ * actually implemented for them.
+ *
+ * 30 Ball and BBB are deliberately NOT restricted: recompute.ts resolves
+ * them bespoke before the scoring field is ever consulted, and the
+ * builder intentionally stores 'stroke' on them to keep the UI honest.
+ */
+function assertScoringSupported(format: RoundFormat, scoring: MatchScoring): void {
+  if (scoring === 'match_play') return;
+  const meta = FORMAT_META[format as FormatId];
+  if (meta?.inputMode === 'team') {
+    throw new Error(
+      `${meta.label} is scored one gross per team — only Match Play resolution is supported for it right now.`,
+    );
+  }
+}
+
 export async function updateMatchParticipants(formData: FormData): Promise<void> {
   const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
@@ -125,6 +151,12 @@ export async function updateMatchParticipants(formData: FormData): Promise<void>
   if (newScoring && newScoring !== match.match.scoring) {
     wipeUpdate.scoring = newScoring;
   }
+  // Validate the FINAL combo — a format change alone can invalidate the
+  // match's existing scoring, and vice versa.
+  assertScoringSupported(
+    (wipeUpdate.format ?? match.match.format) as RoundFormat,
+    (wipeUpdate.scoring ?? match.match.scoring) as MatchScoring,
+  );
   if (Object.keys(wipeUpdate).length > 0) {
     await db
       .update(matches)
@@ -421,6 +453,7 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
     scoringRaw === 'stableford' || scoringRaw === 'stroke'
       ? scoringRaw
       : 'match_play';
+  assertScoringSupported(state.format as RoundFormat, scoring);
 
   // Handicap method — defaults to the house group-low convention when
   // not posted (legacy callers).
@@ -466,6 +499,43 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
   const pointsOverall = clampPts(formData.get('pointsOverall'), 1);
   const pointsFront9 = clampPts(formData.get('pointsFront9'), 0);
   const pointsBack9 = clampPts(formData.get('pointsBack9'), 0);
+
+  // Reject an exact duplicate: same round, same format, same set of
+  // players. The builder used to give no feedback on success, so a
+  // second tap silently created a second identical match and the
+  // scoreboard showed the same matchup twice.
+  const wantedMemberIds = [...state.sideAPlayerIds, ...state.sideBPlayerIds]
+    .filter((id): id is string => !!id);
+  const existingRoundMatches = await db
+    .select({ id: matches.id, format: matches.format })
+    .from(matches)
+    .where(eq(matches.roundId, roundId));
+  const sameFormat = existingRoundMatches.filter(
+    (m) => m.format === (state.format as RoundFormat),
+  );
+  if (sameFormat.length) {
+    const existingParts = await db
+      .select()
+      .from(matchParticipants)
+      .where(inArray(matchParticipants.matchId, sameFormat.map((m) => m.id)));
+    const byMatch = new Map<string, Set<string>>();
+    for (const p of existingParts) {
+      const set = byMatch.get(p.matchId) ?? new Set<string>();
+      set.add(p.tripMemberId);
+      byMatch.set(p.matchId, set);
+    }
+    const wanted = new Set(wantedMemberIds);
+    for (const [, set] of byMatch) {
+      if (
+        set.size === wanted.size &&
+        [...wanted].every((id) => set.has(id))
+      ) {
+        throw new Error(
+          'That exact matchup already exists in this round — it was not created again.',
+        );
+      }
+    }
+  }
 
   const [match] = await db
     .insert(matches)
