@@ -29,7 +29,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   matchParticipants,
@@ -48,6 +48,7 @@ import {
   resolveUniqueTripSlug,
   type RoundFormat,
 } from '@/lib/trip-provision';
+import { deriveTripKind } from '@/lib/trip-kind';
 import { tripWallTimeToDate } from '@/lib/trip-time';
 import { FORMAT_META, type FormatId } from '@buddycup/scoring/formats';
 import { FOURSOME_MAX } from '@buddycup/scoring/lineup';
@@ -109,6 +110,16 @@ function scoringFor(format: FormatId): 'match_play' | 'stableford' | 'stroke' {
   // scoring field is consulted; the builder stores 'stroke' on them to
   // keep the UI honest, and this matches it.
   if (format === 'thirty_ball' || format === 'bingo_bango_bongo') {
+    return 'stroke';
+  }
+  // Stroke play is "low total wins" — that IS the format, so it resolves
+  // under stroke scoring. Storing match_play here made every Stroke Play
+  // match fall through to computeMatch with its format coerced to
+  // best_ball, so an 18-hole stroke match reported a hole-by-hole
+  // closeout ("10 & 8") instead of a total. §7.2 is explicit that the
+  // result SHAPE is the same for all formats; that doesn't mean they may
+  // all be resolved by the same engine.
+  if (format === 'stroke') {
     return 'stroke';
   }
   // Team-input formats (scramble, alternate shot) record one gross per
@@ -220,10 +231,10 @@ export async function createEventFromForm(formData: FormData): Promise<void> {
   const date = p.date ? tripWallTimeToDate(p.date) : null;
   if (date && Number.isNaN(date.getTime())) throw new Error('Invalid date.');
 
-  // Kind is derived, never asked. One group is a matchup; more than one is
-  // an outing. Nothing in the app branches on the difference (only the
-  // badge in trips/[slug]/layout.tsx prints it), so deriving it is safe.
-  const kind = groups.length > 1 ? ('outing' as const) : ('match' as const);
+  // Kind is derived, never asked (§6.3). The rule lives in one place —
+  // lib/trip-kind.ts — so this path and every later round/group change
+  // agree on what the event is. provisionTrip creates round 1 below.
+  const kind = deriveTripKind({ roundCount: 1, groupCount: groups.length });
 
   // The round's headline game is the first one picked; each match still
   // carries its own format.
@@ -284,15 +295,31 @@ export async function createEventFromForm(formData: FormData): Promise<void> {
         continue;
       }
 
+      // §3.3 collision rule, mandatory at creation time: an address that
+      // already belongs to a platform user attaches THAT user. Without
+      // this, an admin typing a buddy's real email — the normal case —
+      // produced a second, unclaimed identity for someone the app already
+      // knew, reconciled only if and when that person next signed in.
+      // Matched case-insensitively, like every other email comparison.
+      let userId = pl.userId;
+      if (!userId && pl.email) {
+        const [byEmail] = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(sql`lower(${users.email}) = ${pl.email}`)
+          .limit(1);
+        if (byEmail) userId = byEmail.id;
+      }
+
       // Inherit avatar and handicap from a linked platform user so the row
       // looks claimed from the moment it exists.
       let avatarUrl: string | null = null;
       let handicap = pl.handicap;
-      if (pl.userId) {
+      if (userId) {
         const [u] = await db
           .select({ avatarUrl: users.avatarUrl, handicap: users.handicap })
           .from(users)
-          .where(eq(users.id, pl.userId))
+          .where(eq(users.id, userId))
           .limit(1);
         if (u) {
           avatarUrl = u.avatarUrl;
@@ -304,7 +331,7 @@ export async function createEventFromForm(formData: FormData): Promise<void> {
         .insert(tripMembers)
         .values({
           tripId,
-          userId: pl.userId,
+          userId,
           email: pl.email,
           nickname: pl.nickname,
           avatarUrl,
@@ -333,9 +360,15 @@ export async function createEventFromForm(formData: FormData): Promise<void> {
   if (roundId && groups.length) {
     try {
       for (let g = 0; g < groups.length; g++) {
+        // Time is null, not the event date. tee_times doubles as the
+        // GROUP table (groupNumber lives on it), so a group has to exist
+        // as a row even when nobody has set a tee time. The schedule
+        // reads `timeTbd: !tt.time` — writing the date here put local
+        // midnight in the column and every group rendered "12:00 AM"
+        // instead of "TBD". This form never asks for a tee time.
         const [tt] = await db
           .insert(teeTimes)
-          .values({ roundId, time: date, groupNumber: g + 1 })
+          .values({ roundId, time: null, groupNumber: g + 1 })
           .returning();
         teeTimeIdByGroup.push(tt.id);
         const ids = groups[g].map(memberId);

@@ -19,7 +19,9 @@ import {
 
 describe('FORMAT_META', () => {
   it('exposes every format declared by the spec', () => {
-    expect(FORMAT_IDS.sort()).toEqual(
+    // FORMAT_IDS is readonly — copy before sorting rather than mutating
+    // the registry's own array (§11.3).
+    expect([...FORMAT_IDS].sort()).toEqual(
       [
         'singles',
         'best_ball',

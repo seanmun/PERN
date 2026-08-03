@@ -39,7 +39,28 @@ const PLAYER_INPUT_FORMATS: ReadonlySet<string> = new Set<PlayerInputFormat>([
   'best_ball',
   'singles',
   'two_man_aggregate',
+  'stroke',
 ]);
+
+/**
+ * The engine format a match resolves under.
+ *
+ * `stroke` used to fall through to the best_ball fallback below, so a
+ * Stroke Play side of 2+ was scored as its BEST net instead of the sum
+ * §7.1 specifies — and a stroke match reported a match-play closeout.
+ * It is a first-class PlayerInputFormat now.
+ *
+ * The fallback remains for the formats that never reach these engines:
+ * thirty_ball and bingo_bango_bongo resolve bespoke above, and the
+ * team-input formats (scramble, alternate_shot) go through
+ * computeTeamMatch. Anything landing here is already a player-input
+ * match, so best_ball is a safe shape rather than a silent mis-scoring.
+ */
+function playerInputFormatFor(format: string): PlayerInputFormat {
+  return PLAYER_INPUT_FORMATS.has(format)
+    ? (format as PlayerInputFormat)
+    : 'best_ball';
+}
 
 export async function recomputeMatchStatus(matchId: string): Promise<void> {
   const data = await getMatchScoringData(matchId);
@@ -171,9 +192,7 @@ export async function recomputeMatchStatus(matchId: string): Promise<void> {
     // Stroke play ("low total wins"). Team-input formats
     // (scramble/alt-shot) fall through to match-play below; stroke
     // resolution for those isn't built yet.
-    const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
-      ? (data.match.format as PlayerInputFormat)
-      : 'best_ball';
+    const fmt = playerInputFormatFor(data.match.format);
     const sp = computeStrokePlayMatch({
       players: enginePlayers,
       holes: data.engineHoles,
@@ -212,9 +231,7 @@ export async function recomputeMatchStatus(matchId: string): Promise<void> {
         scores: data.engineTeamScores ?? [],
       });
     } else {
-      const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
-        ? (data.match.format as PlayerInputFormat)
-        : 'best_ball';
+      const fmt = playerInputFormatFor(data.match.format);
       computed = computeMatch({
         players: enginePlayers,
         holes: data.engineHoles,
@@ -257,9 +274,7 @@ export async function recomputeMatchStatus(matchId: string): Promise<void> {
     data.match.format !== 'bingo_bango_bongo' &&
     data.engineHoles.length >= 18
   ) {
-    const fmt = PLAYER_INPUT_FORMATS.has(data.match.format)
-      ? (data.match.format as PlayerInputFormat)
-      : 'best_ball';
+    const fmt = playerInputFormatFor(data.match.format);
     const runSegment = (from: number, to: number): string | null => {
       const holes = data.engineHoles.filter(
         (h) => h.number >= from && h.number <= to,

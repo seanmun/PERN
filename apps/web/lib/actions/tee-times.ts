@@ -12,6 +12,7 @@ import {
   isTripAdminOf,
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
+import { syncTripKind } from '@/lib/trip-kind';
 import type { AuthContext } from '@/lib/auth/current-user';
 import { resolveRedirect } from '@/lib/actions/wizard-redirect';
 import { tripWallTimeToDate } from '@/lib/trip-time';
@@ -74,6 +75,10 @@ export async function createTeeTime(formData: FormData): Promise<void> {
     time: parseWallTime(formData.get('time')),
     groupNumber,
   });
+
+  // On a one-round event, group count is what separates a match from an
+  // outing (§6.3). Kind is derived, so re-derive rather than leave it.
+  await syncTripKind(round.tripId);
 
   const tripSlug = await getTripSlugById(round.tripId);
   revalidatePath(`/trips/${tripSlug}/schedule`);
@@ -267,6 +272,8 @@ export async function deleteTeeTime(formData: FormData): Promise<void> {
   requireTeeTimeAdmin(ctx, existing.round.tripId);
 
   await db.delete(teeTimes).where(eq(teeTimes.id, id));
+
+  await syncTripKind(existing.round.tripId);
 
   const tripSlug = await getTripSlugById(existing.round.tripId);
   revalidatePath(`/trips/${tripSlug}/schedule`);

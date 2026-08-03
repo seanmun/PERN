@@ -78,7 +78,11 @@ export type ClientGolfItem = {
   matches: ClientMatch[];
   /** This group's own players, independent of which matches are hosted
    *  here. A round-wide match lives under one group, but every group
-   *  still shows its foursome and keeps its own scorecard. */
+   *  still shows its foursome and keeps its own scorecard.
+   *
+   *  Carries the same portrait fields as ClientParticipant so a group
+   *  without a hosted match renders through the SAME card — one design
+   *  on the screen, not two. */
   roster: {
     tripMemberId: string;
     nickname: string;
@@ -86,6 +90,9 @@ export type ClientGolfItem = {
     teamId: string | null;
     teamName: string | null;
     teamColor: string | null;
+    avatarUrl: string | null;
+    arcadePortraitUrl: string | null;
+    userAvatarUrl: string | null;
   }[];
 };
 
@@ -547,32 +554,14 @@ function GolfRow({
       {/* Match sub-rows — each renders a compact NBA-Jam showdown card.
           Sorted so identical formats sit next to each other. */}
       <div className="divide-y divide-zinc-200 dark:divide-zinc-900">
-        {/* No matchup hosted in this group — show the foursome itself.
-            Same card shell as a group with a match: one design, one
-            header, one footer. Previously this rendered from a second,
-            completely different placeholder component. */}
+        {/* No matchup hosted in this group — show the foursome through the
+            SAME showdown card a group with a match uses. Identical
+            portraits, colours and frame: "the players in this group" is
+            one concept and gets one presentation. */}
         {item.matches.length === 0 && (
-          <div className="px-3 py-2.5">
+          <div className="px-2 py-1.5">
             {item.roster.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {item.roster.map((p) => {
-                  const c = p.teamColor ?? '#71717a';
-                  return (
-                    <span
-                      key={p.tripMemberId}
-                      className="rounded-full border px-2 py-0.5 text-[11px] font-semibold"
-                      style={{ borderColor: `${c}55`, color: c, background: `${c}0a` }}
-                    >
-                      {p.nickname}
-                      {p.tripHandicap && (
-                        <span className="ml-1 font-mono text-[9px] tabular-nums opacity-70">
-                          {p.tripHandicap}
-                        </span>
-                      )}
-                    </span>
-                  );
-                })}
-              </div>
+              <RosterShowdownCompact roster={item.roster} />
             ) : (
               <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
                 No players in this group yet
@@ -673,8 +662,27 @@ function MatchupShowdownCompact({ match }: { match: ClientMatch }) {
     );
   }
   const [a, b] = teamGroups;
+  return <ShowdownFrame a={a} b={b} />;
+}
+
+/**
+ * The showdown card frame. Every place the schedule renders a set of
+ * players uses THIS — a hosted match, and a group whose match is hosted
+ * elsewhere. One concept, one presentation.
+ *
+ * `b` is null for a group that holds only one team's players (a 30 Ball
+ * side rides alone); the single cell then spans the full width instead
+ * of leaving a dead half-card.
+ */
+function ShowdownFrame({
+  a,
+  b,
+}: {
+  a: ClientParticipant[];
+  b: ClientParticipant[] | null;
+}) {
   const aColor = a[0]?.teamColor ?? '#71717a';
-  const bColor = b[0]?.teamColor ?? '#71717a';
+  const bColor = b?.[0]?.teamColor ?? aColor;
   return (
     <div
       className="overflow-hidden rounded-sm"
@@ -684,20 +692,62 @@ function MatchupShowdownCompact({ match }: { match: ClientMatch }) {
       }}
     >
       <div
-        className="grid grid-cols-[1fr_auto_1fr] items-stretch bg-[image:var(--matchup-bg-light)] dark:bg-[image:var(--matchup-bg-dark)]"
+        className={`grid items-stretch bg-[image:var(--matchup-bg-light)] dark:bg-[image:var(--matchup-bg-dark)] ${
+          b ? 'grid-cols-[1fr_auto_1fr]' : 'grid-cols-1'
+        }`}
         style={
           {
-            '--matchup-bg-light': `linear-gradient(90deg, ${aColor}33 0%, ${aColor}33 46%, ${bColor}33 54%, ${bColor}33 100%)`,
+            '--matchup-bg-light': b
+              ? `linear-gradient(90deg, ${aColor}33 0%, ${aColor}33 46%, ${bColor}33 54%, ${bColor}33 100%)`
+              : `linear-gradient(90deg, ${aColor}33 0%, transparent 100%)`,
             '--matchup-bg-dark': 'linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%)',
           } as React.CSSProperties
         }
       >
         <CompactPortraitsCell players={a} color={aColor} align="left" />
-        <CompactVsBanner />
-        <CompactPortraitsCell players={b} color={bColor} align="right" />
+        {b && <CompactVsBanner />}
+        {b && <CompactPortraitsCell players={b} color={bColor} align="right" />}
       </div>
     </div>
   );
+}
+
+/**
+ * A group with no hosted match, rendered as the same showdown card.
+ * Splits the foursome by team so it reads the same way as a matchup;
+ * falls back to one full-width cell when everyone here is on one team.
+ */
+function RosterShowdownCompact({
+  roster,
+}: {
+  roster: ClientGolfItem['roster'];
+}) {
+  const players: ClientParticipant[] = roster.map((r) => ({
+    tripMemberId: r.tripMemberId,
+    nickname: r.nickname,
+    tripHandicap: r.tripHandicap,
+    teamId: r.teamId ?? '',
+    teamName: r.teamName ?? '',
+    teamColor: r.teamColor,
+    arcadePortraitUrl: r.arcadePortraitUrl,
+    // Same priority as the matchup card: trip-scoped avatar > user avatar.
+    avatarUrl: r.avatarUrl ?? r.userAvatarUrl,
+  }));
+
+  const byTeam = new Map<string, ClientParticipant[]>();
+  for (const p of players) {
+    const list = byTeam.get(p.teamId) ?? [];
+    list.push(p);
+    byTeam.set(p.teamId, list);
+  }
+  const teamGroups = Array.from(byTeam.values()).sort((x, y) =>
+    (x[0]?.teamName ?? '').localeCompare(y[0]?.teamName ?? ''),
+  );
+
+  if (teamGroups.length >= 2) {
+    return <ShowdownFrame a={teamGroups[0]} b={teamGroups[1]} />;
+  }
+  return <ShowdownFrame a={players} b={null} />;
 }
 
 function CompactVsBanner() {

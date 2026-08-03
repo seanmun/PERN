@@ -7,6 +7,7 @@
  *   - 1v1 singles               (each side = 1 player, team net = that player's net)
  *   - 2v2 best ball (Four-Ball) (each side = 2 players, team net = LOWEST player net)
  *   - 2-man aggregate           (each side = 2 players, team net = SUM of player nets)
+ *   - stroke play               (each side = 1-4 players, team net = SUM of player nets)
  *
  * Team-input formats (scramble, alternate shot) use a different engine because
  * the underlying data shape is "one team score per hole" rather than "one score
@@ -18,7 +19,25 @@
  * their own stroke allocation; sums happen at net-comparison time, not earlier).
  */
 
-export type PlayerInputFormat = 'best_ball' | 'singles' | 'two_man_aggregate';
+export type PlayerInputFormat =
+  | 'best_ball'
+  | 'singles'
+  | 'two_man_aggregate'
+  | 'stroke';
+
+/**
+ * Formats whose side number is the SUM of its players' nets rather than
+ * the best one (§7.1). A sum is only meaningful when every player on the
+ * side has holed out, so a missing gross makes the hole unscorable for
+ * that side rather than quietly summing fewer balls.
+ *
+ * `singles` and `stroke` at one player a side agree either way — min of
+ * one net is that net — so stroke needs no special case by size.
+ */
+const SUM_OF_NETS: ReadonlySet<PlayerInputFormat> = new Set<PlayerInputFormat>([
+  'two_man_aggregate',
+  'stroke',
+]);
 
 export type EnginePlayer = {
   id: string;
@@ -119,9 +138,9 @@ export function computeStrokes(
  * stroke-play (computeStrokePlayMatch) resolution — both must agree on
  * what a side "shot" on a given hole.
  *
- * two_man_aggregate sums ALL of the side's nets (needs every player
- * scored, else null); everything else takes the single lowest net,
- * best-ball style (needs at least one player scored).
+ * Sum formats (two_man_aggregate, stroke) add ALL of the side's nets and
+ * need every player scored, else null; everything else takes the single
+ * lowest net, best-ball style, needing at least one player scored.
  */
 function aggregateSideNet(
   side: EnginePlayer[],
@@ -134,14 +153,14 @@ function aggregateSideNet(
   for (const p of side) {
     const gross = scoreByPlayerHole.get(p.id)?.get(holeNumber);
     if (gross == null) {
-      if (format === 'two_man_aggregate') return null;
+      if (SUM_OF_NETS.has(format)) return null;
       continue;
     }
     const strokes = strokesByPlayer.get(p.id)?.get(holeNumber) ?? 0;
     nets.push(gross - strokes);
   }
   if (nets.length === 0) return null;
-  if (format === 'two_man_aggregate') {
+  if (SUM_OF_NETS.has(format)) {
     return nets.reduce((a, b) => a + b, 0);
   }
   return Math.min(...nets);

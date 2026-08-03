@@ -12,6 +12,7 @@
     "lint": "npm run lint -w web",
     "test": "npm test -w web",
     "test:watch": "npm run test:watch -w web",
+    "harness": "npm run harness -w web",
     "seed:scenarios": "npm run seed:scenarios -w web"
   },
   "engines": {

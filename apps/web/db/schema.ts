@@ -33,6 +33,9 @@ export const roundFormatEnum = pgEnum('round_format', [
   'two_man_aggregate',
   'thirty_ball',
   'bingo_bango_bongo',
+  // Requires migration 0033. Until that has run against a database, any
+  // round or match saved with this value fails on the enum.
+  'alternate_shot',
 ]);
 
 export const matchStatusEnum = pgEnum('match_status', [

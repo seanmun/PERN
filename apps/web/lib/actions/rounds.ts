@@ -18,6 +18,7 @@ import {
   isTripAdminOf,
 } from '@/lib/auth/permissions';
 import { getTripSlugById } from '@/lib/auth/trip-context';
+import { syncTripKind } from '@/lib/trip-kind';
 import { tripWallTimeToDate } from '@/lib/trip-time';
 import type { AuthContext } from '@/lib/auth/current-user';
 import { resolveRedirect } from '@/lib/actions/wizard-redirect';
@@ -134,6 +135,11 @@ export async function createRound(formData: FormData): Promise<void> {
       countsTowardCup,
     })
     .returning();
+
+  // Adding a round can turn a match/outing into a trip (§6.3). Kind is
+  // derived from structure, so re-derive it rather than leaving the
+  // column describing the event as it was at creation.
+  await syncTripKind(tripId);
 
   const tripSlug = await getTripSlugById(tripId);
   revalidatePath(`/trips/${tripSlug}/schedule`);
@@ -318,6 +324,9 @@ export async function deleteRound(formData: FormData): Promise<void> {
   requireRoundAdmin(ctx, existing.tripId);
 
   await db.delete(rounds).where(eq(rounds.id, id));
+
+  // Removing a round can turn a trip back into an outing or a match.
+  await syncTripKind(existing.tripId);
 
   const tripSlug = await getTripSlugById(existing.tripId);
   revalidatePath(`/trips/${tripSlug}/schedule`);

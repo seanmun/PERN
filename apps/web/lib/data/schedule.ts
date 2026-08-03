@@ -43,6 +43,13 @@ export type GolfRosterEntry = {
   teamId: string | null;
   teamName: string | null;
   teamColor: string | null;
+  // Same portrait fields as ScheduleParticipant, and for the same reason:
+  // a group with no hosted match renders through the SAME matchup card as
+  // one that has a match. Without these it fell back to a second, plainer
+  // player list and the schedule showed two different designs side by side.
+  avatarUrl: string | null;
+  arcadePortraitUrl: string | null;
+  userAvatarUrl: string | null;
 };
 
 export type GolfItem = {
@@ -190,9 +197,17 @@ export async function getScheduleByDay(tripId: string): Promise<ScheduleDay[]> {
   const allRosterIds = [...new Set(rosterRows.map((r) => r.tripMemberId))];
   const rosterMembers = allRosterIds.length
     ? await db
-        .select({ member: tripMembers, team: teams })
+        .select({
+          member: tripMembers,
+          team: teams,
+          // leftJoin: unclaimed tripMembers have null userId, so these can
+          // be null even though the member exists.
+          arcadePortraitUrl: users.arcadePortraitUrl,
+          userAvatarUrl: users.avatarUrl,
+        })
         .from(tripMembers)
         .leftJoin(teams, eq(tripMembers.teamId, teams.id))
+        .leftJoin(users, eq(tripMembers.userId, users.id))
         .where(inArray(tripMembers.id, allRosterIds))
     : [];
   const memberDetail = new Map(
@@ -205,6 +220,9 @@ export async function getScheduleByDay(tripId: string): Promise<ScheduleDay[]> {
         teamId: r.member.teamId,
         teamName: r.team?.name ?? null,
         teamColor: r.team?.color ?? null,
+        avatarUrl: r.member.avatarUrl,
+        arcadePortraitUrl: r.arcadePortraitUrl,
+        userAvatarUrl: r.userAvatarUrl,
       },
     ]),
   );
