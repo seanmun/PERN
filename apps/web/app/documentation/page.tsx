@@ -136,7 +136,7 @@ export default async function DocumentationPage() {
         <Table
           head={['Table', 'Purpose', 'Notable columns']}
           rows={[
-            ['trips', 'Top-level container', 'slug (unique), name, startDate, endDate, description, imageUrl, createdBy'],
+            ['trips', 'Top-level container', 'slug (unique), name, kind, startDate, endDate, description, imageUrl, createdBy, archivedAt, defaultHandicapMethod (how MATCHES resolve), leaderboardMethod (how the INDIVIDUAL board ranks — gross | net_trip_handicap | net_course_handicap, read-time only, migration 0034)'],
             ['teams', 'Two teams per trip', 'tripId, name, color (hex), captainUserId'],
             ['tripMembers', 'Roster — central to permissions', 'tripId, userId (nullable until claimed), email (nullable since 0017), teamId, nickname, avatarUrl, role (trip_admin|player), isCaptain, tripHandicap, scoutingReport (flight columns retained but unused after flights page removal)'],
             ['rounds', 'Golf outings (1–N per trip)', 'tripId, courseId, courseTeeId, date, format (best_ball|singles|scramble|stroke|two_man_aggregate|thirty_ball|bingo_bango_bongo|alternate_shot), order, label, countsTowardCup, isHidden. A round with no matches is a SHELL — a first-class state (§6.2), not an error.'],

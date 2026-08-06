@@ -34,7 +34,11 @@ import {
 } from '@/db/schema';
 import { tripWallDay } from '@/lib/trip-time';
 import type { CourseRow } from '@/components/event-builder/CoursePicker';
-import type { HandicapMethod, LoadedEvent } from '@/components/event-builder/state';
+import type {
+  HandicapMethod,
+  LeaderboardMethod,
+  LoadedEvent,
+} from '@/components/event-builder/state';
 import type { FormatId } from '@buddycup/scoring/formats';
 
 // ───────────────────────── Courses ─────────────────────────
@@ -204,6 +208,7 @@ export async function loadEventForBuilder(
     startDate: trip.startDate ? tripWallDay(trip.startDate) : '',
     endDate: trip.endDate ? tripWallDay(trip.endDate) : '',
     handicapMethod: trip.defaultHandicapMethod as HandicapMethod,
+    leaderboardMethod: trip.leaderboardMethod as LeaderboardMethod,
     teamA: { name: teamA.name, color: teamA.color ?? '#16a34a' },
     teamB: { name: teamB.name, color: teamB.color ?? '#eab308' },
     players,

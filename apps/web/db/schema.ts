@@ -66,6 +66,29 @@ export const handicapMethodEnum = pgEnum('handicap_method', [
   'course',
 ]);
 
+/**
+ * How the INDIVIDUAL leaderboard turns gross strokes into a ranking. Trip
+ * level, applied at read time — it never touches stored scores.
+ *
+ *   gross              : raw strokes, no allocation. Scratch play.
+ *   net_trip_handicap  : strokes off the player's trip handicap, used as-is
+ *                        (no slope/rating conversion).
+ *   net_course_handicap: strokes off the full course handicap — trip
+ *                        handicap treated as an index and converted via the
+ *                        round tee's slope/rating. Falls back to the trip
+ *                        handicap when a round's tee has no slope/rating,
+ *                        and the leaderboard reports which rounds fell back.
+ *
+ * Distinct from `handicap_method`, which decides how a MATCH is resolved.
+ * A match settles a wager between two sides; the leaderboard ranks twelve
+ * people against each other. They are different questions.
+ */
+export const leaderboardMethodEnum = pgEnum('leaderboard_method', [
+  'gross',
+  'net_trip_handicap',
+  'net_course_handicap',
+]);
+
 export const mediaTypeEnum = pgEnum('media_type', ['image', 'video']);
 
 export const moderationStatusEnum = pgEnum('moderation_status', [
@@ -131,6 +154,11 @@ export const trips = pgTable('trips', {
   // Admin can still override per match in the builder.
   defaultHandicapMethod: handicapMethodEnum('default_handicap_method')
     .default('group_low')
+    .notNull(),
+  // How the individual leaderboard ranks players (§ leaderboardMethodEnum).
+  // Read-time only — hole_scores.net is never rewritten by changing it.
+  leaderboardMethod: leaderboardMethodEnum('leaderboard_method')
+    .default('net_course_handicap')
     .notNull(),
   // Archived events hide from home (restorable; nothing deleted).
   archivedAt: timestamp('archived_at', { withTimezone: true }),

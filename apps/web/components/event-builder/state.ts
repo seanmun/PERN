@@ -47,6 +47,34 @@ import {
 
 export type HandicapMethod = 'group_low' | 'match_low' | 'course';
 
+/**
+ * Trip Scoring — how the INDIVIDUAL leaderboard ranks players. Trip level
+ * and applied at read time, so changing it re-reads the same stored
+ * scores rather than rewriting any of them.
+ *
+ * Not the same question as `HandicapMethod`: that decides how a match
+ * between two sides resolves; this decides how twelve people are ranked
+ * against each other.
+ */
+export type LeaderboardMethod =
+  | 'gross'
+  | 'net_trip_handicap'
+  | 'net_course_handicap';
+
+export const LEADERBOARD_METHOD_LABEL: Record<LeaderboardMethod, string> = {
+  gross: 'Gross — raw strokes, no handicap',
+  net_trip_handicap: 'Net vs trip handicap',
+  net_course_handicap: 'Net vs course handicap',
+};
+
+export const LEADERBOARD_METHOD_BLURB: Record<LeaderboardMethod, string> = {
+  gross: 'Lowest actual strokes wins. Nobody gets shots.',
+  net_trip_handicap:
+    'Each player’s trip handicap, used as-is. The same shots on every course.',
+  net_course_handicap:
+    'Trip handicap converted per course via the tee’s slope and rating. Falls back to the trip handicap on a course with no slope/rating.',
+};
+
 /** A person on the roster. Asked once, above the rounds (§6.2). */
 export type PlayerRow = {
   /** Stable client-side identity. Becomes an array index at submit time. */
@@ -109,6 +137,8 @@ export type BuilderState = {
   teamA: { name: string; color: string };
   teamB: { name: string; color: string };
   handicapMethod: HandicapMethod;
+  /** Trip Scoring. See LeaderboardMethod. */
+  leaderboardMethod: LeaderboardMethod;
   players: PlayerRow[];
   rounds: RoundRow[];
 };
@@ -243,6 +273,7 @@ export type BuilderAction =
   | { type: 'endDate'; value: string }
   | { type: 'team'; side: 'A' | 'B'; patch: Partial<{ name: string; color: string }> }
   | { type: 'handicapMethod'; value: HandicapMethod }
+  | { type: 'leaderboardMethod'; value: LeaderboardMethod }
   | { type: 'addPlayer'; player: Omit<PlayerRow, 'key' | 'hasScores'> }
   | {
       type: 'patchPlayer';
@@ -291,6 +322,9 @@ export function builderReducer(
 
     case 'handicapMethod':
       return { ...state, handicapMethod: action.value };
+
+    case 'leaderboardMethod':
+      return { ...state, leaderboardMethod: action.value };
 
     case 'addPlayer': {
       const p = action.player;
@@ -429,6 +463,7 @@ export function initialCreateState(me: {
     teamA: { ...DEFAULT_TEAM_A },
     teamB: { ...DEFAULT_TEAM_B },
     handicapMethod: 'group_low',
+    leaderboardMethod: 'net_course_handicap',
     players,
     rounds: [
       {
@@ -457,6 +492,7 @@ export type LoadedEvent = {
   startDate: string;
   endDate: string;
   handicapMethod: HandicapMethod;
+  leaderboardMethod: LeaderboardMethod;
   teamA: { name: string; color: string };
   teamB: { name: string; color: string };
   players: {
@@ -515,6 +551,7 @@ export function stateFromEvent(ev: LoadedEvent): BuilderState {
     teamA: ev.teamA,
     teamB: ev.teamB,
     handicapMethod: ev.handicapMethod,
+    leaderboardMethod: ev.leaderboardMethod,
     players,
     rounds: ev.rounds.map((r) => ({
       key: nextKey('round'),
@@ -710,6 +747,7 @@ export function toPayload(state: BuilderState): {
   teamA: { name: string; color: string };
   teamB: { name: string; color: string };
   handicapMethod: HandicapMethod;
+  leaderboardMethod: LeaderboardMethod;
   players: {
     memberId: string | null;
     userId: string | null;
@@ -749,6 +787,7 @@ export function toPayload(state: BuilderState): {
       color: state.teamB.color,
     },
     handicapMethod: state.handicapMethod,
+    leaderboardMethod: state.leaderboardMethod,
     players: state.players.map((p) => ({
       memberId: p.memberId,
       userId: p.userId,

@@ -12,11 +12,13 @@
  * layer may never rewrite its own foundation.
  */
 
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { rounds, trips } from '@/db/schema';
+import { matches, rounds, trips } from '@/db/schema';
 import { saveEvent, type EventBuilderPayload } from '@/lib/actions/save-event';
 import { getLeaderboard } from '@/lib/data/leaderboard';
+import { loadEventForBuilder } from '@/lib/data/event-builder';
+import type { LeaderboardMethod } from '@/components/event-builder/state';
 import { deriveLineup } from '@buddycup/scoring/lineup';
 import type { FormatId } from '@buddycup/scoring/formats';
 import {
@@ -37,6 +39,8 @@ type RoundSpec = {
   date?: string | null;
   formats: FormatId[];
   countsTowardCup?: boolean;
+  /** §4.3 override. Null/absent inherits the trip default. */
+  handicapMethod?: 'group_low' | 'match_low' | 'course' | null;
 };
 
 /**
@@ -51,6 +55,7 @@ function payloadFor(input: {
   roster: (RosterEntry & { memberId?: string | null })[];
   rounds: RoundSpec[];
   startDate?: string | null;
+  leaderboardMethod?: LeaderboardMethod;
 }): EventBuilderPayload {
   return {
     tripId: input.tripId ?? null,
@@ -60,6 +65,7 @@ function payloadFor(input: {
     teamA: { name: 'MachIans', color: '#16a34a' },
     teamB: { name: 'Douchebags', color: '#eab308' },
     handicapMethod: 'group_low',
+    leaderboardMethod: input.leaderboardMethod ?? 'net_course_handicap',
     players: input.roster.map((p) => ({
       memberId: p.memberId ?? null,
       userId: p.userId ?? null,
@@ -79,7 +85,7 @@ function payloadFor(input: {
           date: r.date ?? null,
           label: r.label,
           countsTowardCup: r.countsTowardCup !== false,
-          handicapMethod: null,
+          handicapMethod: r.handicapMethod ?? null,
           groups: [],
           matches: [],
         };
@@ -102,7 +108,7 @@ function payloadFor(input: {
         date: r.date ?? null,
         label: r.label,
         countsTowardCup: r.countsTowardCup !== false,
-        handicapMethod: null,
+        handicapMethod: r.handicapMethod ?? null,
         groups: lineup.groups.map((g) => g.map(Number)),
         matches: lineup.matches.map((m) => ({
           format: m.format,
@@ -429,6 +435,328 @@ export async function runBuilder(admin: HarnessActor): Promise<void> {
     );
     const after = await loadEvent(slug);
     assertEq(after.members.length, ev.members.length, 'roster unchanged');
+  });
+
+  // ───────── §4.3 · A round's handicap rule changes on its own ─────────
+  await scenario(
+    "§4.3 · Edit — a round's handicap rule changes with the lineup untouched",
+    async () => {
+      const course = await makeCourse('hcp-rule');
+      const people = roster('hcp', 2);
+
+      const slug = await save(
+        admin,
+        payloadFor({
+          name: 'builder-hcp-rule',
+          roster: people,
+          rounds: [{ courseId: course.courseId, label: 'Round 1', formats: ['singles'] }],
+        }),
+      );
+      const ev = await loadEvent(slug);
+      const round = ev.rounds[0];
+      const withIds = people.map((p) => ({
+        ...p,
+        memberId: ev.byNickname.get(p.nickname)!.id,
+      }));
+
+      const methodsOf = async (roundId: string): Promise<string[]> => {
+        const rows = await db
+          .select({ id: matches.id, handicapMethod: matches.handicapMethod })
+          .from(matches)
+          .where(eq(matches.roundId, roundId));
+        return rows.map((r) => r.handicapMethod as string).sort();
+      };
+
+      assertEq(
+        (await methodsOf(round.id)).join(','),
+        'group_low,group_low',
+        'matches start on the trip default',
+      );
+
+      const matchIdsBefore = (
+        await db.select({ id: matches.id }).from(matches).where(eq(matches.roundId, round.id))
+      )
+        .map((m) => m.id)
+        .sort();
+
+      // The ONLY change is the rule. Same roster, same games, so the
+      // lineup signature is identical — which is exactly the path that
+      // used to swallow this edit entirely.
+      await save(
+        admin,
+        payloadFor({
+          tripId: ev.trip.id,
+          name: 'builder-hcp-rule',
+          roster: withIds,
+          rounds: [
+            {
+              roundId: round.id,
+              courseId: course.courseId,
+              label: 'Round 1',
+              formats: ['singles'],
+              handicapMethod: 'match_low',
+            },
+          ],
+        }),
+      );
+
+      assertEq(
+        (await methodsOf(round.id)).join(','),
+        'match_low,match_low',
+        'a rule-only edit persists (the unchanged-lineup short circuit no longer eats it)',
+      );
+
+      const matchIdsAfter = (
+        await db.select({ id: matches.id }).from(matches).where(eq(matches.roundId, round.id))
+      )
+        .map((m) => m.id)
+        .sort();
+      assertEq(
+        matchIdsAfter.join(','),
+        matchIdsBefore.join(','),
+        'the lineup was not rebuilt to carry the change',
+      );
+
+      // §2: the builder must read back what it wrote, or the next save
+      // silently reverts it.
+      const reloaded = await loadEventForBuilder(slug);
+      assertEq(
+        reloaded?.rounds[0].handicapMethod ?? null,
+        'match_low',
+        'the rule round-trips into the builder',
+      );
+
+      // And back again, so this is not one-way.
+      await save(
+        admin,
+        payloadFor({
+          tripId: ev.trip.id,
+          name: 'builder-hcp-rule',
+          roster: withIds,
+          rounds: [
+            {
+              roundId: round.id,
+              courseId: course.courseId,
+              label: 'Round 1',
+              formats: ['singles'],
+              handicapMethod: 'group_low',
+            },
+          ],
+        }),
+      );
+      assertEq(
+        (await methodsOf(round.id)).join(','),
+        'group_low,group_low',
+        'and reverts just as cleanly',
+      );
+    },
+  );
+
+  // ───────── Trip Scoring · the setting round-trips ─────────
+  await scenario('Trip Scoring — the leaderboard method round-trips', async () => {
+    const course = await makeCourse('ts-roundtrip');
+    const people = roster('tsr', 2);
+
+    const slug = await save(
+      admin,
+      payloadFor({
+        name: 'builder-ts-roundtrip',
+        roster: people,
+        rounds: [{ courseId: course.courseId, label: 'Round 1', formats: ['best_ball'] }],
+        leaderboardMethod: 'gross',
+      }),
+    );
+    const ev = await loadEvent(slug);
+    const [tripRow] = await db.select().from(trips).where(eq(trips.id, ev.trip.id));
+    assertEq(tripRow.leaderboardMethod, 'gross', 'the setting is written on create');
+    assertEq(
+      (await loadEventForBuilder(slug))?.leaderboardMethod ?? null,
+      'gross',
+      'and loads back into the builder',
+    );
+
+    const withIds = people.map((p) => ({
+      ...p,
+      memberId: ev.byNickname.get(p.nickname)!.id,
+    }));
+    await save(
+      admin,
+      payloadFor({
+        tripId: ev.trip.id,
+        name: 'builder-ts-roundtrip',
+        roster: withIds,
+        rounds: [
+          {
+            roundId: ev.rounds[0].id,
+            courseId: course.courseId,
+            label: 'Round 1',
+            formats: ['best_ball'],
+          },
+        ],
+        leaderboardMethod: 'net_trip_handicap',
+      }),
+    );
+    const [after] = await db.select().from(trips).where(eq(trips.id, ev.trip.id));
+    assertEq(after.leaderboardMethod, 'net_trip_handicap', 'and changes on edit');
+  });
+
+  // ───────── Trip Scoring · the leaderboard actually moves ─────────
+  await scenario('Trip Scoring — the leaderboard changes basis with the setting', async () => {
+    // A SLOPED course: 130/74.5 on a par 72 means a course handicap is
+    // meaningfully different from the raw index, which is the only way to
+    // tell the two net bases apart. The default 113/72 fixture cannot.
+    const course = await makeCourse('ts-sloped', { slope: 130, rating: '74.5' });
+    const people: RosterEntry[] = [
+      { nickname: 'ts-A1', team: 'A', handicap: '4.0' },
+      { nickname: 'ts-A2', team: 'A', handicap: '18.0' },
+      { nickname: 'ts-B1', team: 'B', handicap: '4.0' },
+      { nickname: 'ts-B2', team: 'B', handicap: '18.0' },
+    ];
+
+    const slug = await save(
+      admin,
+      payloadFor({
+        name: 'builder-ts-basis',
+        roster: people,
+        rounds: [{ courseId: course.courseId, label: 'Round 1', formats: ['best_ball'] }],
+        leaderboardMethod: 'gross',
+      }),
+    );
+    const ev = await loadEvent(slug);
+    const withIds = people.map((p) => ({
+      ...p,
+      memberId: ev.byNickname.get(p.nickname)!.id,
+    }));
+    const match = ev.matches[0];
+
+    // Everyone plays the first six holes in 5s. Gross is identical for
+    // all four, so any spread on the board is the handicap basis alone.
+    for (const p of withIds) {
+      for (let hole = 1; hole <= 6; hole++) {
+        await enterScore(admin, {
+          matchId: match.match.id,
+          tripMemberId: p.memberId!,
+          holeNumber: hole,
+          gross: 5,
+        });
+      }
+    }
+
+    const boardFor = async (method: LeaderboardMethod) => {
+      await save(
+        admin,
+        payloadFor({
+          tripId: ev.trip.id,
+          name: 'builder-ts-basis',
+          roster: withIds,
+          rounds: [
+            {
+              roundId: ev.rounds[0].id,
+              courseId: course.courseId,
+              label: 'Round 1',
+              formats: ['best_ball'],
+            },
+          ],
+          leaderboardMethod: method,
+        }),
+      );
+      const board = await getLeaderboard(ev.trip.id);
+      const row = (nick: string) =>
+        board.playerTotals.find((x) => x.nickname === nick)!;
+      return { board, row };
+    };
+
+    const gross = await boardFor('gross');
+    assertEq(gross.board.method, 'gross', 'board reports the basis it used');
+    assertEq(gross.row('ts-A1').strokesGiven, 0, 'gross gives nobody strokes');
+    assertEq(
+      gross.row('ts-A2').net,
+      gross.row('ts-A2').gross,
+      'gross: net equals gross',
+    );
+    assertEq(
+      gross.row('ts-A1').net - gross.row('ts-A2').net,
+      0,
+      'gross: a 4 and an 18 shooting the same score are level',
+    );
+
+    const tripH = await boardFor('net_trip_handicap');
+    // 18 handicap over stroke indexes 1-6 => one stroke on each.
+    assertEq(tripH.row('ts-A2').strokesGiven, 6, 'trip handicap: the 18 gets 6 strokes');
+    assertEq(tripH.row('ts-A1').strokesGiven, 4, 'trip handicap: the 4 gets 4 strokes');
+    assert(
+      tripH.row('ts-A2').net < tripH.row('ts-A1').net,
+      'trip handicap: the higher handicap now leads on the same gross',
+    );
+
+    const courseH = await boardFor('net_course_handicap');
+    assertEq(
+      courseH.board.courseHandicapFallbacks.length,
+      0,
+      'a rated tee needs no fallback',
+    );
+    // 18 x 130/113 + 2.5 = 23.2 -> 23, so all six holes still get a
+    // stroke, but the 4 converts to 4 x 130/113 + 2.5 = 7.1 -> 7 and now
+    // takes a stroke on all six too.
+    assertEq(
+      courseH.row('ts-A1').strokesGiven,
+      6,
+      'course handicap: the 4 plays off 7 on a 130-slope course, so 6 strokes',
+    );
+    assert(
+      courseH.row('ts-A1').strokesGiven !== tripH.row('ts-A1').strokesGiven,
+      'course handicap and trip handicap are genuinely different bases',
+    );
+  });
+
+  // ───────── Trip Scoring · the fallback is taken AND reported ─────────
+  await scenario('Trip Scoring — course mode falls back and says so', async () => {
+    // No tee at all, so there is no slope/rating to convert with.
+    const course = await makeCourse('ts-unrated', { noTee: true });
+    const people: RosterEntry[] = [
+      { nickname: 'fb-A1', team: 'A', handicap: '4.0' },
+      { nickname: 'fb-A2', team: 'A', handicap: '18.0' },
+      { nickname: 'fb-B1', team: 'B', handicap: '4.0' },
+      { nickname: 'fb-B2', team: 'B', handicap: '18.0' },
+    ];
+
+    const slug = await save(
+      admin,
+      payloadFor({
+        name: 'builder-ts-fallback',
+        roster: people,
+        rounds: [{ courseId: course.courseId, label: 'Unrated Muni', formats: ['best_ball'] }],
+        leaderboardMethod: 'net_course_handicap',
+      }),
+    );
+    const ev = await loadEvent(slug);
+    const withIds = people.map((p) => ({
+      ...p,
+      memberId: ev.byNickname.get(p.nickname)!.id,
+    }));
+    for (const p of withIds) {
+      for (let hole = 1; hole <= 6; hole++) {
+        await enterScore(admin, {
+          matchId: ev.matches[0].match.id,
+          tripMemberId: p.memberId!,
+          holeNumber: hole,
+          gross: 5,
+        });
+      }
+    }
+
+    const board = await getLeaderboard(ev.trip.id);
+    assertEq(board.method, 'net_course_handicap', 'the setting is still what was asked for');
+    assertEq(
+      board.courseHandicapFallbacks.join(','),
+      'Unrated Muni',
+      'the round that fell back is named, not swallowed',
+    );
+    // Falling back means "the trip handicap, as-is" — the same allocation
+    // net_trip_handicap would have produced.
+    const row = (nick: string) => board.playerTotals.find((x) => x.nickname === nick)!;
+    assertEq(row('fb-A1').strokesGiven, 4, 'fallback allocates off the raw trip handicap');
+    assertEq(row('fb-A2').strokesGiven, 6, 'and the 18 still gets its 6');
   });
 
   // ───────── §6.3 · Nothing writes until submit ─────────

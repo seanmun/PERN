@@ -144,11 +144,23 @@ export function actorFor(email: string, fullName = 'Harness Claimer'): HarnessAc
 export type CourseFixture = { courseId: string; par: number };
 
 /**
- * 18 holes, par 4, stroke indexes 1–18, plus a default tee at slope 113 /
- * rating 72. Scratch slope and rating mean the §4.2 stage-1 allocator
- * runs for real while still handing back a predictable stroke count.
+ * 18 holes, par 4, stroke indexes 1–18, plus a default tee. The default tee is deliberately neutral — slope 113,
+ * rating 72 on a par 72 — so a course handicap comes out EQUAL to the
+ * index and stroke allocation is easy to reason about in every other
+ * scenario.
+ *
+ * That neutrality is useless for testing Trip Scoring, though: it makes
+ * "net vs trip handicap" and "net vs course handicap" produce identical
+ * numbers. Hence the options:
+ *
+ *   slope/rating   a sloped course, where the two bases genuinely differ
+ *   noTee          no tee at all, so course mode has nothing to convert
+ *                  with and must fall back (and say so)
  */
-export async function makeCourse(label: string): Promise<CourseFixture> {
+export async function makeCourse(
+  label: string,
+  opts: { slope?: number; rating?: string; noTee?: boolean } = {},
+): Promise<CourseFixture> {
   const [course] = await db
     .insert(courses)
     .values({ name: `${COURSE_PREFIX}${label}`, location: 'Harness, USA' })
@@ -164,14 +176,16 @@ export async function makeCourse(label: string): Promise<CourseFixture> {
     })),
   );
 
-  await db.insert(courseTees).values({
-    courseId: course.id,
-    name: 'Harness',
-    displayOrder: 1,
-    slope: 113,
-    rating: '72.0',
-    isDefault: true,
-  });
+  if (!opts.noTee) {
+    await db.insert(courseTees).values({
+      courseId: course.id,
+      name: 'Harness',
+      displayOrder: 1,
+      slope: opts.slope ?? 113,
+      rating: opts.rating ?? '72.0',
+      isDefault: true,
+    });
+  }
 
   return { courseId: course.id, par: 72 };
 }

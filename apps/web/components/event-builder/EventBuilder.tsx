@@ -21,7 +21,7 @@
 
 import { useEffect, useMemo, useReducer, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, X } from 'lucide-react';
+import { Check, Plus, X } from 'lucide-react';
 import { saveEvent } from '@/lib/actions/save-event';
 import { rethrowIfControlFlow } from '@/lib/control-flow-error';
 import type { CourseRow } from './CoursePicker';
@@ -33,10 +33,13 @@ import {
   computeLocks,
   initialCreateState,
   kindLabel,
+  LEADERBOARD_METHOD_BLURB,
+  LEADERBOARD_METHOD_LABEL,
   stateFromEvent,
   teamAssignment,
   toPayload,
   type BuilderState,
+  type LeaderboardMethod,
   type LoadedEvent,
 } from './state';
 import { INPUT, LABEL, META, SECTION, SECTION_BODY, SECTION_HEAD } from './ui';
@@ -213,6 +216,61 @@ export default function EventBuilder({
               <option value="course">Full course handicap</option>
             </select>
           </label>
+        </div>
+      </section>
+
+      {/* ---- Trip Scoring ------------------------------------------------ */}
+      {/* Trip-level scoring settings, deliberately separate from the rounds
+          below: a round decides how ITS matches resolve, this decides how
+          the whole field is ranked against each other. Read-time only —
+          nothing here rewrites a stored score, so it is safe to change
+          mid-trip and change back. */}
+      <section className={SECTION}>
+        <div className={SECTION_HEAD}>
+          <span className={LABEL}>Trip scoring</span>
+          <span className={META}>leaderboard</span>
+        </div>
+        <div className={SECTION_BODY}>
+          <p className={LABEL}>Individual leaderboard</p>
+          <div className="mt-1.5 space-y-1.5">
+            {(Object.keys(LEADERBOARD_METHOD_LABEL) as LeaderboardMethod[]).map(
+              (m) => {
+                const on = state.leaderboardMethod === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() =>
+                      dispatch({ type: 'leaderboardMethod', value: m })
+                    }
+                    className={`block w-full rounded-sm border px-3 py-2 text-left ${
+                      on
+                        ? 'border-yellow-600/60 bg-yellow-500/10'
+                        : 'border-zinc-300 hover:border-zinc-400 dark:border-zinc-800'
+                    }`}
+                  >
+                    <span
+                      className={`flex items-center gap-1.5 text-[12px] font-semibold ${
+                        on
+                          ? 'text-yellow-800 dark:text-yellow-400'
+                          : 'text-zinc-700 dark:text-zinc-300'
+                      }`}
+                    >
+                      {on && <Check size={12} />}
+                      {LEADERBOARD_METHOD_LABEL[m]}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] text-zinc-500">
+                      {LEADERBOARD_METHOD_BLURB[m]}
+                    </span>
+                  </button>
+                );
+              },
+            )}
+          </div>
+          <p className="mt-2 text-[11px] text-zinc-500">
+            Applied when the leaderboard is read. Entered scores are never
+            rewritten, so switching back restores exactly what was there.
+          </p>
         </div>
       </section>
 

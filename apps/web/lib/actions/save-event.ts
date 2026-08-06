@@ -62,6 +62,7 @@ import {
   type RoundFormat,
 } from '@/lib/trip-provision';
 import { deriveTripKind, syncTripKind } from '@/lib/trip-kind';
+import { recomputeMatchStatus } from '@/lib/scoring/recompute';
 import { tripWallTimeToDate } from '@/lib/trip-time';
 import { FORMAT_META, type FormatId } from '@buddycup/scoring/formats';
 import { FOURSOME_MAX } from '@buddycup/scoring/lineup';
@@ -71,6 +72,9 @@ import {
 } from '@buddycup/scoring/validation/match-builder';
 
 type HandicapMethod = 'group_low' | 'match_low' | 'course';
+
+/** How the individual leaderboard ranks players. Trip level, read time. */
+type LeaderboardMethod = 'gross' | 'net_trip_handicap' | 'net_course_handicap';
 
 /** A player on the roster. Asked once, above the rounds (§6.2). */
 export type BuilderPlayer = {
@@ -121,6 +125,11 @@ export type EventBuilderPayload = {
   teamB: { name: string; color: string };
   /** Trip-level default; rounds inherit unless they override (§4.3). */
   handicapMethod: HandicapMethod;
+  /**
+   * Trip Scoring: how the individual leaderboard ranks. Applied at read
+   * time only — changing it never rewrites a stored score.
+   */
+  leaderboardMethod: LeaderboardMethod;
   players: BuilderPlayer[];
   rounds: BuilderRound[];
 };
@@ -129,6 +138,12 @@ const HANDICAP_METHODS: ReadonlySet<string> = new Set([
   'group_low',
   'match_low',
   'course',
+]);
+
+const LEADERBOARD_METHODS: ReadonlySet<string> = new Set([
+  'gross',
+  'net_trip_handicap',
+  'net_course_handicap',
 ]);
 
 const DEFAULT_TEAM_A = { name: 'Team A', color: '#16a34a' };
@@ -192,6 +207,7 @@ type Clean = {
   startDate: Date | null;
   endDate: Date | null;
   handicapMethod: HandicapMethod;
+  leaderboardMethod: LeaderboardMethod;
   teamA: { name: string; color: string };
   teamB: { name: string; color: string };
 };
@@ -324,6 +340,11 @@ function validatePayload(p: EventBuilderPayload): Clean {
     handicapMethod: HANDICAP_METHODS.has(p.handicapMethod)
       ? p.handicapMethod
       : 'group_low',
+    // Unset or unknown falls to the course handicap, which is what the
+    // leaderboard did unconditionally before this setting existed.
+    leaderboardMethod: LEADERBOARD_METHODS.has(p.leaderboardMethod)
+      ? p.leaderboardMethod
+      : 'net_course_handicap',
     teamA: {
       name: p.teamA?.name?.trim() || DEFAULT_TEAM_A.name,
       color: p.teamA?.color || DEFAULT_TEAM_A.color,
@@ -576,7 +597,10 @@ async function createNew(ctx: AuthCtx, clean: Clean): Promise<{ slug: string }> 
 
   await db
     .update(trips)
-    .set({ defaultHandicapMethod: clean.handicapMethod })
+    .set({
+      defaultHandicapMethod: clean.handicapMethod,
+      leaderboardMethod: clean.leaderboardMethod,
+    })
     .where(eq(trips.id, tripId));
 
   // ---- 2. Players ------------------------------------------------------
@@ -655,6 +679,44 @@ async function createNew(ctx: AuthCtx, clean: Clean): Promise<{ slug: string }> 
 }
 
 // ───────────────────────── Edit ─────────────────────────
+
+/**
+ * Push a round's handicap rule down onto its matches, and re-resolve any
+ * that moved.
+ *
+ * §4.3 puts the rule on the ROUND, but it is stored per match because the
+ * resolver reads it there. That split is why a rule-only edit used to be
+ * a no-op: the round row has no such column to update, and the match
+ * write only happened when the lineup was being rebuilt.
+ *
+ * Changing the rule re-bases stroke allocation, so every stored result in
+ * the round is stale the instant it changes. Gross scores are foundation
+ * and untouched (§2); `net`, `strokes_received` and the match result are
+ * derived, and `recomputeMatchStatus` is what derives them.
+ */
+async function syncRoundHandicapMethod(
+  roundMatches: { id: string; handicapMethod: string }[],
+  wanted: HandicapMethod,
+): Promise<void> {
+  const stale = roundMatches.filter((m) => m.handicapMethod !== wanted);
+  if (!stale.length) return;
+
+  await db
+    .update(matches)
+    .set({ handicapMethod: wanted })
+    .where(
+      inArray(
+        matches.id,
+        stale.map((m) => m.id),
+      ),
+    );
+
+  // Sequential on purpose: recompute reads and writes the same match row,
+  // and these are at most a handful per round.
+  for (const m of stale) {
+    await recomputeMatchStatus(m.id);
+  }
+}
 
 /** Canonical signature of a round's lineup, for change detection. */
 function lineupSignature(
@@ -745,6 +807,7 @@ async function updateExisting(
       startDate: clean.startDate,
       endDate: clean.endDate,
       defaultHandicapMethod: clean.handicapMethod,
+      leaderboardMethod: clean.leaderboardMethod,
     })
     .where(eq(trips.id, tripId));
   await db
@@ -911,7 +974,18 @@ async function updateExisting(
       const unchanged =
         lineupSignature(currentGroups, currentMatches) ===
         lineupSignature(wantedGroups, wantedMatches);
-      if (unchanged) continue;
+      if (unchanged) {
+        // The lineup is untouched, so nothing below runs — but the
+        // round's HANDICAP RULE is metadata, not lineup, and has to be
+        // changeable on its own. It is stored per match (that is where
+        // the resolver reads it), which is why it used to fall through
+        // this short circuit and silently save nothing at all.
+        await syncRoundHandicapMethod(
+          roundMatches,
+          r.handicapMethod ?? clean.handicapMethod,
+        );
+        continue;
+      }
 
       // §2: a round with scores has its lineup frozen. Reject rather than
       // silently reinterpreting strokes already entered.
