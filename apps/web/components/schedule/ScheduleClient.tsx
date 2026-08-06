@@ -13,6 +13,7 @@ import {
   Calendar,
   CalendarRange,
   ChevronRight,
+  Pencil,
   Plus,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -223,6 +224,13 @@ export default function ScheduleClient({
 
       {canEdit && (
         <div className="mb-6 flex justify-end gap-2">
+          <Link
+            href={`/trips/${tripSlug}/edit`}
+            className="flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
+          >
+            <Pencil size={12} strokeWidth={2.5} />
+            Edit
+          </Link>
           <Link
             href={`/trips/${tripSlug}/edit`}
             className="flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"

@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { and, eq, inArray } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { teams, tripMembers, trips } from '@/db/schema';
+import { teams } from '@/db/schema';
 import { getGlobalAuthContext } from '@/lib/auth/current-user';
 import HeaderAvatarLink from './HeaderAvatarLink';
 
@@ -19,7 +19,7 @@ export default async function HeaderAvatar() {
     );
   }
 
-  const { user, tripMember, isPlatformAdmin } = ctx;
+  const { user, tripMember } = ctx;
   const nickname = tripMember?.nickname ?? user.fullName ?? user.email;
   const initial = nickname.slice(0, 1).toUpperCase();
   const arcadePortraitUrl = user.arcadePortraitUrl ?? null;
@@ -28,35 +28,16 @@ export default async function HeaderAvatar() {
     ? await getTeamColor(tripMember.teamId)
     : null;
 
-  // Every trip slug where this user is trip_admin — used by the client to
-  // show the Admin shortcut next to the avatar when they're on one of those
-  // trips. Platform admins see it on every trip.
-  const adminMemberships = await db
-    .select({ tripId: tripMembers.tripId })
-    .from(tripMembers)
-    .where(
-      and(
-        eq(tripMembers.userId, user.id),
-        eq(tripMembers.role, 'trip_admin')
-      )
-    );
-  let adminSlugs: string[] = [];
-  if (adminMemberships.length) {
-    const adminTrips = await db
-      .select({ slug: trips.slug })
-      .from(trips)
-      .where(inArray(trips.id, adminMemberships.map((m) => m.tripId)));
-    adminSlugs = adminTrips.map((t) => t.slug);
-  }
-
+  // The two queries that resolved "which trips may this user administer"
+  // went with the header's Admin button — the schedule page answers that
+  // for the one trip in scope, which is the only trip it was ever asked
+  // about. Two round trips saved on every page render.
   return (
     <HeaderAvatarLink
       initial={initial}
       arcadePortraitUrl={arcadePortraitUrl}
       avatarUrl={avatarUrl}
       teamColor={teamColor}
-      adminSlugs={adminSlugs}
-      isPlatformAdmin={isPlatformAdmin}
     />
   );
 }

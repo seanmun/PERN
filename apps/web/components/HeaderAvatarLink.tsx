@@ -1,54 +1,31 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Cog } from 'lucide-react';
 
-function getTripSlugFromPath(pathname: string): string | null {
-  if (pathname.startsWith('/trips/')) {
-    const slug = pathname.split('/')[2];
-    if (slug && slug !== 'new') return slug;
-  }
-  return null;
-}
-
+/**
+ * The header avatar, and nothing else.
+ *
+ * It used to carry an Admin shortcut that appeared on any trip route the
+ * viewer could administer. That button now lives on the schedule page,
+ * next to the thing it edits, so the header does not have to know which
+ * trip you are looking at or what you may do to it.
+ */
 export default function HeaderAvatarLink({
   initial,
   arcadePortraitUrl,
   avatarUrl,
   teamColor,
-  adminSlugs,
-  isPlatformAdmin,
 }: {
   initial: string;
   arcadePortraitUrl: string | null;
   avatarUrl: string | null;
   teamColor: string | null;
-  adminSlugs: string[];
-  isPlatformAdmin: boolean;
 }) {
-  const pathname = usePathname();
-  const tripSlug = getTripSlugFromPath(pathname);
-
-  const canAdminThisTrip =
-    !!tripSlug && (isPlatformAdmin || adminSlugs.includes(tripSlug));
-
   const url = arcadePortraitUrl ?? avatarUrl;
   const ring = arcadePortraitUrl && teamColor ? teamColor : undefined;
 
   return (
     <div className="flex items-center gap-2">
-      {canAdminThisTrip && tripSlug && (
-        <Link
-          href={`/trips/${tripSlug}/edit`}
-          aria-label="Edit this event"
-          className="flex h-9 items-center gap-1.5 rounded-sm border border-yellow-600/40 bg-yellow-600/10 px-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-yellow-800 dark:text-yellow-400 hover:bg-yellow-600/20"
-        >
-          <Cog size={12} strokeWidth={2.5} />
-          Admin
-        </Link>
-      )}
-
       <Link
         href="/me"
         aria-label="Your profile"
