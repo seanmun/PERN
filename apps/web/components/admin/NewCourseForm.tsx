@@ -15,7 +15,8 @@ type Suggestion = {
 };
 
 type DbResult = {
-  id: number;
+  // golfcourseapi ids are opaque strings, not numbers.
+  id: string;
   name: string;
   location: string | null;
   hasScorecardData: boolean;
@@ -49,7 +50,7 @@ export default function NewCourseForm({
   // has no API key configured.
   const [dbEnabled, setDbEnabled] = useState(true);
   const [dbResults, setDbResults] = useState<DbResult[]>([]);
-  const [importingId, setImportingId] = useState<number | null>(null);
+  const [importingId, setImportingId] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importPending, startImport] = useTransition();
 

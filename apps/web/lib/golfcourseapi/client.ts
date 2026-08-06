@@ -23,7 +23,11 @@ export type GcaTeeBox = {
 };
 
 export type GcaCourse = {
-  id: number;
+  // The API returns an OPAQUE STRING id ("j886cxq8"), not a number. This
+  // was typed as `number` and never exercised end to end, so every
+  // `getGolfCourse` call failed its own payload guard and the import path
+  // could not work at all.
+  id: string;
   club_name?: string;
   course_name?: string;
   location?: {
@@ -64,7 +68,7 @@ export async function searchGolfCourses(query: string): Promise<GcaCourse[]> {
   return data.courses ?? [];
 }
 
-export async function getGolfCourse(id: number): Promise<GcaCourse> {
+export async function getGolfCourse(id: string): Promise<GcaCourse> {
   // The single-course endpoint wraps its payload — { course: {...} } —
   // just as search wraps { courses: [...] }. This used to cast the
   // envelope straight to GcaCourse, so every field read as undefined: the
@@ -79,12 +83,14 @@ export async function getGolfCourse(id: number): Promise<GcaCourse> {
   // Fail loudly rather than importing an empty shell. If the payload ever
   // changes shape again, this throws instead of silently writing junk
   // rows that look like real courses until someone tries to score on one.
-  if (typeof course?.id !== 'number') {
+  if (course?.id == null || String(course.id).length === 0) {
     throw new Error(
       `golfcourseapi: unexpected payload for course ${id} — no course object in response`,
     );
   }
-  return course;
+  // Normalise: ids arrive as strings today, but a numeric id would still
+  // be a valid identifier and must not blow up the guard above.
+  return { ...course, id: String(course.id) };
 }
 
 /** "Pinehurst Resort — No. 2" style display name; falls back sensibly. */

@@ -11,11 +11,8 @@ import {
   courseHoles,
   courseTees,
 } from '@/db/schema';
-import {
-  allocateCourseStrokes,
-  hasCourseRating,
-} from '@buddycup/scoring/handicap';
 import { isTeamInput, type FormatId } from '@buddycup/scoring/formats';
+import { leaderboardBasis } from '@/lib/scoring/leaderboard-basis';
 import type { LeaderboardMethod } from '@/components/event-builder/state';
 
 type Team = typeof teams.$inferSelect;
@@ -275,77 +272,46 @@ export async function getLeaderboard(tripId: string): Promise<Leaderboard> {
     parByCourse.set(courseId, par);
   }
 
-  // Which rounds can actually deliver a course handicap. Under course
-  // mode a round whose tee lacks slope/rating silently degrades to the raw
-  // index — `toCourseHandicap` does that on its own — so the degrade is
-  // detected here and reported, rather than being invisible in the totals.
-  function roundSupportsCourseHandicap(roundId: string, courseId: string): boolean {
-    const tee = roundTeeById.get(roundId) ?? { slope: null, rating: null };
-    return hasCourseRating({
-      slope: tee.slope,
-      rating: tee.rating,
-      par: parByCourse.get(courseId) ?? null,
-    });
-  }
   const fallbackRoundIds = new Set<string>();
 
   // Lazy per-(round, player) allocation cache.
   //
-  // Trip Scoring decides the basis (§ trips.leaderboard_method):
-  //   gross               no strokes at all
-  //   net_trip_handicap   the trip handicap as-is, no conversion
-  //   net_course_handicap the trip handicap converted through the round
-  //                       tee's slope/rating, degrading to the above when
-  //                       the tee cannot support it
-  //
-  // Read time only. Nothing here writes, so switching the setting and
-  // switching back returns exactly the numbers that were there before.
+  // The basis itself lives in lib/scoring/leaderboard-basis.ts because the
+  // profile page's stroke breakdown reads it too, and a profile that
+  // disagreed with the board it links back to would be worse than no
+  // profile at all. Read time only — nothing here writes, so switching the
+  // setting and switching back returns the exact numbers that were there.
   const strokesCache = new Map<string, Map<number, number>>();
   function strokesFor(
     roundId: string,
     courseId: string,
     tripMemberId: string,
   ): Map<number, number> | null {
-    // Gross: everyone plays off scratch. No allocation, no cache needed.
-    if (method === 'gross') return null;
-
     const key = `${roundId}::${tripMemberId}`;
     const cached = strokesCache.get(key);
     if (cached) return cached;
     const member = memberById.get(tripMemberId);
     const holesMap = holesByCourse.get(courseId);
     if (!member || !holesMap) return null;
-    const index = member.tripHandicap ? Number(member.tripHandicap) : 18;
 
-    // Trip-handicap mode deliberately passes a bare tee: allocateCourseStrokes
-    // falls back to Math.round(index), which IS "the trip handicap as-is".
-    // One allocation function, two bases — not two implementations.
-    const useCourse =
-      method === 'net_course_handicap' &&
-      roundSupportsCourseHandicap(roundId, courseId);
-    if (method === 'net_course_handicap' && !useCourse) {
-      fallbackRoundIds.add(roundId);
-    }
-    const tee = useCourse
-      ? roundTeeById.get(roundId) ?? { slope: null, rating: null }
-      : { slope: null, rating: null };
-
-    const holesArr = Array.from(holesMap.entries()).map(([n, v]) => ({
-      holeNumber: n,
-      handicapIndex: v.handicapIndex,
-    }));
-    // Shared with the feed so the two can't drift apart again.
-    const allocated = allocateCourseStrokes(
-      index,
-      {
+    const tee = roundTeeById.get(roundId) ?? { slope: null, rating: null };
+    const basis = leaderboardBasis({
+      method,
+      index: member.tripHandicap ? Number(member.tripHandicap) : 18,
+      tee: {
         slope: tee.slope,
         rating: tee.rating,
-        par: useCourse ? parByCourse.get(courseId) ?? null : null,
+        par: parByCourse.get(courseId) ?? null,
       },
-      holesArr,
-    );
-    strokesCache.set(key, allocated);
-    return allocated;
+      holes: Array.from(holesMap.entries()).map(([n, v]) => ({
+        holeNumber: n,
+        handicapIndex: v.handicapIndex,
+      })),
+    });
+    if (basis.fellBack) fallbackRoundIds.add(roundId);
+
+    strokesCache.set(key, basis.strokes);
+    return basis.strokes;
   }
 
   // Initialise player totals

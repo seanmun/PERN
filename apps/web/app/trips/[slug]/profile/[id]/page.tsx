@@ -4,7 +4,9 @@ import { ArrowLeft, Trophy } from 'lucide-react';
 import { getTripAuthContext, getTripBySlug } from '@/lib/auth/trip-context';
 import { canViewTrip } from '@/lib/auth/permissions';
 import { getPlayerProfile, type ProfileMatch } from '@/lib/data/player-profile';
+import { getPlayerStrokes } from '@/lib/data/player-strokes';
 import MemberAvatar from '@/components/avatar/MemberAvatar';
+import StrokesPanel from '@/components/player/StrokesPanel';
 import {
   formatTripTime,
   formatTripDayLong,
@@ -31,6 +33,15 @@ export default async function PlayerProfilePage({
 
   const { member, team, matches, arcadePortraitUrl } = profile;
   const teamColor = team?.color ?? '#3f3f46';
+
+  // Both stroke bases for every match this player is in — the QA surface
+  // for cross-referencing handicaps against GHIN. Computed with the same
+  // functions the resolver and the leaderboard use, never re-derived.
+  const strokes = await getPlayerStrokes(
+    trip.id,
+    member.id,
+    matches.map((m) => m.match.id),
+  );
 
   return (
     <div className="pb-24">
@@ -111,6 +122,8 @@ export default async function PlayerProfilePage({
             </p>
           </section>
         )}
+
+        <StrokesPanel strokes={strokes} />
 
         <section className="mt-8">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-500">

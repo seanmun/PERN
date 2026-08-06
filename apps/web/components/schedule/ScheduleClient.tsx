@@ -13,6 +13,7 @@ import {
   Calendar,
   CalendarRange,
   ChevronRight,
+  Flag,
   Pencil,
   Plus,
 } from 'lucide-react';
@@ -230,6 +231,13 @@ export default function ScheduleClient({
           >
             <Pencil size={12} strokeWidth={2.5} />
             Edit
+          </Link>
+          <Link
+            href={`/trips/${tripSlug}/courses`}
+            className="flex items-center gap-1.5 rounded-sm border border-zinc-400 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          >
+            <Flag size={12} strokeWidth={2.5} />
+            Ratings
           </Link>
           <Link
             href={`/trips/${tripSlug}/edit`}

@@ -21,7 +21,8 @@ import {
 } from '@/lib/course-sections';
 
 type DbResult = {
-  id: number;
+  // golfcourseapi ids are opaque strings, not numbers.
+  id: string;
   name: string;
   location: string | null;
   hasScorecardData: boolean;
@@ -49,7 +50,7 @@ export default function CourseStep({
   const [searchingDb, setSearchingDb] = useState(false);
   const [pos, setPos] = useState<LatLng | null>(null);
   const [locating, setLocating] = useState(false);
-  const [importingId, setImportingId] = useState<number | null>(null);
+  const [importingId, setImportingId] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [, startImport] = useTransition();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

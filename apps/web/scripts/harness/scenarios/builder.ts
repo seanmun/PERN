@@ -18,6 +18,7 @@ import { matches, rounds, trips } from '@/db/schema';
 import { saveEvent, type EventBuilderPayload } from '@/lib/actions/save-event';
 import { getLeaderboard } from '@/lib/data/leaderboard';
 import { loadEventForBuilder } from '@/lib/data/event-builder';
+import { getPlayerStrokes } from '@/lib/data/player-strokes';
 import type { LeaderboardMethod } from '@/components/event-builder/state';
 import { deriveLineup } from '@buddycup/scoring/lineup';
 import type { FormatId } from '@buddycup/scoring/formats';
@@ -757,6 +758,74 @@ export async function runBuilder(admin: HarnessActor): Promise<void> {
     const row = (nick: string) => board.playerTotals.find((x) => x.nickname === nick)!;
     assertEq(row('fb-A1').strokesGiven, 4, 'fallback allocates off the raw trip handicap');
     assertEq(row('fb-A2').strokesGiven, 6, 'and the 18 still gets its 6');
+  });
+
+  // ───────── Profile strokes agree with what the app actually used ─────────
+  await scenario('Profile — the stroke breakdown matches the board and the resolver', async () => {
+    const course = await makeCourse('strokes-panel', { slope: 130, rating: '74.5' });
+    const people: RosterEntry[] = [
+      { nickname: 'sp-A1', team: 'A', handicap: '4.0' },
+      { nickname: 'sp-A2', team: 'A', handicap: '18.0' },
+      { nickname: 'sp-B1', team: 'B', handicap: '4.0' },
+      { nickname: 'sp-B2', team: 'B', handicap: '18.0' },
+    ];
+
+    const slug = await save(
+      admin,
+      payloadFor({
+        name: 'builder-strokes-panel',
+        roster: people,
+        rounds: [{ courseId: course.courseId, label: 'Round 1', formats: ['best_ball'] }],
+        leaderboardMethod: 'net_course_handicap',
+      }),
+    );
+    const ev = await loadEvent(slug);
+    const withIds = people.map((p) => ({
+      ...p,
+      memberId: ev.byNickname.get(p.nickname)!.id,
+    }));
+    const a2 = withIds.find((p) => p.nickname === 'sp-A2')!;
+    const match = ev.matches[0];
+
+    // A full 18 for one player, so the board's "strokes over holes played"
+    // and the profile's "strokes for the round" describe the same span.
+    for (let hole = 1; hole <= 18; hole++) {
+      await enterScore(admin, {
+        matchId: match.match.id,
+        tripMemberId: a2.memberId!,
+        holeNumber: hole,
+        gross: 5,
+      });
+    }
+
+    const panel = await getPlayerStrokes(ev.trip.id, a2.memberId!, [match.match.id]);
+    const row = panel.matches[0];
+
+    // 18 x 130/113 + (74.5 - 72) = 23.2 -> plays off 23.
+    assertEq(row.boardPlayingHandicap, 23, 'profile shows the converted course handicap');
+    // Allocation over exactly 18 holes always sums to the handicap itself.
+    assertEq(row.boardTotal, 23, 'board strokes for the round equal that handicap');
+
+    const board = await getLeaderboard(ev.trip.id);
+    const boardRow = board.playerTotals.find((p) => p.nickname === 'sp-A2')!;
+    assertEq(
+      row.boardTotal,
+      boardRow.strokesGiven,
+      'profile and leaderboard report the SAME board strokes',
+    );
+
+    // The match is group_low with all four in one foursome, so the 4.0
+    // is scratch and the 18.0 plays off the difference — deliberately
+    // NOT the same number as the board, which is the whole reason the
+    // page shows both columns.
+    assertEq(row.handicapMethod, 'group_low', 'match basis is the round rule');
+    assertEq(row.scratch, 4, 'the foursome low is the baseline');
+    assertEq(row.matchTotal, 14, 'match strokes are 18 - 4, not the course handicap');
+    assert(
+      row.matchTotal !== row.boardTotal,
+      'the two bases genuinely disagree, which is what makes the panel worth having',
+    );
+    assertEq(row.holes.length, 18, 'every hole is broken out for the accordion');
   });
 
   // ───────── §6.3 · Nothing writes until submit ─────────

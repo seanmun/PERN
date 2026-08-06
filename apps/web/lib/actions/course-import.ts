@@ -39,7 +39,7 @@ const SOURCE = 'golfcourseapi';
  */
 export async function importCourseFromGolfCourseApi(
   tripId: string,
-  apiCourseId: number,
+  apiCourseId: string,
 ): Promise<void> {
   const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
@@ -62,7 +62,7 @@ export async function importCourseFromGolfCourseApi(
  * the local course id for the wizard to carry into the Details step.
  */
 export async function importCourseForWizard(
-  apiCourseId: number,
+  apiCourseId: string,
 ): Promise<{ courseId: string }> {
   const ctx = await getGlobalAuthContext();
   if (!ctx) throw new AuthorizationError('Authentication required');
@@ -70,10 +70,8 @@ export async function importCourseForWizard(
 }
 
 /** Dedupe-or-import; returns the local courses.id either way. */
-async function importCourse(apiCourseId: number): Promise<string> {
-  if (!Number.isInteger(apiCourseId) || apiCourseId <= 0) {
-    throw new Error('Invalid course id');
-  }
+async function importCourse(apiCourseId: string): Promise<string> {
+  if (!apiCourseId.trim()) throw new Error('Invalid course id');
 
   const [existing] = await db
     .select({ id: courses.id })
@@ -81,7 +79,7 @@ async function importCourse(apiCourseId: number): Promise<string> {
     .where(
       and(
         eq(courses.externalSource, SOURCE),
-        eq(courses.externalId, String(apiCourseId)),
+        eq(courses.externalId, apiCourseId),
       ),
     )
     .limit(1);
@@ -125,7 +123,7 @@ async function importCourse(apiCourseId: number): Promise<string> {
       latitude: api.location?.latitude ?? null,
       longitude: api.location?.longitude ?? null,
       externalSource: SOURCE,
-      externalId: String(apiCourseId),
+      externalId: apiCourseId,
       totalPar,
     })
     .returning({ id: courses.id });
@@ -174,4 +172,133 @@ async function importCourse(apiCourseId: number): Promise<string> {
   }
 
   return created.id;
+}
+
+// ───────────────────────── Enrich an existing course ─────────────────────────
+
+/**
+ * Pull slope/rating (and missing yardages) from golfcourseapi onto a course
+ * that ALREADY EXISTS, instead of importing a second copy of it.
+ *
+ * `importCourse` above dedupes on (external_source, external_id), so it can
+ * only ever recognise courses it created itself. Every course built the
+ * other way — Google Places plus scorecard-photo extraction, which is how
+ * all of Pinehurst's were — has neither column set, so an import would
+ * insert a duplicate and leave the trip's rounds pointed at the original.
+ * That is the whole reason the API looked useless here.
+ *
+ * This merges instead:
+ *   · tees are matched by name, case-insensitively
+ *   · only BLANK fields are filled — an admin-entered rating always wins
+ *   · external_source/external_id get stamped on, so the course is
+ *     recognised from here on and this never has to guess again
+ *
+ * Nothing is deleted and no hole pars are touched: those came from the
+ * scorecard the group actually played, and §4.1 makes course facts
+ * foundation data. This only fills in what was missing.
+ */
+export async function enrichCourseFromGolfCourseApi(
+  formData: FormData,
+): Promise<void> {
+  const ctx = await getGlobalAuthContext();
+  if (!ctx) throw new AuthorizationError('Authentication required');
+
+  const tripId = String(formData.get('tripId') ?? '').trim();
+  const courseId = String(formData.get('courseId') ?? '').trim();
+  const apiCourseId = String(formData.get('apiCourseId') ?? '').trim();
+  if (!tripId || !courseId) throw new Error('tripId and courseId are required');
+  if (!apiCourseId) throw new Error('Invalid course id');
+  if (!isPlatformAdmin(ctx) && !isTripAdminOf(ctx, tripId)) {
+    throw new AuthorizationError('Trip admin required');
+  }
+
+  const [course] = await db
+    .select()
+    .from(courses)
+    .where(eq(courses.id, courseId))
+    .limit(1);
+  if (!course) throw new Error('Course not found');
+
+  const api = await getGolfCourse(apiCourseId);
+
+  // Same merge the importer does, minus the 18-hole filter: a 9-hole or
+  // par-3 course still carries a usable slope and rating.
+  const apiTees: { name: string; tee: GcaTeeBox }[] = [
+    ...(api.tees?.male ?? []).map((t) => ({
+      name: (t.tee_name ?? '').trim(),
+      tee: t,
+    })),
+    ...(api.tees?.female ?? []).map((t) => ({
+      name: (t.tee_name ?? '').trim(),
+      tee: t,
+    })),
+  ].filter((t) => t.name.length > 0);
+
+  const existing = await db
+    .select()
+    .from(courseTees)
+    .where(eq(courseTees.courseId, courseId));
+
+  // Tee names agree in substance but not in spelling: our scorecard
+  // extraction stored "Medal", the API says "Medal Tees". Exact matching
+  // filled nothing and returned silently, which looked exactly like a
+  // broken button. Strip the trailing "tee(s)" and all punctuation before
+  // comparing.
+  const norm = (s: string) =>
+    s
+      .trim()
+      .toLowerCase()
+      .replace(/\s*tees?\s*$/, '')
+      .replace(/[^a-z0-9]/g, '');
+
+  let filled = 0;
+  let unmatched = 0;
+
+  for (const tee of existing) {
+    // Only fill what is blank. An admin who typed a rating off the card in
+    // their hand outranks anything an API says.
+    if (tee.slope != null && tee.rating != null) continue;
+
+    // Male tees are listed first, so `find` prefers them — the men's
+    // rating is the right default for this app's use.
+    const match = apiTees.find((t) => norm(t.name) === norm(tee.name));
+    if (!match) {
+      unmatched++;
+      continue;
+    }
+
+    const slope = tee.slope ?? match.tee.slope_rating ?? null;
+    const rating =
+      tee.rating ??
+      (match.tee.course_rating != null
+        ? match.tee.course_rating.toFixed(1)
+        : null);
+    const totalYardage = tee.totalYardage ?? match.tee.total_yards ?? null;
+
+    if (slope === tee.slope && rating === tee.rating && totalYardage === tee.totalYardage) {
+      continue;
+    }
+    await db
+      .update(courseTees)
+      .set({ slope, rating, totalYardage })
+      .where(eq(courseTees.id, tee.id));
+    filled++;
+  }
+
+  // Stamp provenance so the dedupe above recognises this course from now
+  // on, and so a future re-import updates rather than duplicates.
+  if (!course.externalSource) {
+    await db
+      .update(courses)
+      .set({ externalSource: SOURCE, externalId: apiCourseId })
+      .where(eq(courses.id, courseId));
+  }
+
+  const tripSlug = await getTripSlugById(tripId);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
+  // Report the outcome. A merge that matched nothing is the single most
+  // confusing thing this action can do, so it never returns silently.
+  redirect(
+    `/trips/${tripSlug}/courses?filled=${filled}&unmatched=${unmatched}`,
+  );
 }
