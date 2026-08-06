@@ -142,17 +142,12 @@ export async function createRound(formData: FormData): Promise<void> {
   await syncTripKind(tripId);
 
   const tripSlug = await getTripSlugById(tripId);
-  revalidatePath(`/trips/${tripSlug}/schedule`);
-  revalidatePath(`/trips/${tripSlug}/admin/rounds`);
-  // Event-creation wizard's Groups step reuses this action and lands
-  // back on its own round-setup page instead of the classic round-edit
-  // page. The new round's id doesn't exist until after the insert above,
-  // so the wizard passes a "{roundId}" placeholder for us to fill in.
-  // Absent for every other caller — unchanged.
-  const dest = resolveRedirect(
-    formData,
-    `/trips/${tripSlug}/admin/rounds/${created.id}/edit`,
-  );
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
+  // A caller may still ask for a specific destination and interpolate the
+  // id that did not exist until the insert above, via "{roundId}".
+  // Otherwise: rounds are built in the round-builder, so that is where a
+  // new one lands.
+  const dest = resolveRedirect(formData, `/trips/${tripSlug}/edit`);
   if (dest) redirect(dest.replace('{roundId}', created.id));
 }
 
@@ -195,10 +190,8 @@ export async function updateRound(formData: FormData): Promise<void> {
     .where(eq(rounds.id, id));
 
   const tripSlug = await getTripSlugById(existing.tripId);
-  revalidatePath(`/trips/${tripSlug}/schedule`);
-  revalidatePath(`/trips/${tripSlug}/admin/rounds`);
-  revalidatePath(`/trips/${tripSlug}/admin/rounds/${id}/edit`);
-  redirect(`/trips/${tripSlug}/admin/rounds/${id}/edit`);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
+  redirect(`/trips/${tripSlug}/edit`);
 }
 
 /**
@@ -260,9 +253,7 @@ export async function updateRoundField(formData: FormData): Promise<void> {
   await db.update(rounds).set(patch).where(eq(rounds.id, id));
 
   const tripSlug = await getTripSlugById(existing.tripId);
-  revalidatePath(`/trips/${tripSlug}/schedule`);
-  revalidatePath(`/trips/${tripSlug}/admin/rounds`);
-  revalidatePath(`/trips/${tripSlug}/admin/rounds/${id}/edit`);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
 }
 
 /**
@@ -304,7 +295,6 @@ export async function recomputeRoundMatches(formData: FormData): Promise<void> {
   const tripSlug = await getTripSlugById(existing.tripId);
   revalidatePath(`/trips/${tripSlug}/schedule`);
   revalidatePath(`/trips/${tripSlug}/scoreboard`);
-  revalidatePath(`/trips/${tripSlug}/admin/rounds/${id}/edit`);
 }
 
 export async function deleteRound(formData: FormData): Promise<void> {
@@ -329,7 +319,6 @@ export async function deleteRound(formData: FormData): Promise<void> {
   await syncTripKind(existing.tripId);
 
   const tripSlug = await getTripSlugById(existing.tripId);
-  revalidatePath(`/trips/${tripSlug}/schedule`);
-  revalidatePath(`/trips/${tripSlug}/admin/rounds`);
-  redirect(`/trips/${tripSlug}/admin/rounds`);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
+  redirect(`/trips/${tripSlug}/schedule`);
 }

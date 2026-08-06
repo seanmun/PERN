@@ -103,7 +103,7 @@ export default async function DocumentationPage() {
 
       <Section id="claims" title="4. Auth & lazy-claim flow">
         <ol className="mt-2 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-decimal pl-5">
-          <li>Admin adds a player on <code>/trips/[slug]/admin/players/new</code> with an email. A <code>tripMembers</code> row is inserted with <code>userId = NULL</code>.</li>
+          <li>Admin adds a player in the round-builder (<code>/trips/new/event</code> or <code>/trips/[slug]/edit</code>) with an email. A <code>tripMembers</code> row is inserted with <code>userId = NULL</code> — a <em>ghost</em>. If the email already belongs to a <code>users</code> row, that user is attached instead of minting a second identity (§3.3 collision rule).</li>
           <li>That person signs in via Clerk (magic link). <code>getGlobalAuthContext()</code> runs.</li>
           <li>Clerk email is normalized to lowercase. Lookup <code>users</code> by <code>clerkId</code> — if absent, lookup by lowercase email and attach <code>clerkId</code>, otherwise insert a new row.</li>
           <li>Bulk UPDATE: every <code>tripMembers</code> row where <code>lower(email) = email AND userId IS NULL</code> gets stitched to this user. This handles multi-trip cases.</li>
@@ -139,7 +139,7 @@ export default async function DocumentationPage() {
             ['trips', 'Top-level container', 'slug (unique), name, startDate, endDate, description, imageUrl, createdBy'],
             ['teams', 'Two teams per trip', 'tripId, name, color (hex), captainUserId'],
             ['tripMembers', 'Roster — central to permissions', 'tripId, userId (nullable until claimed), email (nullable since 0017), teamId, nickname, avatarUrl, role (trip_admin|player), isCaptain, tripHandicap, scoutingReport (flight columns retained but unused after flights page removal)'],
-            ['rounds', 'Golf outings (5–6 per trip)', 'tripId, courseId, courseTeeId, date, format (best_ball|singles|scramble|stroke), order, label, countsTowardCup, isHidden'],
+            ['rounds', 'Golf outings (1–N per trip)', 'tripId, courseId, courseTeeId, date, format (best_ball|singles|scramble|stroke|two_man_aggregate|thirty_ball|bingo_bango_bongo|alternate_shot), order, label, countsTowardCup, isHidden. A round with no matches is a SHELL — a first-class state (§6.2), not an error.'],
             ['teeTimes', 'Groups within a round', 'roundId, time, groupNumber'],
             ['matches', 'One match per tee time', 'roundId, teeTimeId, status (scheduled|in_progress|completed), resultText, winningTeamId, isHalved'],
             ['matchParticipants', 'M:N players↔match', 'PK (matchId, tripMemberId), teamId'],
@@ -160,7 +160,7 @@ export default async function DocumentationPage() {
         <SubHeading>App shell &amp; navigation</SubHeading>
         <List>
           <li><strong>BottomNav</strong> ([components/BottomNav.tsx](components/BottomNav.tsx)): five tabs — <strong>Home · Schedule · Cup · Feed · Me</strong>. Home (<code>/home</code>) and Me (<code>/me</code>) work everywhere. Schedule, Cup, Feed grey out unless the URL contains a trip slug. No &quot;More&quot; button, no fallback slug.</li>
-          <li><strong>HeaderAvatar</strong> ([components/HeaderAvatar.tsx](components/HeaderAvatar.tsx) → [HeaderAvatarLink.tsx](components/HeaderAvatarLink.tsx)): avatar links to <code>/me</code>. When you&apos;re inside a <code>/trips/[slug]/*</code> route AND you&apos;re a trip_admin of that slug (or platform_admin), a yellow <strong>Admin</strong> button appears immediately to the left, linking to <code>/trips/[slug]/admin</code>. The server queries every trip slug where the user is trip_admin and passes them to the client component, which does the slug-vs-pathname check.</li>
+          <li><strong>HeaderAvatar</strong> ([components/HeaderAvatar.tsx](components/HeaderAvatar.tsx) → [HeaderAvatarLink.tsx](components/HeaderAvatarLink.tsx)): avatar links to <code>/me</code>. When you&apos;re inside a <code>/trips/[slug]/*</code> route AND you&apos;re a trip_admin of that slug (or platform_admin), a yellow <strong>Admin</strong> button appears immediately to the left, linking to <code>/trips/[slug]/edit</code> — the round-builder in edit mode, which is the whole of admin now. The server queries every trip slug where the user is trip_admin and passes them to the client component, which does the slug-vs-pathname check.</li>
           <li><strong>Two surfaces, two purposes:</strong> <code>/home</code> is the trip dashboard (your trips, claims, past trips). <code>/me</code> is the personal profile editor (one place for username, name, handicap, GHIN, photo, arcade portrait, city, state, club).</li>
         </List>
         <SubHeading>Public</SubHeading>
@@ -181,7 +181,7 @@ export default async function DocumentationPage() {
             ['/home', 'Dashboard — current trips, past trips, pending claims', 'getGlobalAuthContext'],
             ['/me', 'Profile editor (name, username, handicap, GHIN, avatar, portrait, city, state, club)', 'getGlobalAuthContext'],
             ['/home/past-trips', 'All past trips (endDate < today)', 'getGlobalAuthContext'],
-            ['/trips/new', 'Create a new trip (caller becomes trip_admin)', 'getGlobalAuthContext'],
+            ['/trips/new/event', 'The one creation flow — course, players, games, rounds; caller becomes trip_admin', 'getGlobalAuthContext'],
             ['/documentation', 'This page', 'platform_admin only'],
           ]}
         />
@@ -204,29 +204,37 @@ export default async function DocumentationPage() {
             ['/trips/[slug]/events/[id]', 'Event detail'],
             ['/trips/[slug]/events/[id]/edit', 'Edit event (admin)'],
             ['/trips/[slug]/events/new', 'Create event (admin)'],
+            ['/trips/[slug]/tee-times/[id]/score', 'Foursome scorecard — one entry per player, fanned out to every match they are in (§5.1)'],
+            ['/trips/[slug]/matches/[id]/quick-result', 'Record a final result without hole-by-hole entry'],
+            ['/trips/[slug]/teams/[id]', 'Team roster'],
           ]}
         />
         <SubHeading>Trip-scoped — admin</SubHeading>
-        <p className="text-xs text-zinc-500 mt-1">All call <code>getTripAuthContext</code> + require platform_admin OR trip_admin.</p>
+        <p className="text-xs text-zinc-500 mt-1">
+          Calls <code>getTripAuthContext</code> + <code>canEditTrip</code>.
+        </p>
         <Table
           head={['Path', 'Purpose']}
           rows={[
-            ['/trips/[slug]/admin', 'Admin hub'],
-            ['/trips/[slug]/admin/details', 'Trip name, dates, description, icon'],
-            ['/trips/[slug]/admin/teams', 'Rename/recolor teams'],
-            ['/trips/[slug]/admin/players', 'Roster (photos, handicaps, captains, scouting)'],
-            ['/trips/[slug]/admin/players/new', 'Add player (optionally search + link existing user; shell players supported)'],
-            ['/trips/[slug]/admin/players/[id]/edit', 'Edit player'],
-            ['/trips/[slug]/admin/rounds', 'Rounds list'],
-            ['/trips/[slug]/admin/rounds/new', 'Create round'],
-            ['/trips/[slug]/admin/rounds/[id]/edit', 'Edit round (date, format, course, tees, matchups)'],
-            ['/trips/[slug]/admin/courses', 'Course gallery'],
-            ['/trips/[slug]/admin/courses/new', 'Create course'],
-            ['/trips/[slug]/admin/courses/[id]/edit', 'Edit course + scorecard extraction'],
-            ['/trips/[slug]/admin/tee-times/new', 'Add tee time'],
-            ['/trips/[slug]/admin/tee-times/[id]/edit', 'Edit tee time'],
+            ['/trips/[slug]/edit', 'The round-builder in edit mode — name, dates, teams, handicap rule, roster, and every round (course, tees, date, games, derived lineup). One screen, one submit.'],
           ]}
         />
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+          <strong>The 14 <code>/admin/*</code> routes and the 9 wizard routes are gone</strong> (§10 of{' '}
+          <code>docs/buddycup-rebuild-spec.md</code>). <code>/trips/new</code>,{' '}
+          <code>/trips/new/course</code>, <code>/trips/new/details</code> and the six{' '}
+          <code>/trips/[slug]/setup/*</code> steps were replaced by <code>/trips/new/event</code>;
+          the admin sprawl was replaced by <code>/trips/[slug]/edit</code>. Both render the same{' '}
+          <code>EventBuilder</code> and post to the same action, so create and edit cannot drift.
+        </p>
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+          <strong>Known gap:</strong> the course-library screens (<code>/admin/courses*</code>) went
+          with the sprawl and have no replacement yet. Courses can be picked but not created or
+          edited in the UI; <code>createCourse</code>, <code>updateCourse</code>,{' '}
+          <code>importCourseIntoTrip</code> and the scorecard-extraction actions all still exist and
+          are correct, but nothing renders them. Their redirects now land on{' '}
+          <code>/trips/[slug]/edit</code>.
+        </p>
       </Section>
 
       <Section id="actions" title="7. Server actions — every mutation">
@@ -237,7 +245,8 @@ export default async function DocumentationPage() {
         <Table
           head={['Action', 'File', 'Check', 'Writes', 'Note']}
           rows={[
-            ['createTrip', 'trips.ts', 'requireAuth', 'trips, teams, tripMembers', 'Caller becomes trip_admin of the new trip.'],
+            ['saveEvent', 'save-event.ts', 'requireAuth (create) / isTripAdminOf (edit)', 'trips, teams, tripMembers, rounds, teeTimes, matches, matchParticipants', 'THE write path for setup (§6.3). One payload, create and edit. Nothing writes until submit; writes are ordered trip -> players -> rounds so a partial failure stays editable and names its stage. Validates with validateBuilderState, the same function the builder greys out with. Refuses lineup changes on a scored round and refuses to drop a scored player (§2).'],
+            ['createTrip', 'trips.ts', 'requireAuth', 'trips, teams, tripMembers', 'Caller becomes trip_admin. Superseded by saveEvent for the creation flow; retained for provisioning.'],
             ['updateTrip', 'trips.ts', 'getTripAuthContext(id) + canEditTrip', 'trips', 'Scoped to the specific trip being edited.'],
             ['createPlayer', 'players.ts', 'isTripAdminOf(tripId)', 'tripMembers', 'Supports shell players (email nullable) + linkedUserId.'],
             ['updatePlayer', 'players.ts', 'isTripAdminOf(player.tripId)', 'tripMembers, matchParticipants', 'Derives tripId from row.'],
@@ -260,7 +269,9 @@ export default async function DocumentationPage() {
             ['generateMyArcadePortrait', 'portraits.ts', 'requireAuth', 'users (own row)', ''],
             ['generateArcadePortraitForPlayer', 'portraits.ts', 'isTripAdminOf(member.tripId)', 'users (player\'s row)', ''],
             ['clearArcadePortrait{ForPlayer,My}', 'portraits.ts', 'admin / self', 'users', ''],
-            ['searchUsers', 'users.ts', 'requireAuth', '(read only)', 'Used by admin "add player" picker.'],
+            ['searchUsers', 'users.ts', 'requireAuth', '(read only)', 'Used by the roster picker.'],
+            ['searchPlayersForNewEvent', 'create-event.ts', 'requireAuth', '(read only)', 'Platform-user type-ahead for the builder\'s roster step. No trip exists yet on create, so the only meaningful gate is "are you signed in".'],
+            ['createEventFromForm', 'create-event.ts', 'requireAuth', 'same as saveEvent, single round', 'The single-round predecessor of saveEvent. No longer reachable from the UI; still driven by the harness.'],
           ]}
         />
       </Section>
@@ -343,6 +354,13 @@ export default async function DocumentationPage() {
             ['0018', 'users.username (unique) + city, state, clubName'],
           ]}
         />
+        <p className="mt-3 text-sm text-red-600 dark:text-red-400">
+          This table stops at 0018 and the folder is at 0033 — it has not been maintained. Read{' '}
+          <code>apps/web/db/migrations/</code> for the truth. Most recent:{' '}
+          <code>0033_alternate_shot_format.sql</code>, which adds <code>alternate_shot</code> to the{' '}
+          <code>round_format</code> enum and must be applied before any code offering that format
+          ships.
+        </p>
         <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
           Workflow rule: every migration ships as a standalone SQL block + an <code>INSERT INTO
           drizzle.__drizzle_migrations</code> tracker row. Run in Neon SQL editor, confirm, <em>then</em> push the

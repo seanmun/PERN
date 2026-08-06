@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { asc, eq, isNotNull } from 'drizzle-orm';
-import { CalendarDays, ChevronRight, Sun, User as UserIcon, Users } from 'lucide-react';
+import { CalendarDays, ChevronRight, User as UserIcon } from 'lucide-react';
 import MemberAvatar from '@/components/avatar/MemberAvatar';
 import { db } from '@/db/client';
 import { trips, tripMembers } from '@/db/schema';
@@ -186,26 +186,11 @@ export default async function GlobalMePage() {
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-600">
             Start something new
           </p>
-          <div className="grid grid-cols-3 gap-2">
-            <NewKindButton
-              href="/trips/new?kind=trip"
-              icon={<CalendarDays size={18} strokeWidth={2} />}
-              label="Trip"
-              hint="Multi-day"
-            />
-            <NewKindButton
-              href="/trips/new?kind=outing"
-              icon={<Sun size={18} strokeWidth={2} />}
-              label="Outing"
-              hint="1 day · groups"
-            />
-            <NewKindButton
-              href="/trips/new?kind=match"
-              icon={<Users size={18} strokeWidth={2} />}
-              label="Match"
-              hint="2–4 players"
-            />
-          </div>
+          {/* One entrance, because kind is derived and never asked
+              (§6.3): a match, an outing and a trip are the same builder
+              with more rounds in it. Three buttons that all opened the
+              same screen only promised three flows that don't exist. */}
+          <NewEventButton />
 
           {currentMemberships.length === 0 ? (
             <div className="rounded-sm border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 p-6 text-center">
@@ -306,29 +291,23 @@ export default async function GlobalMePage() {
   );
 }
 
-function NewKindButton({
-  href,
-  icon,
-  label,
-  hint,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-  hint: string;
-}) {
+function NewEventButton() {
   return (
     <Link
-      href={href}
-      className="flex flex-col items-center justify-center gap-1 rounded-sm border border-dashed border-yellow-500/40 bg-zinc-50 dark:bg-zinc-950/40 p-3 text-center transition-colors hover:border-yellow-500/70 hover:bg-yellow-500/5"
+      href="/trips/new/event"
+      className="flex items-center justify-center gap-2 rounded-sm border border-dashed border-yellow-500/40 bg-zinc-50 p-4 text-center transition-colors hover:border-yellow-500/70 hover:bg-yellow-500/5 dark:bg-zinc-950/40"
     >
-      <span className="text-yellow-800 dark:text-yellow-500">{icon}</span>
-      <p className="font-mono text-[11px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-400">
-        {label}
-      </p>
-      <p className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">
-        {hint}
-      </p>
+      <CalendarDays
+        size={18}
+        strokeWidth={2}
+        className="text-yellow-800 dark:text-yellow-500"
+      />
+      <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-400">
+        Set up an event
+      </span>
+      <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">
+        match · outing · trip
+      </span>
     </Link>
   );
 }

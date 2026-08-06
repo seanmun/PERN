@@ -124,10 +124,9 @@ export async function createPlayer(formData: FormData): Promise<void> {
   // Roster changes touch every setup screen (teams, groups,
   // matches) — revalidate the whole trip subtree, not one page.
   revalidatePath(`/trips/${tripSlug}`, 'layout');
-  // Event-creation wizard reuses this action from its Players step and
-  // stays in place ("none") instead of navigating to the classic
-  // admin/players page. Absent for every other caller — unchanged.
-  const dest = resolveRedirect(formData, `/trips/${tripSlug}/admin/players`);
+  // The roster now lives in the round-builder's edit mode (§10), which
+  // is where a caller with no `redirectTo` of its own belongs.
+  const dest = resolveRedirect(formData, `/trips/${tripSlug}/edit`);
   if (dest) redirect(dest);
 }
 
@@ -314,7 +313,7 @@ export async function addBuddyToTrip(formData: FormData): Promise<void> {
   }
 
   // Resolve email from the user row so the buddy can be invited later
-  // from /admin/players without admin re-typing it.
+  // from the builder's roster without admin re-typing it.
   const [buddy] = await db
     .select({ email: users.email, displayName: users.displayName, fullName: users.fullName })
     .from(users)
@@ -471,7 +470,7 @@ export async function updatePlayer(formData: FormData): Promise<void> {
   // Clear every cached page under this trip — the team change cascades into
   // match-detail, team-roster, profile, schedule, scoreboard, and feed.
   revalidatePath(`/trips/${tripSlug}`, 'layout');
-  redirect(`/trips/${tripSlug}/admin/players`);
+  redirect(`/trips/${tripSlug}/edit`);
 }
 
 /**
@@ -519,9 +518,8 @@ export async function deletePlayer(formData: FormData): Promise<void> {
 
   const tripSlug = await getTripSlugById(existing.tripId);
   revalidatePath(`/trips/${tripSlug}`, 'layout');
-  // Event-creation wizard's Players step reuses this action as an
-  // "undo add" and stays in place ("none"). Absent for every other
-  // caller — unchanged.
-  const dest = resolveRedirect(formData, `/trips/${tripSlug}/admin/players`);
+  // Callers that want to stay put still pass `redirectTo=none`; anything
+  // else lands on the roster's one surface, the builder in edit mode.
+  const dest = resolveRedirect(formData, `/trips/${tripSlug}/edit`);
   if (dest) redirect(dest);
 }

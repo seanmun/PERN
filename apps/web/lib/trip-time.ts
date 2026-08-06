@@ -54,12 +54,23 @@ export function tripWallTimeToDate(wall: string): Date {
   return new Date(naive.getTime() - tzOffsetMs(guess, TRIP_TZ));
 }
 
-/** Today's date ("YYYY-MM-DD") on the trip's wall clock. */
-export function tripLocalToday(): string {
+/**
+ * The day ("YYYY-MM-DD") an instant falls on, on the trip's wall clock —
+ * the inverse of `tripWallTimeToDate`, and the shape `<input type="date">`
+ * wants back. Formatting a stored timestamp with the machine's zone
+ * instead put a Pinehurst 8am tee time on the previous day west of
+ * Eastern.
+ */
+export function tripWallDay(d: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: TRIP_TZ,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(new Date());
+  }).format(d);
+}
+
+/** Today's date ("YYYY-MM-DD") on the trip's wall clock. */
+export function tripLocalToday(): string {
+  return tripWallDay(new Date());
 }

@@ -580,12 +580,9 @@ export async function createMatchFromBuilder(formData: FormData): Promise<void> 
     );
   }
 
-  revalidatePath(`/trips/${tripSlug}/schedule`);
-  revalidatePath(`/trips/${tripSlug}/setup/matches`);
-  // Event-creation wizard's Matches step reuses this action and stays in
-  // place ("none") so the newly-created match appears in the same page
-  // render instead of navigating to the match detail page. Absent for
-  // every other caller (the standalone match builder) — unchanged.
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
+  // Callers that want to stay put still pass `redirectTo=none`; the
+  // standalone match builder takes the default and goes to the match.
   const dest = resolveRedirect(formData, `/trips/${tripSlug}/matches/${match.id}`);
   if (dest) redirect(dest);
 }

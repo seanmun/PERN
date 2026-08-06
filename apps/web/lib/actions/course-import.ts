@@ -49,10 +49,10 @@ export async function importCourseFromGolfCourseApi(
   }
 
   const tripSlug = await getTripSlugById(tripId);
-  const courseId = await importCourse(apiCourseId);
+  await importCourse(apiCourseId);
 
-  revalidatePath(`/trips/${tripSlug}/admin/courses`);
-  redirect(`/trips/${tripSlug}/admin/courses/${courseId}/edit`);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
+  redirect(`/trips/${tripSlug}/edit`);
 }
 
 /**

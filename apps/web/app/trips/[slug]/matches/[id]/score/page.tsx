@@ -214,12 +214,16 @@ export default async function ScoreEntryPage({
             {data.course.name} doesn&apos;t have par / yardage / stroke-index
             for its 18 holes yet, so scores can&apos;t be entered.
           </p>
+          {/* The course-library screens went with the /admin/* sprawl
+              (§10) and their replacement is not built yet, so the remedy
+              on offer is the one that exists: move the round to a course
+              that has its card. */}
           {isAdmin && (
             <Link
-              href={`/trips/${slug}/admin/courses`}
+              href={`/trips/${slug}/edit`}
               className="mt-4 inline-flex items-center gap-1.5 rounded-sm border border-yellow-500/50 bg-yellow-500/10 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
             >
-              Add hole data
+              Change the course
             </Link>
           )}
         </div>

@@ -142,7 +142,7 @@ export async function createCourse(formData: FormData): Promise<void> {
 
   const scorecardImageUrl = trim(formData.get('scorecardImageUrl'));
 
-  const [created] = await db
+  await db
     .insert(courses)
     .values({
       name,
@@ -153,18 +153,16 @@ export async function createCourse(formData: FormData): Promise<void> {
       totalPar: intOrNull(formData.get('totalPar')),
       imageUrl: trim(formData.get('imageUrl')),
       scorecardImageUrl,
-    })
-    .returning();
+    });
 
   const tripSlug = await getTripSlugById(tripId);
-  revalidatePath(`/trips/${tripSlug}/admin/courses`);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
 
-  // Same convention as every other wizard-reused action — raw reading
-  // here would redirect() to the literal string "none".
-  const dest = resolveRedirect(
-    formData,
-    `/trips/${tripSlug}/admin/courses/${created.id}/edit`,
-  );
+  // The course-library screens went with the /admin/* sprawl (§10) and
+  // their replacement is not built yet, so a new course lands where a
+  // course is actually consumed: the round-builder. Raw reading here
+  // would redirect() to the literal string "none".
+  const dest = resolveRedirect(formData, `/trips/${tripSlug}/edit`);
   if (dest) redirect(dest);
 }
 
@@ -203,10 +201,8 @@ export async function updateCourse(formData: FormData): Promise<void> {
     .where(eq(courses.id, id));
 
   const tripSlug = await getTripSlugById(tripId);
-  revalidatePath(`/trips/${tripSlug}/schedule`);
-  revalidatePath(`/trips/${tripSlug}/admin/courses`);
-  revalidatePath(`/trips/${tripSlug}/admin/courses/${id}/edit`);
-  redirect(`/trips/${tripSlug}/admin/courses/${id}/edit`);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
+  redirect(`/trips/${tripSlug}/edit`);
 }
 
 /**
@@ -262,8 +258,7 @@ export async function setDefaultTee(formData: FormData): Promise<void> {
   }
 
   const tripSlug = await getTripSlugById(tripId);
-  revalidatePath(`/trips/${tripSlug}/admin/courses/${courseId}/edit`);
-  revalidatePath(`/trips/${tripSlug}/admin/courses`);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
 }
 
 /**
@@ -314,8 +309,7 @@ export async function updateTeeRating(formData: FormData): Promise<void> {
     .where(eq(courseTees.id, teeId));
 
   const tripSlug = await getTripSlugById(tripId);
-  revalidatePath(`/trips/${tripSlug}/admin/courses/${courseId}/edit`);
-  revalidatePath(`/trips/${tripSlug}/admin/courses`);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
 }
 
 /**
@@ -340,8 +334,7 @@ export async function reextractScorecard(formData: FormData): Promise<void> {
   await extractAndPopulateScorecard(courseId, course.scorecardImageUrl);
 
   const tripSlug = await getTripSlugById(tripId);
-  revalidatePath(`/trips/${tripSlug}/admin/courses`);
-  revalidatePath(`/trips/${tripSlug}/admin/courses/${courseId}/edit`);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
 }
 
 /**
@@ -384,7 +377,6 @@ export async function updateCourseHole(formData: FormData): Promise<void> {
     .where(eq(courseHoles.id, id));
 
   const tripSlug = await getTripSlugById(tripId);
-  revalidatePath(`/trips/${tripSlug}/admin/courses/${hole.courseId}/edit`);
   // Score-entry pages embed courseHoles snapshot data; bump the schedule and
   // any in-progress match pages so they re-render with the corrected par.
   revalidatePath(`/trips/${tripSlug}/schedule`, 'layout');

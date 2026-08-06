@@ -81,21 +81,12 @@ export async function createTeeTime(formData: FormData): Promise<void> {
   await syncTripKind(round.tripId);
 
   const tripSlug = await getTripSlugById(round.tripId);
-  revalidatePath(`/trips/${tripSlug}/schedule`);
-  revalidatePath(`/trips/${tripSlug}/admin/rounds/${roundId}/edit`);
-  revalidatePath(`/trips/${tripSlug}/setup/groups`);
-  // The match builder reads this roster to know who's in which foursome —
-  // without this it can render a payload built before the roster existed
-  // and show everyone as ungrouped.
-  revalidatePath(`/trips/${tripSlug}/setup/matches`);
-  revalidatePath(`/trips/${tripSlug}/matches/new`);
-  // Event-creation wizard's Groups step reuses this action and stays in
-  // place ("none") so the freshly-created group appears in the same
-  // page render. Absent for every other caller — unchanged.
-  const dest = resolveRedirect(
-    formData,
-    `/trips/${tripSlug}/admin/rounds/${roundId}/edit`,
-  );
+  // Groups are read by the schedule, the builder and the match builder;
+  // bump the whole trip subtree rather than chase each page.
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
+  // Callers that want to stay put still pass `redirectTo=none`; anything
+  // else lands where groups now live, the builder in edit mode.
+  const dest = resolveRedirect(formData, `/trips/${tripSlug}/edit`);
   if (dest) redirect(dest);
 }
 
@@ -125,9 +116,9 @@ export async function updateTeeTime(formData: FormData): Promise<void> {
     .where(eq(teeTimes.id, id));
 
   const tripSlug = await getTripSlugById(existing.round.tripId);
-  revalidatePath(`/trips/${tripSlug}/schedule`);
-  revalidatePath(`/trips/${tripSlug}/admin/rounds/${existing.teeTime.roundId}/edit`);
-  redirect(`/trips/${tripSlug}/admin/rounds/${existing.teeTime.roundId}/edit`);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
+  // Tee times are shown on the schedule; that is where a caller lands.
+  redirect(`/trips/${tripSlug}/schedule`);
 }
 
 /**
@@ -174,9 +165,7 @@ export async function updateTeeTimeField(formData: FormData): Promise<void> {
   await db.update(teeTimes).set(patch).where(eq(teeTimes.id, id));
 
   const tripSlug = await getTripSlugById(row.round.tripId);
-  revalidatePath(`/trips/${tripSlug}/schedule`);
-  revalidatePath(`/trips/${tripSlug}/admin/rounds/${row.round.id}/edit`);
-  revalidatePath(`/trips/${tripSlug}/admin/tee-times/${id}/edit`);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
 }
 
 /**
@@ -234,23 +223,12 @@ export async function updateTeeTimeRoster(formData: FormData): Promise<void> {
   }
 
   const tripSlug = await getTripSlugById(row.round.tripId);
-  revalidatePath(`/trips/${tripSlug}/admin/rounds/${row.round.id}/edit`);
-  revalidatePath(`/trips/${tripSlug}/admin/tee-times/${teeTimeId}/edit`);
-  revalidatePath(`/trips/${tripSlug}/tee-times/${teeTimeId}/score`);
-  revalidatePath(`/trips/${tripSlug}/schedule`);
-  revalidatePath(`/trips/${tripSlug}/setup/groups`);
-  // The match builder reads this roster to know who's in which foursome —
-  // without this it can render a payload built before the roster existed
-  // and show everyone as ungrouped.
-  revalidatePath(`/trips/${tripSlug}/setup/matches`);
-  revalidatePath(`/trips/${tripSlug}/matches/new`);
-  // Event-creation wizard's Groups step reuses this action and stays in
-  // place ("none") instead of navigating to the classic round-edit page.
-  // Absent for every other caller — unchanged.
-  const dest = resolveRedirect(
-    formData,
-    `/trips/${tripSlug}/admin/rounds/${row.round.id}/edit`,
-  );
+  // Who is in which foursome is read by score entry, the schedule and
+  // the match builder — bump the whole trip subtree.
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
+  // Callers that want to stay put still pass `redirectTo=none`; anything
+  // else lands where groups now live, the builder in edit mode.
+  const dest = resolveRedirect(formData, `/trips/${tripSlug}/edit`);
   if (dest) redirect(dest);
 }
 
@@ -276,9 +254,6 @@ export async function deleteTeeTime(formData: FormData): Promise<void> {
   await syncTripKind(existing.round.tripId);
 
   const tripSlug = await getTripSlugById(existing.round.tripId);
-  revalidatePath(`/trips/${tripSlug}/schedule`);
-  revalidatePath(`/trips/${tripSlug}/setup/groups`);
-  revalidatePath(`/trips/${tripSlug}/setup/matches`);
-  revalidatePath(`/trips/${tripSlug}/admin/rounds/${existing.teeTime.roundId}/edit`);
-  redirect(`/trips/${tripSlug}/admin/rounds/${existing.teeTime.roundId}/edit`);
+  revalidatePath(`/trips/${tripSlug}`, 'layout');
+  redirect(`/trips/${tripSlug}/edit`);
 }

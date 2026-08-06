@@ -116,7 +116,7 @@ export async function sendPlayerInvite(formData: FormData): Promise<void> {
     throw new Error(`Email failed: ${error.message}`);
   }
 
-  revalidatePath(`/trips/${row.trip.slug}/admin/players`);
+  revalidatePath(`/trips/${row.trip.slug}`, 'layout');
 }
 
 /**

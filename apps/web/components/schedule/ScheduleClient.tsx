@@ -184,7 +184,7 @@ export default function ScheduleClient({
               </p>
               <div className="mt-6 flex flex-col items-stretch gap-2 sm:flex-row sm:justify-center">
                 <Link
-                  href={`/trips/${tripSlug}/admin/rounds/new`}
+                  href={`/trips/${tripSlug}/edit`}
                   className="inline-flex items-center justify-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-4 py-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
                 >
                   <Plus size={12} strokeWidth={2.5} />
@@ -224,7 +224,7 @@ export default function ScheduleClient({
       {canEdit && (
         <div className="mb-6 flex justify-end gap-2">
           <Link
-            href={`/trips/${tripSlug}/admin/rounds/new`}
+            href={`/trips/${tripSlug}/edit`}
             className="flex items-center gap-1.5 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-yellow-800 dark:text-yellow-300 hover:bg-yellow-500/20"
           >
             <Plus size={12} strokeWidth={2.5} />
@@ -430,7 +430,9 @@ function EmptyRoundRow({
   tripSlug: string;
   canEdit?: boolean;
 }) {
-  const editHref = `/trips/${tripSlug}/admin/rounds/${item.roundId}/edit`;
+  // A shell round is promoted through the same builder that made it
+  // (§6.2) — there is no separate round-edit screen any more.
+  const editHref = `/trips/${tripSlug}/edit`;
   const formatLabel = (fmt: ClientEmptyRoundItem['roundFormat']): string => {
     switch (fmt) {
       case 'best_ball': return 'Best Ball';

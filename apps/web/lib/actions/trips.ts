@@ -98,17 +98,13 @@ export async function createTrip(formData: FormData): Promise<void> {
   });
 
   revalidatePath('/home');
-  // Optional override so the event-creation wizard can land the admin on
-  // its own next step instead of the classic admin/players page. Absent
-  // for every existing caller — default behavior is unchanged.
-  // The wizard can't know the final slug (it may have been suffixed), so
-  // it asks for its next step by name and the redirect is built HERE from
-  // the slug that actually exists. A client-computed path 404'd the moment
-  // the server changed the slug.
-  if (trim(formData.get('next')) === 'setup-players') {
-    redirect(`/trips/${slug}/setup/players`);
-  }
-  const dest = resolveRedirect(formData, `/trips/${slug}/admin/players`);
+  // The wizard's `next=setup-players` hop is gone with the wizard (§10).
+  // Everything structural now lands in the one round-builder, in edit
+  // mode; the caller can still override with `redirectTo`.
+  // The slug may have been suffixed, so the destination is built HERE
+  // from the slug that actually exists — a client-computed path 404'd the
+  // moment the server changed it.
+  const dest = resolveRedirect(formData, `/trips/${slug}/edit`);
   if (dest) redirect(dest);
 }
 
@@ -165,7 +161,7 @@ export async function updateTrip(formData: FormData): Promise<void> {
 
   revalidatePath('/home');
   revalidatePath(`/trips/${existing.slug}`, 'layout');
-  redirect(`/trips/${existing.slug}/setup/details`);
+  redirect(`/trips/${existing.slug}/edit`);
 }
 
 /**

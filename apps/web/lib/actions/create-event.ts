@@ -131,7 +131,7 @@ function fail(stage: string, slug: string | null, err: unknown): never {
   const detail = err instanceof Error ? err.message : String(err);
   if (slug) {
     throw new Error(
-      `The event was created, but ${stage} failed: ${detail} — open /trips/${slug}/setup/players to finish it by hand.`,
+      `The event was created, but ${stage} failed: ${detail} — reopen /trips/${slug}/edit to finish it.`,
     );
   }
   throw new Error(`Could not create the event — ${stage} failed: ${detail}`);
